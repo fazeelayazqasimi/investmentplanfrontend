@@ -1,0 +1,108 @@
+:root {
+  /* ==========================================
+     BRAND PALETTE — strictly RED / WHITE / BLACK / GREY
+     ========================================== */
+  --color-primary: #d32f2f;
+  --color-primary-dark: #b71c1c;
+  --color-primary-soft: #fdecea;
+  --color-primary-border: #f5c6c6;
+
+  --color-success: #2e7d32;
+  --color-success-soft: #eaf3ea;
+  --color-warning: #8a6d00;
+  --color-warning-soft: #fbf6e7;
+  --color-danger: #b71c1c;
+  --color-danger-soft: #fdecea;
+
+  /* ==========================================
+     BACKGROUND / SURFACE
+     ========================================== */
+  --color-bg: #f5f6f7;
+  --color-bg-alt: #eef0f2;
+  --color-surface: #ffffff;
+  --color-surface-muted: #fafbfc;
+
+  /* ==========================================
+     TEXT
+     ========================================== */
+  --color-text: #1a1c1e;
+  --color-text-muted: #5b6168;
+  --color-text-light: #8a9099;
+  --color-text-on-primary: #ffffff;
+  --color-text-on-dark: #1a1c1e;
+
+  /* ==========================================
+     BORDERS
+     ========================================== */
+  --color-border: #e3e6ea;
+  --color-border-light: #eef0f3;
+  --color-border-strong: #d4d8dd;
+  --color-border-focus: var(--color-primary);
+
+  /* ==========================================
+     SIDEBAR / NAVBAR (white / black / grey)
+     ========================================== */
+  --sidebar-bg: #ffffff;
+  --sidebar-text: #3a3f45;
+  --sidebar-text-muted: #8a9099;
+  --sidebar-active-bg: var(--color-primary-soft);
+  --sidebar-active-text: var(--color-primary-dark);
+  --sidebar-border: var(--color-border);
+  --navbar-bg: #ffffff;
+  --navbar-border: var(--color-border);
+  --navbar-text: var(--color-text);
+
+  /* ==========================================
+     CHARTS (red / grey scale)
+     ========================================== */
+  --chart-color-1: #d32f2f;
+  --chart-color-2: #b0b6bd;
+  --chart-color-3: #6b7178;
+  --chart-color-4: #8a9099;
+  --chart-color-5: #c9ced3;
+  --chart-color-6: #e3e6ea;
+  --chart-grid: #eceef1;
+
+  /* ==========================================
+     SHADOWS — used ONLY for overlays/modals
+     ========================================== */
+  --shadow-sm: 0 1px 2px rgba(20, 22, 25, 0.04);
+  --shadow-modal: 0 8px 28px rgba(20, 22, 25, 0.18);
+
+  /* ==========================================
+     RADIUS (modest)
+     ========================================== */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 999px;
+
+  /* ==========================================
+     SPACING
+     ========================================== */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 40px;
+
+  /* ==========================================
+     TRANSITIONS
+     ========================================== */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+
+  /* ==========================================
+     TYPOGRAPHY
+     ========================================== */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 15px;
+  --font-size-lg: 18px;
+  --font-size-xl: 22px;
+  --font-size-2xl: 26px;
+}
