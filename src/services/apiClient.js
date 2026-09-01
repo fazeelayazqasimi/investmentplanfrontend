@@ -2,7 +2,17 @@ import axios from 'axios';
 
 const TOKEN_KEY = 'investment_platform_token';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Backend API base URL (configurable per environment).
+// Priority:
+//   1. VITE_API_URL (set in .env locally and in Vercel project env vars)
+//   2. On the Vercel frontend domain, fall back to the deployed backend
+//   3. Otherwise (local dev) use the relative /api path handled by the Vite proxy
+const PROD_API_URL = 'https://investmentplanbackend.vercel.app/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname.endsWith('vercel.app')
+    ? PROD_API_URL
+    : '/api');
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
