@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, LineChart, ArrowDownToLine, ArrowUpFromLine, Receipt,
-  Percent, Share2, FileBarChart, Settings, LogOut, Loader2, AlertCircle,
-  Search, X, Check, Eye, TrendingUp, Wallet, ArrowLeftRight, UserPlus,
+  Percent, Share2, FileBarChart, Settings, LogOut, Search, Menu,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import apiClient, {
@@ -11,114 +10,40 @@ import apiClient, {
   getAdminTransactions, getAdminSettings, updateAdminSettings, processRoi,
   getPendingDeposits, approveDeposit, rejectDeposit,
 } from '../services/apiClient';
+import {
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  CartesianGrid, XAxis, YAxis, Tooltip,
+} from 'recharts';
+import Spinner from '../components/Spinner';
+import ErrorBox from '../components/ErrorBox';
+import EmptyState from '../components/EmptyState';
+import Modal from '../components/Modal';
+import StatusBadge from '../components/StatusBadge';
+import ConfirmDialog from '../components/ConfirmDialog';
+import useToast from '../components/useToast';
 
-const CHART_COLORS = ['#d32f2f', '#b0b6bd', '#6b7178', '#8a9099', '#c9ced3', '#e3e6ea'];
+const CHART_COLORS = ['#2563eb', '#7c3aed', '#059669', '#d97706', '#dc2626', '#0891b2'];
 
 const fmt = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-');
-const fmtDateTime = (d) => (d ? new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-');
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
+const fmtDateTime = (d) => (d ? new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
 
-/* ---------- Shared UI helpers ---------- */
-function Spinner({ label }) {
-  return <div className="center-spinner"><Loader2 size={20} className="spin" /> {label}</div>;
-}
-function ErrorBox({ msg }) {
-  return <div className="error-box"><AlertCircle size={18} /> {msg}</div>;
-}
-function EmptyState({ title, sub }) {
-  return (
-    <div className="empty-state">
-      <AlertCircle size={28} />
-      <h3>{title}</h3>
-      {sub && <p>{sub}</p>}
-    </div>
-  );
-}
-function Modal({ title, children, footer, onClose }) {
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>{title}</span>
-          <button className="btn-ghost btn-sm" onClick={onClose} style={{ border: 'none' }}><X size={16} /></button>
-        </div>
-        <div className="modal-body">{children}</div>
-        {footer && <div className="modal-footer">{footer}</div>}
-      </div>
-    </div>
-  );
-}
-function statusBadge(status) {
-  const map = {
-    ACTIVE: 'badge-success', COMPLETED: 'badge-success', PENDING: 'badge-warning',
-    REJECTED: 'badge-danger', CANCELLED: 'badge-danger', SUSPENDED: 'badge-warning',
-    INACTIVE: 'badge-muted', FAILED: 'badge-danger', REVERSED: 'badge-muted',
-  };
-  return <span className={`badge ${map[status] || 'badge-muted'}`}>{status}</span>;
+function ResponsiveContainerWrap({ height, children }) {
+  return <ResponsiveContainer width="100%" height={height}>{children}</ResponsiveContainer>;
 }
 
 /* ---------- Sidebar structure ---------- */
 const NAV = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard, to: '/admin/overview' },
-  {
-    key: 'users', label: 'Users', icon: Users, to: '/admin/users', children: [
-      { label: 'All Users', to: '/admin/users' },
-      { label: 'Active Users', to: '/admin/users?status=ACTIVE' },
-      { label: 'Suspended Users', to: '/admin/users?status=SUSPENDED' },
-    ],
-  },
-  {
-    key: 'investments', label: 'Investments', icon: LineChart, to: '/admin/investments', children: [
-      { label: 'All Investments', to: '/admin/investments' },
-      { label: 'Active', to: '/admin/investments?status=ACTIVE' },
-      { label: 'Completed', to: '/admin/investments?status=COMPLETED' },
-    ],
-  },
-  {
-    key: 'deposits', label: 'Deposits', icon: ArrowDownToLine, to: '/admin/deposits?status=PENDING', children: [
-      { label: 'Pending', to: '/admin/deposits?status=PENDING' },
-      { label: 'Approved', to: '/admin/deposits?status=COMPLETED' },
-      { label: 'Rejected', to: '/admin/deposits?status=REJECTED' },
-    ],
-  },
-  {
-    key: 'withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine, to: '/admin/withdrawals', children: [
-      { label: 'Pending', to: '/admin/withdrawals?status=PENDING' },
-      { label: 'Approved', to: '/admin/withdrawals?status=COMPLETED' },
-      { label: 'Rejected', to: '/admin/withdrawals?status=REJECTED' },
-    ],
-  },
-  {
-    key: 'transactions', label: 'Transactions', icon: Receipt, to: '/admin/transactions', children: [
-      { label: 'All', to: '/admin/transactions' },
-      { label: 'Deposits', to: '/admin/transactions?type=DEPOSIT' },
-      { label: 'Investments', to: '/admin/transactions?type=INVESTMENT' },
-      { label: 'ROI', to: '/admin/transactions?type=ROI' },
-      { label: 'Commissions', to: '/admin/transactions?type=COMMISSION' },
-    ],
-  },
-  {
-    key: 'roi', label: 'ROI Management', icon: Percent, to: '/admin/roi', children: [
-      { label: 'ROI Overview', to: '/admin/roi' },
-      { label: 'ROI History', to: '/admin/roi?tab=history' },
-      { label: 'ROI Settings', to: '/admin/settings?tab=roi' },
-    ],
-  },
-  {
-    key: 'referrals', label: 'Referral / MLM', icon: Share2, to: '/admin/referrals', children: [
-      { label: 'Referral Overview', to: '/admin/referrals' },
-      { label: 'Commissions', to: '/admin/referrals?tab=commissions' },
-    ],
-  },
+  { key: 'users', label: 'Users', icon: Users, to: '/admin/users' },
+  { key: 'investments', label: 'Investments', icon: LineChart, to: '/admin/investments' },
+  { key: 'deposits', label: 'Deposits', icon: ArrowDownToLine, to: '/admin/deposits?status=PENDING' },
+  { key: 'withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine, to: '/admin/withdrawals' },
+  { key: 'transactions', label: 'Transactions', icon: Receipt, to: '/admin/transactions' },
+  { key: 'roi', label: 'ROI Management', icon: Percent, to: '/admin/roi' },
+  { key: 'referrals', label: 'Referral / MLM', icon: Share2, to: '/admin/referrals' },
   { key: 'reports', label: 'Reports', icon: FileBarChart, to: '/admin/reports' },
-  {
-    key: 'settings', label: 'Settings', icon: Settings, to: '/admin/settings?tab=general', children: [
-      { label: 'General', to: '/admin/settings?tab=general' },
-      { label: 'Investment Plans', to: '/admin/settings?tab=plans' },
-      { label: 'ROI Settings', to: '/admin/settings?tab=roi' },
-      { label: 'Platform', to: '/admin/settings?tab=platform' },
-    ],
-  },
+  { key: 'settings', label: 'Settings', icon: Settings, to: '/admin/settings' },
 ];
 
 /* =========================================================
@@ -129,64 +54,87 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const page = location.pathname.split('/')[2] || 'overview';
-  const current = `${location.pathname}${location.search}`;
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { ToastContainer, success, error: toastError } = useToast();
 
   const handleLogout = async () => { await logout(); navigate('/login', { replace: true }); };
+  const closeSidebar = () => setSidebarOpen(false);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname, location.search]);
 
   return (
-    <div className="dashboard-container">
-      <aside className="dashboard-nav">
-        <div className="nav-header"><LayoutDashboard size={22} className="nav-icon" /> <span>Admin Panel</span></div>
-        <ul>
+    <div className="dashboard-layout">
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-logo"><LayoutDashboard size={20} /></div>
+          <div>
+            <div className="sidebar-title">Admin Panel</div>
+            <div className="sidebar-subtitle">Platform Management</div>
+          </div>
+        </div>
+        <nav className="sidebar-nav">
           {NAV.map((item) => {
             const Icon = item.icon;
             const active = page === item.key;
             return (
-              <li key={item.key}>
-                <Link to={item.to} className={active ? 'active' : ''}><Icon size={18} /> {item.label}</Link>
-                {active && item.children && (
-                  <ul style={{ margin: '2px 0 6px', paddingLeft: 30 }}>
-                    {item.children.map((c) => (
-                      <li key={c.to}>
-                        <Link to={c.to} className={current === c.to ? 'active' : ''}
-                          style={{ fontSize: 13, padding: '7px 10px' }}>{c.label}</Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
+              <Link
+                key={item.key}
+                to={item.to}
+                className={`sidebar-item ${active ? 'active' : ''}`}
+                onClick={closeSidebar}
+              >
+                <Icon size={20} className="sidebar-item-icon" />
+                <span className="sidebar-item-label">{item.label}</span>
+              </Link>
             );
           })}
-          <li><button onClick={handleLogout} className="logout-btn"><LogOut size={18} /> Logout</button></li>
-        </ul>
-        <div className="nav-footer">
-          <div className="nav-avatar">{user?.name?.charAt(0) || 'A'}</div>
-          <div>
-            <div className="nav-name">{user?.name}</div>
-            <div className="nav-role">Administrator</div>
+          <button onClick={() => { handleLogout(); closeSidebar(); }} className="sidebar-item" style={{ marginTop: 'var(--space-4)' }}>
+            <LogOut size={20} className="sidebar-item-icon" />
+            <span className="sidebar-item-label">Logout</span>
+          </button>
+        </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="sidebar-avatar">{user?.name?.charAt(0) || 'A'}</div>
+            <div className="sidebar-user-info">
+              <div className="sidebar-user-name">{user?.name}</div>
+              <div className="sidebar-user-role">Administrator</div>
+            </div>
           </div>
         </div>
       </aside>
 
-      <main className="dashboard-main">
-        <header className="page-header">
-          <div>
-            <h1>{NAV.find((n) => n.key === page)?.label || 'Dashboard'}</h1>
-            <p className="page-subtitle">Platform management &amp; controls</p>
+      <div className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`} onClick={closeSidebar} />
+
+      <div className="dashboard-content">
+        <header className="topbar">
+          <div className="topbar-left">
+            <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+              <Menu size={20} />
+            </button>
+            <div>
+              <div className="topbar-title">{NAV.find((n) => n.key === page)?.label || 'Dashboard'}</div>
+              <div className="topbar-subtitle">Platform management &amp; controls</div>
+            </div>
           </div>
         </header>
 
-        {page === 'overview' && <AdminOverview />}
-        {page === 'users' && <AdminUsers />}
-        {page === 'investments' && <AdminInvestments />}
-        {page === 'deposits' && <AdminDeposits />}
-        {page === 'withdrawals' && <AdminWithdrawals />}
-        {page === 'transactions' && <AdminTransactions />}
-        {page === 'roi' && <AdminRoi />}
-        {page === 'referrals' && <AdminReferrals />}
-        {page === 'reports' && <AdminReports />}
-        {page === 'settings' && <AdminSettings />}
-      </main>
+        <div className="page-content slide-up">
+          {page === 'overview' && <AdminOverview toastSuccess={success} toastError={toastError} />}
+          {page === 'users' && <AdminUsers toastSuccess={success} toastError={toastError} />}
+          {page === 'investments' && <AdminInvestments />}
+          {page === 'deposits' && <AdminDeposits toastSuccess={success} toastError={toastError} />}
+          {page === 'withdrawals' && <AdminWithdrawals />}
+          {page === 'transactions' && <AdminTransactions />}
+          {page === 'roi' && <AdminRoi toastSuccess={success} toastError={toastError} />}
+          {page === 'referrals' && <AdminReferrals />}
+          {page === 'reports' && <AdminReports />}
+          {page === 'settings' && <AdminSettings toastSuccess={success} toastError={toastError} />}
+        </div>
+      </div>
+      <ToastContainer />
     </div>
   );
 }
@@ -212,30 +160,32 @@ function AdminOverview() {
   }, []);
 
   if (loading) return <Spinner label="Loading overview..." />;
-  if (error) return <ErrorBox msg={error} />;
+  if (error) return <ErrorBox message={error} />;
 
   const cards = [
-    { label: 'Total Users', value: stats.totalUsers },
-    { label: 'Pending Deposits', value: stats.pendingDeposits },
-    { label: 'Total Deposited', value: fmt(stats.totalDeposited) },
-    { label: 'Total Invested', value: fmt(stats.totalInvested) },
-    { label: 'Active Investments', value: stats.activeInvestments },
-    { label: 'Total ROI Paid', value: fmt(stats.totalRoiDistributed) },
+    { label: 'Total Users', value: stats.totalUsers, color: 'blue' },
+    { label: 'Pending Deposits', value: stats.pendingDeposits, color: 'yellow' },
+    { label: 'Total Deposited', value: fmt(stats.totalDeposited), color: 'green' },
+    { label: 'Total Invested', value: fmt(stats.totalInvested), color: 'purple' },
+    { label: 'Active Investments', value: stats.activeInvestments, color: 'teal' },
+    { label: 'Total ROI Paid', value: fmt(stats.totalRoiDistributed), color: 'red' },
   ];
 
   return (
     <div>
       <div className="stats-grid">
         {cards.map((c) => (
-          <div className="stat-card" key={c.label}>
-            <div><div className="stat-value">{c.value}</div><div className="stat-label">{c.label}</div></div>
+          <div className={`stat-card stat-icon-${c.color}`} key={c.label}>
+            <div className="stat-icon" />
+            <div className="stat-value">{c.value}</div>
+            <div className="stat-label">{c.label}</div>
           </div>
         ))}
       </div>
 
       <div className="charts-grid">
         <div className="chart-card">
-          <h3>Signup Trend (6 months)</h3>
+          <div className="chart-card-header"><h3>Signup Trend (6 months)</h3></div>
           <ResponsiveContainerWrap height={240}>
             <AreaChart data={stats.signupTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
@@ -247,7 +197,7 @@ function AdminOverview() {
           </ResponsiveContainerWrap>
         </div>
         <div className="chart-card">
-          <h3>Users vs Admins</h3>
+          <div className="chart-card-header"><h3>Users vs Admins</h3></div>
           <ResponsiveContainerWrap height={240}>
             <PieChart>
               <Pie data={stats.usersVsAdmins} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} paddingAngle={3}>
@@ -264,7 +214,7 @@ function AdminOverview() {
 
       <div className="charts-grid">
         <div className="chart-card">
-          <h3>Deposit vs Investment Trend</h3>
+          <div className="chart-card-header"><h3>Deposit vs Investment Trend</h3></div>
           <ResponsiveContainerWrap height={240}>
             <BarChart data={stats.depositTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
@@ -277,7 +227,7 @@ function AdminOverview() {
           </ResponsiveContainerWrap>
         </div>
         <div className="chart-card">
-          <h3>ROI Distributed</h3>
+          <div className="chart-card-header"><h3>ROI Distributed</h3></div>
           <ResponsiveContainerWrap height={240}>
             <BarChart data={stats.roiDistribution}>
               <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
@@ -298,10 +248,10 @@ function AdminOverview() {
             <tbody>
               {pending.slice(0, 6).map((d) => (
                 <tr key={d._id}>
-                  <td className="cell-strong">{d.user?.name}</td>
-                  <td>{fmt(d.amount)}</td>
-                  <td>{fmtDateTime(d.createdAt)}</td>
-                  <td>{statusBadge(d.status)}</td>
+                  <td data-label="User" className="cell-strong">{d.user?.name}</td>
+                  <td data-label="Amount">{fmt(d.amount)}</td>
+                  <td data-label="Date">{fmtDateTime(d.createdAt)}</td>
+                  <td data-label="Status"><StatusBadge status={d.status} /></td>
                 </tr>
               ))}
             </tbody>
@@ -362,7 +312,7 @@ function AdminUsers() {
         </div>
       </div>
 
-      {loading ? <Spinner label="Loading users..." /> : error ? <ErrorBox msg={error} /> : (
+      {loading ? <Spinner label="Loading users..." /> : error ? <ErrorBox message={error} /> : (
         <div className="table-card">
           <table className="data-table">
             <thead>
@@ -372,15 +322,15 @@ function AdminUsers() {
               {users.length === 0 && <tr><td colSpan={10} className="table-empty">No users found</td></tr>}
               {users.map((u) => (
                 <tr key={u._id}>
-                  <td className="cell-strong">{u.name}</td>
-                  <td>{u.email}</td>
-                  <td>{u.phone}</td>
-                  <td>{u.role === 'ADMIN' ? <span className="badge badge-info">Admin</span> : <span className="badge badge-muted">User</span>}</td>
-                  <td>{statusBadge(u.accountStatus)}</td>
-                  <td>{fmt(u.mainBalance)}</td>
-                  <td>{fmt(u.totalDeposited)}</td>
-                  <td>{fmt(u.totalInvested)}</td>
-                  <td>{fmtDate(u.createdAt)}</td>
+                  <td data-label="User" className="cell-strong">{u.name}</td>
+                  <td data-label="Email">{u.email}</td>
+                  <td data-label="Phone">{u.phone}</td>
+                  <td data-label="Role">{u.role === 'ADMIN' ? <span className="badge badge-info">Admin</span> : <span className="badge badge-muted">User</span>}</td>
+                  <td data-label="Status"><StatusBadge status={u.accountStatus} /></td>
+                  <td data-label="Main Bal">{fmt(u.mainBalance)}</td>
+                  <td data-label="Total Dep.">{fmt(u.totalDeposited)}</td>
+                  <td data-label="Total Inv.">{fmt(u.totalInvested)}</td>
+                  <td data-label="Joined">{fmtDate(u.createdAt)}</td>
                   <td><button className="row-action" onClick={() => openDetail(u._id)}>View</button></td>
                 </tr>
               ))}
@@ -462,10 +412,10 @@ function SimpleTable({ rows, cols }) {
           {rows.map((r, i) => (
             <tr key={r._id || i}>
               {cols.map((c) => (
-                <td key={c[0]}>
+                <td key={c[0]} data-label={c[1]}>
                   {c[0] === 'amount' || c[0] === 'roiAmount' || c[0] === 'originalAmount' ? fmt(r[c[0]])
                     : (c[0] === 'createdAt' || c[0] === 'startDate' || c[0] === 'roiDate' || c[0] === 'endDate') ? fmtDateTime(r[c[0]])
-                      : (c[0] === 'status' ? statusBadge(r[c[0]]) : (r[c[0]] ?? '-'))}
+                      : (c[0] === 'status' ? <StatusBadge status={r[c[0]]} /> : (r[c[0]] ?? '-'))}
                 </td>
               ))}
             </tr>
@@ -510,7 +460,7 @@ function AdminInvestments() {
           <button className="btn btn-secondary btn-sm" onClick={() => load()}>Search</button>
         </div>
       </div>
-      {loading ? <Spinner label="Loading investments..." /> : error ? <ErrorBox msg={error} /> : (
+      {loading ? <Spinner label="Loading investments..." /> : error ? <ErrorBox message={error} /> : (
         <div className="table-card">
           <table className="data-table">
             <thead><tr><th>User</th><th>Email</th><th>Plan</th><th>Amount</th><th>ROI %</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
@@ -518,14 +468,14 @@ function AdminInvestments() {
               {rows.length === 0 && <tr><td colSpan={8} className="table-empty">No investments found</td></tr>}
               {rows.map((r) => (
                 <tr key={r._id}>
-                  <td className="cell-strong">{r.user?.name}</td>
-                  <td>{r.user?.email}</td>
-                  <td>{r.plan}</td>
-                  <td>{fmt(r.originalAmount)}</td>
-                  <td>{r.roiPercentage}%</td>
-                  <td>{fmtDate(r.startDate)}</td>
-                  <td>{fmtDate(r.endDate)}</td>
-                  <td>{statusBadge(r.status)}</td>
+                  <td data-label="User" className="cell-strong">{r.user?.name}</td>
+                  <td data-label="Email">{r.user?.email}</td>
+                  <td data-label="Plan">{r.plan}</td>
+                  <td data-label="Amount">{fmt(r.originalAmount)}</td>
+                  <td data-label="ROI %">{r.roiPercentage}%</td>
+                  <td data-label="Start">{fmtDate(r.startDate)}</td>
+                  <td data-label="End">{fmtDate(r.endDate)}</td>
+                  <td data-label="Status"><StatusBadge status={r.status} /></td>
                 </tr>
               ))}
             </tbody>
@@ -539,7 +489,7 @@ function AdminInvestments() {
 /* =========================================================
    DEPOSITS (approval queue)
    ========================================================= */
-function AdminDeposits() {
+function AdminDeposits({ toastSuccess, toastError }) {
   const navigate = useNavigate();
   const location = useLocation();
   const q = new URLSearchParams(location.search);
@@ -565,7 +515,12 @@ function AdminDeposits() {
       if (action === 'approve') await approveDeposit(confirm._id);
       else await rejectDeposit(confirm._id);
       setConfirm(null); await load();
-    } catch (e) { setError(e.response?.data?.message || 'Action failed'); }
+      toastSuccess('Success', `Deposit ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Action failed';
+      setError(msg);
+      toastError('Error', msg);
+    }
     finally { setBusy(false); }
   };
 
@@ -582,7 +537,7 @@ function AdminDeposits() {
           ))}
         </div>
       </div>
-      {loading ? <Spinner label="Loading deposits..." /> : error ? <ErrorBox msg={error} /> : (
+      {loading ? <Spinner label="Loading deposits..." /> : error ? <ErrorBox message={error} /> : (
         <div className="table-card">
           <table className="data-table">
             <thead><tr><th>User</th><th>Email</th><th>Amount</th><th>Transaction ID</th><th>Date</th><th>Status</th><th></th></tr></thead>
@@ -590,12 +545,12 @@ function AdminDeposits() {
               {rows.length === 0 && <tr><td colSpan={7} className="table-empty">No deposits found</td></tr>}
               {rows.map((r) => (
                 <tr key={r._id}>
-                  <td className="cell-strong">{r.user?.name}</td>
-                  <td>{r.user?.email}</td>
-                  <td>{fmt(r.amount)}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{r._id}</td>
-                  <td>{fmtDateTime(r.createdAt)}</td>
-                  <td>{statusBadge(r.status)}</td>
+                  <td data-label="User" className="cell-strong">{r.user?.name}</td>
+                  <td data-label="Email">{r.user?.email}</td>
+                  <td data-label="Amount">{fmt(r.amount)}</td>
+                  <td data-label="Transaction ID" style={{ fontFamily: 'monospace', fontSize: 12 }}>{r._id}</td>
+                  <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
+                  <td data-label="Status"><StatusBadge status={r.status} /></td>
                   <td>
                     {r.status === 'PENDING' && (
                       <div style={{ display: 'flex', gap: 8 }}>
@@ -612,19 +567,15 @@ function AdminDeposits() {
       )}
 
       {confirm && (
-        <Modal title={`Confirm Deposit ${action === 'approve' ? 'Approval' : 'Rejection'}`}
-          footer={
-            <>
-              <button className="btn btn-secondary btn-sm" onClick={() => setConfirm(null)} disabled={busy}>Cancel</button>
-              <button className={`btn ${action === 'approve' ? 'btn-primary' : 'btn-danger'} btn-sm`} onClick={doAction} disabled={busy}>
-                {busy ? 'Processing...' : action === 'approve' ? 'Approve' : 'Reject'}
-              </button>
-            </>
-          } onClose={() => setConfirm(null)}>
-          <p>Are you sure you want to <b>{action === 'approve' ? 'approve' : 'reject'}</b> this deposit?</p>
-          <div className="modal-amount">{fmt(confirm.amount)}</div>
-          <p style={{ marginTop: 8 }}>{confirm.user?.name} ({confirm.user?.email})</p>
-        </Modal>
+        <ConfirmDialog
+          title={`${action === 'approve' ? 'Approve' : 'Reject'} Deposit`}
+          message={`Are you sure you want to ${action === 'approve' ? 'approve' : 'reject'} this deposit of ${fmt(confirm.amount)} from ${confirm.user?.name} (${confirm.user?.email})?`}
+          confirmLabel={action === 'approve' ? 'Approve' : 'Reject'}
+          variant={action === 'approve' ? 'warning' : 'danger'}
+          loading={busy}
+          onConfirm={doAction}
+          onCancel={() => setConfirm(null)}
+        />
       )}
     </div>
   );
@@ -634,7 +585,7 @@ function AdminDeposits() {
    WITHDRAWALS (not implemented backend)
    ========================================================= */
 function AdminWithdrawals() {
-  return <EmptyState title="Withdrawals not enabled" sub="The withdrawal feature is not available on this platform yet." />;
+  return <EmptyState title="Withdrawals not enabled" subtitle="The withdrawal feature is not available on this platform yet." />;
 }
 
 /* =========================================================
@@ -659,7 +610,7 @@ function AdminTransactions() {
 
   return (
     <div>
-      {loading ? <Spinner label="Loading transactions..." /> : error ? <ErrorBox msg={error} /> : (
+      {loading ? <Spinner label="Loading transactions..." /> : error ? <ErrorBox message={error} /> : (
         <div className="table-card">
           <table className="data-table">
             <thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
@@ -667,11 +618,11 @@ function AdminTransactions() {
               {rows.length === 0 && <tr><td colSpan={5} className="table-empty">No transactions found</td></tr>}
               {rows.map((r) => (
                 <tr key={r._id}>
-                  <td className="cell-strong">{r.user?.name}</td>
-                  <td>{r.type}</td>
-                  <td>{fmt(r.amount)}</td>
-                  <td>{statusBadge(r.status)}</td>
-                  <td>{fmtDateTime(r.createdAt)}</td>
+                  <td data-label="User" className="cell-strong">{r.user?.name}</td>
+                  <td data-label="Type">{r.type}</td>
+                  <td data-label="Amount">{fmt(r.amount)}</td>
+                  <td data-label="Status"><StatusBadge status={r.status} /></td>
+                  <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -685,7 +636,7 @@ function AdminTransactions() {
 /* =========================================================
    ROI MANAGEMENT
    ========================================================= */
-function AdminRoi() {
+function AdminRoi({ toastSuccess, toastError }) {
   const q = new URLSearchParams(useLocation().search);
   const tab = q.get('tab') || 'overview';
   const [stats, setStats] = useState(null);
@@ -705,7 +656,7 @@ function AdminRoi() {
   }, [tab]);
 
   if (loading) return <Spinner label="Loading ROI..." />;
-  if (error) return <ErrorBox msg={error} />;
+  if (error) return <ErrorBox message={error} />;
 
   if (tab === 'history') {
     return (
@@ -715,7 +666,12 @@ function AdminRoi() {
           <tbody>
             {rows.length === 0 && <tr><td colSpan={4} className="table-empty">No ROI distributions yet</td></tr>}
             {rows.map((r) => (
-              <tr key={r._id}><td className="cell-strong">{r.user?.name}</td><td>{fmt(r.amount)}</td><td>{statusBadge(r.status)}</td><td>{fmtDateTime(r.createdAt)}</td></tr>
+              <tr key={r._id}>
+                <td data-label="User" className="cell-strong">{r.user?.name}</td>
+                <td data-label="Amount">{fmt(r.amount)}</td>
+                <td data-label="Status"><StatusBadge status={r.status} /></td>
+                <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
+              </tr>
             ))}
           </tbody>
         </table>
@@ -725,13 +681,22 @@ function AdminRoi() {
 
   return (
     <div>
-      <div className="summary-grid">
-        <div className="summary-card"><div className="label">Total ROI Distributed</div><div className="value">{fmt(stats.totalRoiDistributed)}</div></div>
-        <div className="summary-card"><div className="label">Active Investments</div><div className="value">{stats.activeInvestments}</div></div>
-        <div className="summary-card"><div className="label">Total Invested</div><div className="value">{fmt(stats.totalInvested)}</div></div>
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-value">{fmt(stats.totalRoiDistributed)}</div>
+          <div className="stat-label">Total ROI Distributed</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{stats.activeInvestments}</div>
+          <div className="stat-label">Active Investments</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{fmt(stats.totalInvested)}</div>
+          <div className="stat-label">Total Invested</div>
+        </div>
       </div>
       <div className="chart-card">
-        <h3>ROI Distribution (6 months)</h3>
+        <div className="chart-card-header"><h3>ROI Distribution (6 months)</h3></div>
         <ResponsiveContainerWrap height={240}>
           <BarChart data={stats.roiDistribution}>
             <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
@@ -741,7 +706,7 @@ function AdminRoi() {
         </ResponsiveContainerWrap>
       </div>
       <p className="text-muted" style={{ marginTop: 16, fontSize: 13 }}>
-        Configure ROI in <Link to="/admin/settings?tab=roi">ROI Settings</Link>. Use the “Process ROI” action there to credit ROI for today.
+        Configure ROI in <Link to="/admin/settings?tab=roi">ROI Settings</Link>. Use the "Process ROI" action there to credit ROI for today.
       </p>
     </div>
   );
@@ -770,7 +735,7 @@ function AdminReferrals() {
   }, [tab]);
 
   if (loading) return <Spinner label="Loading..." />;
-  if (error) return <ErrorBox msg={error} />;
+  if (error) return <ErrorBox message={error} />;
 
   if (tab === 'commissions') {
     return (
@@ -780,7 +745,12 @@ function AdminReferrals() {
           <tbody>
             {rows.length === 0 && <tr><td colSpan={4} className="table-empty">No commission transactions yet</td></tr>}
             {rows.map((r) => (
-              <tr key={r._id}><td className="cell-strong">{r.user?.name}</td><td>{fmt(r.amount)}</td><td>{statusBadge(r.status)}</td><td>{fmtDateTime(r.createdAt)}</td></tr>
+              <tr key={r._id}>
+                <td data-label="User" className="cell-strong">{r.user?.name}</td>
+                <td data-label="Amount">{fmt(r.amount)}</td>
+                <td data-label="Status"><StatusBadge status={r.status} /></td>
+                <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
+              </tr>
             ))}
           </tbody>
         </table>
@@ -789,10 +759,19 @@ function AdminReferrals() {
   }
 
   return (
-    <div className="summary-grid">
-      <div className="summary-card"><div className="label">Total Users</div><div className="value">{stats.totalUsers}</div></div>
-      <div className="summary-card"><div className="label">Total Commission Paid</div><div className="value">{fmt(stats.totalCommission)}</div></div>
-      <div className="summary-card"><div className="label">Total Deposited</div><div className="value">{fmt(stats.totalDeposited)}</div></div>
+    <div className="stats-grid">
+      <div className="stat-card">
+        <div className="stat-value">{stats.totalUsers}</div>
+        <div className="stat-label">Total Users</div>
+      </div>
+      <div className="stat-card">
+        <div className="stat-value">{fmt(stats.totalCommission)}</div>
+        <div className="stat-label">Total Commission Paid</div>
+      </div>
+      <div className="stat-card">
+        <div className="stat-value">{fmt(stats.totalDeposited)}</div>
+        <div className="stat-label">Total Deposited</div>
+      </div>
     </div>
   );
 }
@@ -808,24 +787,48 @@ function AdminReports() {
     (async () => { try { setStats(await getAdminStats()); } catch (e) { setError(e.response?.data?.message || 'Failed'); } finally { setLoading(false); } })();
   }, []);
   if (loading) return <Spinner label="Loading reports..." />;
-  if (error) return <ErrorBox msg={error} />;
+  if (error) return <ErrorBox message={error} />;
   const cards = [
-    { label: 'User Reports', value: stats.totalUsers },
-    { label: 'Investment Reports', value: stats.totalInvestments },
-    { label: 'Deposit Reports', value: fmt(stats.totalDeposited) },
-    { label: 'Earnings Reports', value: fmt(stats.totalRoiDistributed + stats.totalCommission) },
+    { label: 'User Reports', value: stats.totalUsers, color: 'blue' },
+    { label: 'Investment Reports', value: stats.totalInvestments, color: 'purple' },
+    { label: 'Deposit Reports', value: fmt(stats.totalDeposited), color: 'green' },
+    { label: 'Earnings Reports', value: fmt(stats.totalRoiDistributed + stats.totalCommission), color: 'yellow' },
   ];
   return (
     <div>
       <div className="stats-grid">
-        {cards.map((c) => <div className="stat-card" key={c.label}><div><div className="stat-value">{c.value}</div><div className="stat-label">{c.label}</div></div></div>)}
+        {cards.map((c) => (
+          <div className={`stat-card stat-icon-${c.color}`} key={c.label}>
+            <div className="stat-icon" />
+            <div className="stat-value">{c.value}</div>
+            <div className="stat-label">{c.label}</div>
+          </div>
+        ))}
       </div>
       <div className="charts-grid">
-        <div className="chart-card"><h3>Deposit Trend</h3>
-          <ResponsiveContainerWrap height={240}><BarChart data={stats.depositTrend}><CartesianGrid strokeDasharray="3 3" stroke="#eceef1" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="deposits" fill="#d32f2f" radius={[3, 3, 0, 0]} /></BarChart></ResponsiveContainerWrap>
+        <div className="chart-card">
+          <div className="chart-card-header"><h3>Deposit Trend</h3></div>
+          <ResponsiveContainerWrap height={240}>
+            <BarChart data={stats.depositTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="deposits" fill="#d32f2f" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainerWrap>
         </div>
-        <div className="chart-card"><h3>Investment Trend</h3>
-          <ResponsiveContainerWrap height={240}><BarChart data={stats.investmentTrend}><CartesianGrid strokeDasharray="3 3" stroke="#eceef1" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="investments" fill="#b0b6bd" radius={[3, 3, 0, 0]} /></BarChart></ResponsiveContainerWrap>
+        <div className="chart-card">
+          <div className="chart-card-header"><h3>Investment Trend</h3></div>
+          <ResponsiveContainerWrap height={240}>
+            <BarChart data={stats.investmentTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="investments" fill="#b0b6bd" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainerWrap>
         </div>
       </div>
     </div>
@@ -835,14 +838,13 @@ function AdminReports() {
 /* =========================================================
    SETTINGS
    ========================================================= */
-function AdminSettings() {
+function AdminSettings({ toastSuccess, toastError }) {
   const navigate = useNavigate();
   const q = new URLSearchParams(useLocation().search);
   const tab = q.get('tab') || 'general';
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const [roiMode, setRoiMode] = useState('OVERALL');
   const [overallRoi, setOverallRoi] = useState(0);
@@ -864,30 +866,46 @@ function AdminSettings() {
   }, []);
 
   const saveRoi = async () => {
-    setBusy(true); setMsg('');
+    setBusy(true);
     try {
       await updateAdminSettings({ roiMode, overallRoiPercentage: Number(overallRoi), roiProcessingEnabled: roiEnabled, allowUserInvestment: allowInvest });
-      setMsg('Settings saved');
-    } catch (e) { setError(e.response?.data?.message || 'Save failed'); }
+      toastSuccess('Success', 'Settings saved successfully');
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Save failed';
+      setError(msg);
+      toastError('Error', msg);
+    }
     finally { setBusy(false); }
   };
 
   const savePlans = async () => {
-    setBusy(true); setMsg('');
-    try { await updateAdminSettings({ plans }); setMsg('Plans saved'); }
-    catch (e) { setError(e.response?.data?.message || 'Save failed'); }
+    setBusy(true);
+    try {
+      await updateAdminSettings({ plans });
+      toastSuccess('Success', 'Plans saved successfully');
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Save failed';
+      setError(msg);
+      toastError('Error', msg);
+    }
     finally { setBusy(false); }
   };
 
   const runRoi = async () => {
     setBusy(true);
-    try { const r = await processRoi(); setProc(r); }
-    catch (e) { setError(e.response?.data?.message || 'Failed'); }
+    try {
+      const r = await processRoi(); setProc(r);
+      toastSuccess('Success', `ROI processed: ${r.processed} credited, ${r.skipped} skipped`);
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Failed';
+      setError(msg);
+      toastError('Error', msg);
+    }
     finally { setBusy(false); }
   };
 
   if (loading) return <Spinner label="Loading settings..." />;
-  if (error) return <ErrorBox msg={error} />;
+  if (error) return <ErrorBox message={error} />;
 
   return (
     <div>
@@ -896,7 +914,6 @@ function AdminSettings() {
           <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => navigate(`/admin/settings?tab=${t}`)} style={{ textTransform: 'capitalize' }}>{t}</button>
         ))}
       </div>
-      {msg && <div className="badge badge-success" style={{ marginBottom: 12 }}>{msg}</div>}
 
       {tab === 'general' && (
         <div className="panel">
@@ -965,13 +982,4 @@ function AdminSettings() {
       )}
     </div>
   );
-}
-
-/* ---------- recharts wrapper (avoid per-file imports duplication) ---------- */
-import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  CartesianGrid, XAxis, YAxis, Tooltip,
-} from 'recharts';
-function ResponsiveContainerWrap({ height, children }) {
-  return <ResponsiveContainer width="100%" height={height}>{children}</ResponsiveContainer>;
 }

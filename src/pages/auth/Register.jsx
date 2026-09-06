@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, TrendingUp, User, GraduationCap, Wallet, BarChart, Shield, Map, Layout, Menu, Settings, LogOut, Phone } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, TrendingUp, User, Phone, BarChart3, Shield, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
 
@@ -24,6 +24,8 @@ function Register() {
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setError('');
+    setFieldErrors([]);
   };
 
   const handleSubmit = async (e) => {
@@ -66,17 +68,26 @@ function Register() {
       <div className="auth-branding">
         <div className="auth-branding-content">
           <div className="auth-logo">
-            <TrendingUp size={28} />
+            <TrendingUp size={26} />
           </div>
-          <h1>Grow Your Wealth, Systematically</h1>
+          <h1>Start Investing Today</h1>
           <p>
-            Track your investments, monitor ROI in real time, and build your referral
-            network — all in one modern platform.
+            Create your account and begin building wealth with our
+            transparent, data-driven investment platform.
           </p>
           <ul className="auth-features">
-            <li><span><TrendingUp size={14} /></span> Real-time portfolio &amp; ROI tracking</li>
-            <li><span><TrendingUp size={14} /></span> Transparent deposit &amp; withdrawal flow</li>
-            <li><span><TrendingUp size={14} /></span> Referral commissions that pay out</li>
+            <li>
+              <span><BarChart3 size={14} /></span>
+              Automated ROI distribution
+            </li>
+            <li>
+              <span><Shield size={14} /></span>
+              Bank-grade security for your funds
+            </li>
+            <li>
+              <span><Users size={14} /></span>
+              Earn commissions through referrals
+            </li>
           </ul>
           <div className="auth-branding-stats">
             <div>
@@ -98,7 +109,7 @@ function Register() {
       <div className="auth-form-panel">
         <div className="auth-form-wrapper fade-in">
           <h2>Create account</h2>
-          <p className="text-muted" style={{ marginBottom: 'var(--space-xl)' }}>
+          <p className="subtitle">
             Join the investment platform
           </p>
 
@@ -128,6 +139,7 @@ function Register() {
                   value={formData.name}
                   onChange={handleChange}
                   required
+                  autoComplete="name"
                 />
               </div>
             </div>
@@ -144,6 +156,7 @@ function Register() {
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  autoComplete="email"
                 />
               </div>
             </div>
@@ -160,6 +173,7 @@ function Register() {
                   value={formData.phone}
                   onChange={handleChange}
                   required
+                  autoComplete="tel"
                 />
               </div>
             </div>
@@ -172,16 +186,19 @@ function Register() {
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   className="form-input"
-                  placeholder="••••••••"
+                  placeholder="At least 6 characters"
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  minLength={6}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
                   className="input-icon-toggle"
                   onClick={() => setShowPassword((prev) => !prev)}
                   tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -196,16 +213,19 @@ function Register() {
                   type={showConfirmPassword ? 'text' : 'password'}
                   name="confirmPassword"
                   className="form-input"
-                  placeholder="••••••••"
+                  placeholder="Re-enter your password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
+                  minLength={6}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
                   className="input-icon-toggle"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
                   tabIndex={-1}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                 >
                   {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -213,27 +233,39 @@ function Register() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Referral Code (Optional)</label>
+              <label className="form-label">Referral Code <span className="text-muted">(Optional)</span></label>
               <div className="input-with-icon">
-                <Link size={18} className="input-icon" />
+                <Users size={18} className="input-icon" />
                 <input
                   type="text"
                   name="referralCode"
                   className="form-input"
-                  placeholder="FZL82K9"
+                  placeholder="e.g. FZL82K9"
                   value={formData.referralCode}
                   onChange={handleChange}
+                  autoComplete="off"
                 />
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary btn-block" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Account'}
+            <button
+              type="submit"
+              className="btn btn-primary btn-block btn-lg"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="spinner" />
+                  Creating account...
+                </>
+              ) : (
+                'Create Account'
+              )}
             </button>
           </form>
 
           <p className="auth-switch">
-            Already have an account? <Link to="/login">Log in</Link>
+            Already have an account? <Link to="/login">Sign in</Link>
           </p>
         </div>
       </div>

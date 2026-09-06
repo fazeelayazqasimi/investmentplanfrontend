@@ -1,70 +1,31 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Loader2 } from 'lucide-react';
 
-/**
- * Guards routes that require the user to be logged in.
- * Shows nothing (or a loader) while session restoration is in progress,
- * to avoid a flash-redirect to /login before we know if a token is valid.
- */
+function LoadingScreen() {
+  return (
+    <div className="center-spinner" style={{ height: '100vh', fontSize: 'var(--font-size-md)' }}>
+      <Loader2 size={28} className="spin" />
+      <span>Loading...</span>
+    </div>
+  );
+}
+
 export function ProtectedRoute() {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          color: 'var(--color-text-muted)',
-        }}
-      >
-        Loading...
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
-  }
-
+  if (isLoading) return <LoadingScreen />;
+  if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location }} />;
   return <Outlet />;
 }
 
-/**
- * Guards routes that require the user to be logged in AND have the
- * ADMIN role. Non-admins are redirected to the user dashboard rather
- * than login (they ARE authenticated, just not authorized).
- */
 export function AdminRoute() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          color: 'var(--color-text-muted)',
-        }}
-      >
-        Loading...
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
-  }
-
-  if (user?.role !== 'ADMIN') {
-    return <Navigate to="/dashboard" replace />;
-  }
-
+  if (isLoading) return <LoadingScreen />;
+  if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location }} />;
+  if (user?.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
   return <Outlet />;
 }

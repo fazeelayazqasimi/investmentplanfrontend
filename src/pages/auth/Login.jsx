@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, TrendingUp } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, TrendingUp, BarChart3, Shield, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
 
@@ -17,6 +17,8 @@ function Login() {
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setError('');
+    setFieldErrors([]);
   };
 
   const handleSubmit = async (e) => {
@@ -50,7 +52,7 @@ function Login() {
       <div className="auth-branding">
         <div className="auth-branding-content">
           <div className="auth-logo">
-            <TrendingUp size={28} />
+            <TrendingUp size={26} />
           </div>
           <h1>Grow Your Wealth, Systematically</h1>
           <p>
@@ -58,9 +60,18 @@ function Login() {
             network — all in one modern platform.
           </p>
           <ul className="auth-features">
-            <li><span><TrendingUp size={14} /></span> Real-time portfolio &amp; ROI tracking</li>
-            <li><span><TrendingUp size={14} /></span> Transparent deposit &amp; withdrawal flow</li>
-            <li><span><TrendingUp size={14} /></span> Referral commissions that pay out</li>
+            <li>
+              <span><BarChart3 size={14} /></span>
+              Real-time portfolio &amp; ROI tracking
+            </li>
+            <li>
+              <span><Shield size={14} /></span>
+              Secure deposit &amp; withdrawal flow
+            </li>
+            <li>
+              <span><Users size={14} /></span>
+              Referral commissions that pay out
+            </li>
           </ul>
           <div className="auth-branding-stats">
             <div>
@@ -82,7 +93,7 @@ function Login() {
       <div className="auth-form-panel">
         <div className="auth-form-wrapper fade-in">
           <h2>Welcome back</h2>
-          <p className="text-muted" style={{ marginBottom: 'var(--space-xl)' }}>
+          <p className="subtitle">
             Log in to access your dashboard
           </p>
 
@@ -112,6 +123,7 @@ function Login() {
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  autoComplete="email"
                 />
               </div>
             </div>
@@ -128,20 +140,33 @@ function Login() {
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
                   className="input-icon-toggle"
                   onClick={() => setShowPassword((prev) => !prev)}
                   tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary btn-block" disabled={isSubmitting}>
-              {isSubmitting ? 'Logging in...' : 'Log In'}
+            <button
+              type="submit"
+              className="btn btn-primary btn-block btn-lg"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="spinner" />
+                  Signing in...
+                </>
+              ) : (
+                'Sign In'
+              )}
             </button>
           </form>
 
