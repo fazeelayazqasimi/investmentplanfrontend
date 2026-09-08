@@ -9,6 +9,7 @@ import apiClient, {
   getAdminUsers, getAdminStats, getAdminUserDetail, getAdminInvestments,
   getAdminTransactions, getAdminSettings, updateAdminSettings, processRoi,
   getPendingDeposits, approveDeposit, rejectDeposit,
+  distributeProfitShare, triggerRoiTransfer, triggerProfitShareTransfer,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -276,6 +277,7 @@ function AdminUsers() {
   const [status, setStatus] = useState(q.get('status') || '');
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [stats, setStats] = useState(null);
 
   const load = async (sq = search, r = role, s = status) => {
     setLoading(true);
@@ -289,6 +291,10 @@ function AdminUsers() {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [role, status]);
 
+  useEffect(() => {
+    getAdminStats().then(setStats).catch(() => {});
+  }, []);
+
   const openDetail = async (id) => {
     setDetailLoading(true); setDetail(null);
     try { const d = await getAdminUserDetail(id); setDetail(d); }
@@ -296,8 +302,29 @@ function AdminUsers() {
     finally { setDetailLoading(false); }
   };
 
+  const statCards = stats ? [
+    { label: 'Total Users', value: stats.totalUsers, color: 'blue' },
+    { label: 'Pending Deposits', value: stats.pendingDeposits, color: 'yellow' },
+    { label: 'Total Deposited', value: fmt(stats.totalDeposited), color: 'green' },
+    { label: 'Total Invested', value: fmt(stats.totalInvested), color: 'purple' },
+    { label: 'Active Investments', value: stats.activeInvestments, color: 'teal' },
+    { label: 'Total ROI Paid', value: fmt(stats.totalRoiDistributed), color: 'red' },
+  ] : [];
+
   return (
     <div>
+      {statCards.length > 0 && (
+        <div className="stats-grid">
+          {statCards.map((c) => (
+            <div className={`stat-card stat-icon-${c.color}`} key={c.label}>
+              <div className="stat-icon" />
+              <div className="stat-value">{c.value}</div>
+              <div className="stat-label">{c.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="toolbar">
         <div className="filter-bar">
           <input className="search-input" placeholder="Search name, email, phone..." value={search}
@@ -846,43 +873,69 @@ function AdminSettings({ toastSuccess, toastError }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // General
+  const [allowInvest, setAllowInvest] = useState(false);
+  // ROI
   const [roiMode, setRoiMode] = useState('OVERALL');
   const [overallRoi, setOverallRoi] = useState(0);
   const [roiEnabled, setRoiEnabled] = useState(false);
-  const [allowInvest, setAllowInvest] = useState(false);
-  const [plans, setPlans] = useState([]);
   const [proc, setProc] = useState(null);
+  // Plans
+  const [plans, setPlans] = useState([]);
+  // E-Wallet
+  const [ewalletEnabled, setEwalletEnabled] = useState(false);
+  const [ewalletUsageEnabled, setEwalletUsageEnabled] = useState(false);
+  const [signupBonus, setSignupBonus] = useState(0);
+  const [uplineBonus, setUplineBonus] = useState(0);
+  // Activation
+  const [activationFee, setActivationFee] = useState(0);
+  // Income
+  const [directIncome, setDirectIncome] = useState(0);
+  const [levelIncome, setLevelIncome] = useState(0);
+  // ROI Transfer
+  const [roiTransferEnabled, setRoiTransferEnabled] = useState(false);
+  const [roiTransferDay, setRoiTransferDay] = useState(1);
+  // Profit Share
+  const [psTransferEnabled, setPsTransferEnabled] = useState(false);
+  const [psTransferDay, setPsTransferDay] = useState(15);
+  const [psMethod, setPsMethod] = useState('EQUAL');
+  const [distAmount, setDistAmount] = useState('');
+  const [distBusy, setDistBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const d = await getAdminSettings(); setSettings(d.settings);
-        setRoiMode(d.settings.roiMode); setOverallRoi(d.settings.overallRoiPercentage || 0);
-        setRoiEnabled(d.settings.roiProcessingEnabled); setAllowInvest(d.settings.allowUserInvestment);
-        setPlans(d.settings.plans || []);
+        const d = await getAdminSettings();
+        const s = d.settings;
+        setSettings(s);
+        setRoiMode(s.roiMode);
+        setOverallRoi(s.overallRoiPercentage || 0);
+        setRoiEnabled(s.roiProcessingEnabled);
+        setAllowInvest(s.allowUserInvestment);
+        setPlans(s.plans || []);
+        setEwalletEnabled(s.ewalletEnabled || false);
+        setEwalletUsageEnabled(s.ewalletUsageEnabled || false);
+        setSignupBonus(s.signupBonusAmount || 0);
+        setUplineBonus(s.uplineSignupBonusAmount || 0);
+        setActivationFee(s.activationFee || 0);
+        setDirectIncome(s.directIncomePercentage || 0);
+        setLevelIncome(s.levelIncomePercentage || 0);
+        setRoiTransferEnabled(s.roiTransferEnabled || false);
+        setRoiTransferDay(s.roiTransferDay || 1);
+        setPsTransferEnabled(s.profitShareTransferEnabled || false);
+        setPsTransferDay(s.profitShareTransferDay || 15);
+        setPsMethod(s.profitShareDistributionMethod || 'EQUAL');
       } catch (e) { setError(e.response?.data?.message || 'Failed to load settings'); }
       finally { setLoading(false); }
     })();
   }, []);
 
-  const saveRoi = async () => {
+  const save = async (fields) => {
     setBusy(true);
     try {
-      await updateAdminSettings({ roiMode, overallRoiPercentage: Number(overallRoi), roiProcessingEnabled: roiEnabled, allowUserInvestment: allowInvest });
+      await updateAdminSettings(fields);
       toastSuccess('Success', 'Settings saved successfully');
-    } catch (e) {
-      const msg = e.response?.data?.message || 'Save failed';
-      setError(msg);
-      toastError('Error', msg);
-    }
-    finally { setBusy(false); }
-  };
-
-  const savePlans = async () => {
-    setBusy(true);
-    try {
-      await updateAdminSettings({ plans });
-      toastSuccess('Success', 'Plans saved successfully');
     } catch (e) {
       const msg = e.response?.data?.message || 'Save failed';
       setError(msg);
@@ -904,17 +957,54 @@ function AdminSettings({ toastSuccess, toastError }) {
     finally { setBusy(false); }
   };
 
+  const handleDistribute = async () => {
+    const amt = Number(distAmount);
+    if (!amt || amt <= 0) { toastError('Error', 'Enter a valid amount'); return; }
+    setDistBusy(true);
+    try {
+      const result = await distributeProfitShare({ amount: amt, method: psMethod });
+      toastSuccess('Success', `Distributed ${fmt(amt)} to ${result.distributedTo} users`);
+      setDistAmount('');
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Distribution failed'); }
+    finally { setDistBusy(false); }
+  };
+
+  const handleRoiTransfer = async () => {
+    setBusy(true);
+    try {
+      const r = await triggerRoiTransfer();
+      toastSuccess('Success', `ROI transferred: ${r.transferred} users`);
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Transfer failed'); }
+    finally { setBusy(false); }
+  };
+
+  const handlePsTransfer = async () => {
+    setBusy(true);
+    try {
+      const r = await triggerProfitShareTransfer();
+      toastSuccess('Success', `Profit Share transferred: ${r.transferred} users`);
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Transfer failed'); }
+    finally { setBusy(false); }
+  };
+
   if (loading) return <Spinner label="Loading settings..." />;
   if (error) return <ErrorBox message={error} />;
 
+  const TABS = ['general', 'plans', 'roi', 'platform', 'ewallet', 'activation', 'income', 'roi-transfer', 'profit-share'];
+
   return (
     <div>
-      <div className="tabs" style={{ marginBottom: 16 }}>
-        {['general', 'plans', 'roi', 'platform'].map((t) => (
-          <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => navigate(`/admin/settings?tab=${t}`)} style={{ textTransform: 'capitalize' }}>{t}</button>
+      <div className="tabs" style={{ marginBottom: 16, flexWrap: 'wrap' }}>
+        {TABS.map((t) => (
+          <button key={t} className={`tab ${tab === t ? 'active' : ''}`}
+            onClick={() => navigate(`/admin/settings?tab=${t}`)}
+            style={{ textTransform: 'capitalize', fontSize: 12 }}>
+            {t === 'ewallet' ? 'E-Wallet' : t === 'roi-transfer' ? 'ROI Transfer' : t === 'profit-share' ? 'Profit Share' : t}
+          </button>
         ))}
       </div>
 
+      {/* GENERAL */}
       {tab === 'general' && (
         <div className="panel">
           <h3>General</h3>
@@ -922,10 +1012,31 @@ function AdminSettings({ toastSuccess, toastError }) {
             <input type="checkbox" checked={allowInvest} onChange={(e) => setAllowInvest(e.target.checked)} />
             Allow user self-investment
           </label>
-          <button className="btn btn-primary btn-sm" onClick={saveRoi} disabled={busy}>Save General</button>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ allowUserInvestment: allowInvest })} disabled={busy}>Save General</button>
         </div>
       )}
 
+      {/* PLANS */}
+      {tab === 'plans' && (
+        <div className="panel">
+          <h3>Investment Plans</h3>
+          {plans.map((p, i) => (
+            <div key={p._id || i} className="detail-grid" style={{ marginBottom: 12 }}>
+              <input className="form-input" value={p.name} onChange={(e) => { const n = [...plans]; n[i].name = e.target.value; setPlans(n); }} placeholder="Name" />
+              <input className="form-input" type="number" value={p.roiPercentage} onChange={(e) => { const n = [...plans]; n[i].roiPercentage = Number(e.target.value); setPlans(n); }} placeholder="ROI %" />
+              <input className="form-input" type="number" value={p.durationDays} onChange={(e) => { const n = [...plans]; n[i].durationDays = Number(e.target.value); setPlans(n); }} placeholder="Duration (days)" />
+              <input className="form-input" type="number" value={p.minAmount} onChange={(e) => { const n = [...plans]; n[i].minAmount = Number(e.target.value); setPlans(n); }} placeholder="Min" />
+              <input className="form-input" type="number" value={p.maxAmount} onChange={(e) => { const n = [...plans]; n[i].maxAmount = Number(e.target.value); setPlans(n); }} placeholder="Max" />
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => setPlans([...plans, { name: '', roiPercentage: 1, durationDays: 30, minAmount: 100, maxAmount: 100000, active: true }])}>Add Plan</button>
+            <button className="btn btn-primary btn-sm" onClick={() => save({ plans })} disabled={busy}>Save Plans</button>
+          </div>
+        </div>
+      )}
+
+      {/* ROI */}
       {tab === 'roi' && (
         <div className="panel">
           <h3>ROI Settings</h3>
@@ -944,40 +1055,148 @@ function AdminSettings({ toastSuccess, toastError }) {
             Enable ROI processing
           </label>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-primary btn-sm" onClick={saveRoi} disabled={busy}>Save ROI Settings</button>
+            <button className="btn btn-primary btn-sm" onClick={() => save({ roiMode, overallRoiPercentage: Number(overallRoi), roiProcessingEnabled: roiEnabled })} disabled={busy}>Save ROI Settings</button>
             <button className="btn btn-secondary btn-sm" onClick={runRoi} disabled={busy}>Process ROI (today)</button>
           </div>
           {proc && <div className="text-muted" style={{ marginTop: 12, fontSize: 13 }}>Processed: {proc.processed}, Skipped: {proc.skipped}</div>}
         </div>
       )}
 
-      {tab === 'plans' && (
-        <div className="panel">
-          <h3>Investment Plans</h3>
-          {plans.map((p, i) => (
-            <div key={p._id || i} className="detail-grid" style={{ marginBottom: 12 }}>
-              <input className="form-input" value={p.name} onChange={(e) => { const n = [...plans]; n[i].name = e.target.value; setPlans(n); }} placeholder="Name" />
-              <input className="form-input" type="number" value={p.roiPercentage} onChange={(e) => { const n = [...plans]; n[i].roiPercentage = Number(e.target.value); setPlans(n); }} placeholder="ROI %" />
-              <input className="form-input" type="number" value={p.durationDays} onChange={(e) => { const n = [...plans]; n[i].durationDays = Number(e.target.value); setPlans(n); }} placeholder="Duration (days)" />
-              <input className="form-input" type="number" value={p.minAmount} onChange={(e) => { const n = [...plans]; n[i].minAmount = Number(e.target.value); setPlans(n); }} placeholder="Min" />
-              <input className="form-input" type="number" value={p.maxAmount} onChange={(e) => { const n = [...plans]; n[i].maxAmount = Number(e.target.value); setPlans(n); }} placeholder="Max" />
-            </div>
-          ))}
-          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => setPlans([...plans, { name: '', roiPercentage: 1, durationDays: 30, minAmount: 100, maxAmount: 100000, active: true }])}>Add Plan</button>
-            <button className="btn btn-primary btn-sm" onClick={savePlans} disabled={busy}>Save Plans</button>
-          </div>
-        </div>
-      )}
-
+      {/* PLATFORM */}
       {tab === 'platform' && (
         <div className="panel">
           <h3>Platform</h3>
           <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <input type="checkbox" checked={allowInvest} onChange={(e) => setAllowInvest(e.target.checked)} />
+            <input type="checkbox" checked={!allowInvest} onChange={(e) => setAllowInvest(!e.target.checked)} />
             Maintenance mode (disables self-investment)
           </label>
-          <button className="btn btn-primary btn-sm" onClick={saveRoi} disabled={busy}>Save Platform</button>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ allowUserInvestment: allowInvest })} disabled={busy}>Save Platform</button>
+        </div>
+      )}
+
+      {/* E-WALLET */}
+      {tab === 'ewallet' && (
+        <div className="panel">
+          <h3>E-Wallet Settings</h3>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            E-Wallet is a bonus wallet credited on registration. Disabling it does NOT reset existing balances.
+          </p>
+          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input type="checkbox" checked={ewalletEnabled} onChange={(e) => setEwalletEnabled(e.target.checked)} />
+            E-Wallet enabled
+          </label>
+          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input type="checkbox" checked={ewalletUsageEnabled} onChange={(e) => setEwalletUsageEnabled(e.target.checked)} />
+            Allow users to use E-Wallet (withdraw/transfer)
+          </label>
+          <div className="form-group">
+            <label className="form-label">Signup Bonus Amount ($)</label>
+            <input className="form-input" type="number" value={signupBonus} onChange={(e) => setSignupBonus(Number(e.target.value))} min="0" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Upline Signup Bonus Amount ($)</label>
+            <input className="form-input" type="number" value={uplineBonus} onChange={(e) => setUplineBonus(Number(e.target.value))} min="0" />
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ ewalletEnabled, ewalletUsageEnabled, signupBonusAmount: Number(signupBonus), uplineSignupBonusAmount: Number(uplineBonus) })} disabled={busy}>Save E-Wallet Settings</button>
+        </div>
+      )}
+
+      {/* ACTIVATION */}
+      {tab === 'activation' && (
+        <div className="panel">
+          <h3>Account Activation</h3>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            One-time fee charged on the user's first investment. The fee is deducted from the investment amount.
+          </p>
+          <div className="form-group">
+            <label className="form-label">Activation Fee ($)</label>
+            <input className="form-input" type="number" value={activationFee} onChange={(e) => setActivationFee(Number(e.target.value))} min="0" />
+            <p className="form-hint">Set to 0 to disable activation fee</p>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ activationFee: Number(activationFee) })} disabled={busy}>Save Activation Fee</button>
+        </div>
+      )}
+
+      {/* INCOME */}
+      {tab === 'income' && (
+        <div className="panel">
+          <h3>Income Settings</h3>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Percentages are calculated on the actual investment amount (after activation fee deduction). Income is credited only when investment is approved.
+          </p>
+          <div className="form-group">
+            <label className="form-label">Direct Income (Level 1) %</label>
+            <input className="form-input" type="number" value={directIncome} onChange={(e) => setDirectIncome(Number(e.target.value))} min="0" max="100" />
+            <p className="form-hint">Paid to the investor's direct upline</p>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Level Income (Level 2) %</label>
+            <input className="form-input" type="number" value={levelIncome} onChange={(e) => setLevelIncome(Number(e.target.value))} min="0" max="100" />
+            <p className="form-hint">Paid to the investor's Level 2 upline (upline's upline)</p>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ directIncomePercentage: Number(directIncome), levelIncomePercentage: Number(levelIncome) })} disabled={busy}>Save Income Settings</button>
+        </div>
+      )}
+
+      {/* ROI TRANSFER */}
+      {tab === 'roi-transfer' && (
+        <div className="panel">
+          <h3>ROI Transfer Settings</h3>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Configure when users can transfer ROI balance to their Main Wallet. Users can only transfer on the configured day of each month.
+          </p>
+          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input type="checkbox" checked={roiTransferEnabled} onChange={(e) => setRoiTransferEnabled(e.target.checked)} />
+            Enable ROI Transfer
+          </label>
+          <div className="form-group">
+            <label className="form-label">Transfer Day (1-31)</label>
+            <input className="form-input" type="number" value={roiTransferDay} onChange={(e) => setRoiTransferDay(Number(e.target.value))} min="1" max="31" />
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn btn-primary btn-sm" onClick={() => save({ roiTransferEnabled, roiTransferDay: Number(roiTransferDay) })} disabled={busy}>Save ROI Transfer Settings</button>
+            <button className="btn btn-secondary btn-sm" onClick={handleRoiTransfer} disabled={busy}>Trigger ROI Transfer Now</button>
+          </div>
+        </div>
+      )}
+
+      {/* PROFIT SHARE */}
+      {tab === 'profit-share' && (
+        <div className="panel">
+          <h3>Profit Share Settings</h3>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Platform revenue distributed to users manually by admin. Goes to Profit Share Wallet. Users can transfer to Main Wallet on the configured day.
+          </p>
+          <div className="form-group">
+            <label className="form-label">Distribution Method</label>
+            <select className="select" value={psMethod} onChange={(e) => setPsMethod(e.target.value)}>
+              <option value="EQUAL">Equal (split equally among all users)</option>
+              <option value="PROPORTIONAL">Proportional (based on investment amount)</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Distribution Amount ($)</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <input className="form-input" type="number" value={distAmount} onChange={(e) => setDistAmount(e.target.value)} min="0" placeholder="0.00" />
+              <button className="btn btn-primary btn-sm" onClick={handleDistribute} disabled={distBusy}>
+                {distBusy ? 'Distributing...' : 'Distribute Now'}
+              </button>
+            </div>
+          </div>
+          <hr style={{ margin: 'var(--space-3) 0' }} />
+          <h4 style={{ marginBottom: 'var(--space-2)' }}>User Transfer Settings</h4>
+          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input type="checkbox" checked={psTransferEnabled} onChange={(e) => setPsTransferEnabled(e.target.checked)} />
+            Enable Profit Share Transfer
+          </label>
+          <div className="form-group">
+            <label className="form-label">Transfer Day (1-31)</label>
+            <input className="form-input" type="number" value={psTransferDay} onChange={(e) => setPsTransferDay(Number(e.target.value))} min="1" max="31" />
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn btn-primary btn-sm" onClick={() => save({ profitShareDistributionMethod: psMethod, profitShareTransferEnabled: psTransferEnabled, profitShareTransferDay: Number(psTransferDay) })} disabled={busy}>Save Profit Share Settings</button>
+            <button className="btn btn-secondary btn-sm" onClick={handlePsTransfer} disabled={busy}>Trigger Transfer Now</button>
+          </div>
         </div>
       )}
     </div>

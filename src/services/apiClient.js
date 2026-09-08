@@ -69,8 +69,8 @@ export const getMyWallet = async () => {
   return data.data;
 };
 
-export const getMyTransactions = async () => {
-  const { data } = await apiClient.get('/wallet/transactions');
+export const getMyTransactions = async (params = {}) => {
+  const { data } = await apiClient.get('/wallet/transactions', { params });
   return data.data;
 };
 
@@ -180,5 +180,43 @@ export const getMyRoiHistory = async () => {
 // User: referral downlines
 export const getMyDownlines = async () => {
   const { data } = await apiClient.get('/users/downlines');
+  return data.data;
+};
+
+// ==========================================
+// WALLET TRANSFERS
+// ==========================================
+
+// User: transfer ROI wallet to main wallet
+export const transferRoiToMain = async () => {
+  const { data } = await apiClient.post('/wallet/transfer/roi');
+  return data.data;
+};
+
+// User: transfer profit share wallet to main wallet
+export const transferProfitShareToMain = async () => {
+  const { data } = await apiClient.post('/wallet/transfer/profit-share');
+  return data.data;
+};
+
+// ==========================================
+// ADMIN - PROFIT SHARE & TRANSFERS
+// ==========================================
+
+// Admin: distribute profit share to all users
+export const distributeProfitShare = async (payload) => {
+  const { data } = await apiClient.post('/admin/profit-share/distribute', payload);
+  return data.data;
+};
+
+// Admin: trigger ROI transfer for all users
+export const triggerRoiTransfer = async () => {
+  const { data } = await apiClient.post('/admin/roi/transfer');
+  return data.data;
+};
+
+// Admin: trigger profit share transfer for all users
+export const triggerProfitShareTransfer = async () => {
+  const { data } = await apiClient.post('/admin/profit-share/transfer');
   return data.data;
 };

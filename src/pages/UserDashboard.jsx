@@ -3,12 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, LineChart, Wallet as WalletIcon, Receipt, Percent, Share2, User as UserIcon,
   LogOut, Loader2, AlertCircle, TrendingUp, ArrowDownToLine, Menu, X, Copy, CheckCircle,
-  BarChart3, CreditCard, Users,
+  BarChart3, CreditCard, Users, ArrowRightLeft,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import apiClient, {
   getMyInvestments, getMyWallet, getMyTransactions, requestDeposit, getPlans,
   getMyRoiHistory, getMyDownlines, getMyProfile, updateMyProfile,
+  transferRoiToMain, transferProfitShareToMain,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -154,15 +155,19 @@ function UserOverview() {
   if (error) return <ErrorBox message={error} />;
 
   const summary = [
-    { label: 'Main Balance', value: fmt(wallet?.mainBalance), color: 'blue', icon: CreditCard },
-    { label: 'ROI Balance', value: fmt(wallet?.roiBalance), color: 'green', icon: TrendingUp },
-    { label: 'Commission', value: fmt(wallet?.commissionBalance), color: 'purple', icon: Users },
-    { label: 'Total Earnings', value: fmt(wallet?.totalEarnings), color: 'teal', icon: BarChart3 },
+    { label: 'Main Wallet', value: fmt(wallet?.mainBalance), color: 'blue', icon: CreditCard },
+    { label: 'E-Wallet', value: fmt(wallet?.ewalletBalance), color: 'yellow', icon: WalletIcon },
+    { label: 'ROI Wallet', value: fmt(wallet?.roiBalance), color: 'green', icon: TrendingUp },
+    { label: 'Profit Share', value: fmt(wallet?.profitShareBalance), color: 'purple', icon: BarChart3 },
+    { label: 'Commission', value: fmt(wallet?.commissionBalance), color: 'teal', icon: Users },
+    { label: 'Total Earnings', value: fmt(wallet?.totalEarnings), color: 'orange', icon: TrendingUp },
   ];
 
   const pie = [
     { name: 'Main', value: wallet?.mainBalance || 0 },
+    { name: 'E-Wallet', value: wallet?.ewalletBalance || 0 },
     { name: 'ROI', value: wallet?.roiBalance || 0 },
+    { name: 'Profit Share', value: wallet?.profitShareBalance || 0 },
     { name: 'Commission', value: wallet?.commissionBalance || 0 },
   ].filter((p) => p.value > 0);
 
@@ -389,6 +394,7 @@ function UserWallet({ toastSuccess, toastError }) {
   const tab = q.get('tab') || 'overview';
   const [wallet, setWallet] = useState(null);
   const [txns, setTxns] = useState([]);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [amount, setAmount] = useState('');
@@ -396,6 +402,7 @@ function UserWallet({ toastSuccess, toastError }) {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
+  const [transferring, setTransferring] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -403,6 +410,10 @@ function UserWallet({ toastSuccess, toastError }) {
       const [w, t] = await Promise.all([getMyWallet(), getMyTransactions({ type: 'DEPOSIT' })]);
       setWallet(w.wallet);
       setTxns(t.transactions || []);
+      try {
+        const s = await getAdminSettings();
+        setSettings(s.settings);
+      } catch (e) { /* settings fetch optional */ }
     } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
     finally { setLoading(false); }
   }, []);
@@ -417,7 +428,7 @@ function UserWallet({ toastSuccess, toastError }) {
     const amt = Number(amount);
     if (!amt || amt <= 0) { setFormError('Enter a valid amount'); setBusy(false); return; }
     try {
-      await requestDeposit(amt, desc);
+      await requestDeposit({ amount: amt, description: desc });
       setSuccess('Deposit request submitted. Awaiting admin approval.');
       toastSuccess('Deposit Submitted', `Deposit request for ${fmt(amt)} submitted successfully.`);
       setAmount('');
@@ -427,14 +438,39 @@ function UserWallet({ toastSuccess, toastError }) {
     finally { setBusy(false); }
   };
 
+  const handleRoiTransfer = async () => {
+    setTransferring(true);
+    try {
+      await transferRoiToMain();
+      toastSuccess('Transfer Complete', 'ROI balance transferred to Main Wallet.');
+      await load();
+    } catch (er) { toastError('Transfer Failed', er.response?.data?.message || 'Transfer failed'); }
+    finally { setTransferring(false); }
+  };
+
+  const handleProfitShareTransfer = async () => {
+    setTransferring(true);
+    try {
+      await transferProfitShareToMain();
+      toastSuccess('Transfer Complete', 'Profit Share balance transferred to Main Wallet.');
+      await load();
+    } catch (er) { toastError('Transfer Failed', er.response?.data?.message || 'Transfer failed'); }
+    finally { setTransferring(false); }
+  };
+
   if (loading) return <Spinner label="Loading wallet..." />;
   if (error) return <ErrorBox message={error} />;
 
   const balances = [
-    { label: 'Main Balance', value: fmt(wallet?.mainBalance), color: 'primary', icon: CreditCard },
-    { label: 'ROI Balance', value: fmt(wallet?.roiBalance), color: 'green', icon: TrendingUp },
-    { label: 'Commission Balance', value: fmt(wallet?.commissionBalance), color: 'purple', icon: Users },
+    { label: 'Main Wallet', value: fmt(wallet?.mainBalance), color: 'primary', icon: CreditCard },
+    { label: 'E-Wallet', value: fmt(wallet?.ewalletBalance), color: 'yellow', icon: WalletIcon },
+    { label: 'ROI Wallet', value: fmt(wallet?.roiBalance), color: 'green', icon: TrendingUp },
+    { label: 'Profit Share Wallet', value: fmt(wallet?.profitShareBalance), color: 'purple', icon: BarChart3 },
   ];
+
+  const today = new Date().getUTCDate();
+  const roiTransferAllowed = settings?.roiTransferEnabled && today === settings?.roiTransferDay;
+  const psTransferAllowed = settings?.profitShareTransferEnabled && today === settings?.profitShareTransferDay;
 
   return (
     <div className="slide-up">
@@ -448,7 +484,7 @@ function UserWallet({ toastSuccess, toastError }) {
       <div className="wallet-summary">
         {balances.map((b) => (
           <div className={`balance-card ${b.color}`} key={b.label}>
-            <div className={`balance-icon ${b.color === 'primary' ? 'blue' : b.color === 'green' ? 'green' : 'purple'}`}>
+            <div className={`balance-icon ${b.color === 'primary' ? 'blue' : b.color === 'green' ? 'green' : b.color === 'yellow' ? 'yellow' : 'purple'}`}>
               <b.icon size={22} />
             </div>
             <div>
@@ -459,8 +495,47 @@ function UserWallet({ toastSuccess, toastError }) {
         ))}
       </div>
 
+      {/* Transfer Sections */}
+      <div className="transfers-grid" style={{ marginTop: 'var(--space-4)' }}>
+        <div className="panel">
+          <h3>ROI Wallet Transfer</h3>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Transfer ROI balance to Main Wallet. Available on {settings?.roiTransferDay || 1}th of each month.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleRoiTransfer}
+              disabled={!roiTransferAllowed || transferring || (wallet?.roiBalance || 0) <= 0}
+            >
+              {transferring ? 'Transferring...' : 'Transfer to Main Wallet'}
+            </button>
+            {!settings?.roiTransferEnabled && <span className="text-muted" style={{ fontSize: 12 }}>Disabled by admin</span>}
+            {settings?.roiTransferEnabled && !roiTransferAllowed && <span className="text-muted" style={{ fontSize: 12 }}>Available on {settings?.roiTransferDay}th</span>}
+          </div>
+        </div>
+
+        <div className="panel">
+          <h3>Profit Share Transfer</h3>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Transfer Profit Share balance to Main Wallet. Available on {settings?.profitShareTransferDay || 15}th of each month.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleProfitShareTransfer}
+              disabled={!psTransferAllowed || transferring || (wallet?.profitShareBalance || 0) <= 0}
+            >
+              {transferring ? 'Transferring...' : 'Transfer to Main Wallet'}
+            </button>
+            {!settings?.profitShareTransferEnabled && <span className="text-muted" style={{ fontSize: 12 }}>Disabled by admin</span>}
+            {settings?.profitShareTransferEnabled && !psTransferAllowed && <span className="text-muted" style={{ fontSize: 12 }}>Available on {settings?.profitShareTransferDay}th</span>}
+          </div>
+        </div>
+      </div>
+
       {tab === 'deposit' && (
-        <div className="deposit-form">
+        <div className="deposit-form" style={{ marginTop: 'var(--space-4)' }}>
           <h3>Request Deposit</h3>
           <form onSubmit={submitDeposit}>
             <div className="form-group">

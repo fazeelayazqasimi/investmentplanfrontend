@@ -1567,3 +1567,66 @@
     padding: var(--space-5);
   }
 }
+
+/* ==========================================
+   WALLET CARDS - Yellow & Purple Variants
+   ========================================== */
+.balance-card.yellow {
+  border-left-color: #d97706;
+}
+
+.balance-card.purple {
+  border-left-color: #7c3aed;
+}
+
+.balance-icon.yellow {
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+}
+
+.balance-icon.purple {
+  background: rgba(124, 58, 237, 0.12);
+  color: #7c3aed;
+}
+
+/* ==========================================
+   TRANSFERS GRID
+   ========================================== */
+.transfers-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+@media (max-width: 768px) {
+  .transfers-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================
+   STAT ICON COLORS
+   ========================================== */
+.stat-icon-yellow {
+  border-left-color: #d97706;
+}
+
+.stat-icon-yellow .stat-icon {
+  background: rgba(217, 119, 6, 0.12);
+}
+
+.stat-icon-orange {
+  border-left-color: #ea580c;
+}
+
+.stat-icon-orange .stat-icon {
+  background: rgba(234, 88, 12, 0.12);
+}
+
+/* ==========================================
+   TABLE CELL STRONG (for wallet/transaction IDs)
+   ========================================== */
+.cell-mono {
+  font-family: monospace;
+  font-size: 12px;
+}
