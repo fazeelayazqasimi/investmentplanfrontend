@@ -211,6 +211,12 @@ export const transferProfitShareToMain = async () => {
   return data.data;
 };
 
+// User: transfer fund wallet to another user
+export const transferFundToUser = async (payload) => {
+  const { data } = await apiClient.post('/wallet/transfer/fund', payload);
+  return data.data;
+};
+
 // ==========================================
 // ADMIN - PROFIT SHARE & TRANSFERS
 // ==========================================

@@ -10,6 +10,7 @@ import apiClient, {
   getMyInvestments, getMyWallet, getMyTransactions, requestDeposit, getPlans,
   getMyRoiHistory, getMyDownlines, getMyProfile, updateMyProfile,
   transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
+  transferFundToUser,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -159,8 +160,12 @@ function UserOverview({ toastSuccess, toastError }) {
   const handleActivate = async () => {
     setActivating(true);
     try {
-      await activateAccount();
-      toastSuccess('Account Activated', 'Your account has been activated successfully!');
+      const res = await activateAccount();
+      if (res.alreadyActivated) {
+        toastSuccess('Already Activated', 'Your account is already activated');
+      } else {
+        toastSuccess('Account Activated', 'Your account has been activated successfully!');
+      }
       const p = await getMyProfile();
       setProfile(p);
       const w = await getMyWallet();
@@ -177,7 +182,8 @@ function UserOverview({ toastSuccess, toastError }) {
     { label: 'E-Wallet', value: fmt(wallet?.ewalletBalance), color: 'yellow', icon: WalletIcon },
     { label: 'ROI Wallet', value: fmt(wallet?.roiBalance), color: 'green', icon: TrendingUp },
     { label: 'Profit Share', value: fmt(wallet?.profitShareBalance), color: 'purple', icon: BarChart3 },
-    { label: 'Commission', value: fmt(wallet?.commissionBalance), color: 'teal', icon: Users },
+    { label: 'Fund Wallet', value: fmt(wallet?.fundBalance), color: 'teal', icon: Users },
+    { label: 'Pending Commissions', value: fmt(wallet?.pendingCommissions), color: 'red', icon: AlertCircle },
     { label: 'Total Earnings', value: fmt(wallet?.totalEarnings), color: 'orange', icon: TrendingUp },
   ];
 
@@ -186,7 +192,8 @@ function UserOverview({ toastSuccess, toastError }) {
     { name: 'E-Wallet', value: wallet?.ewalletBalance || 0 },
     { name: 'ROI', value: wallet?.roiBalance || 0 },
     { name: 'Profit Share', value: wallet?.profitShareBalance || 0 },
-    { name: 'Commission', value: wallet?.commissionBalance || 0 },
+    { name: 'Fund', value: wallet?.fundBalance || 0 },
+    { name: 'Pending', value: wallet?.pendingCommissions || 0 },
   ].filter((p) => p.value > 0);
 
   return (
@@ -207,7 +214,7 @@ function UserOverview({ toastSuccess, toastError }) {
       </div>
 
       {/* Activation Banner */}
-      {profile && !profile.isActivated && settings && settings.activationFee > 0 && (
+      {profile && !profile.user?.isActivated && settings && settings.activationFee > 0 && (
         <div style={{
           background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
           border: '1px solid #f59e0b',
@@ -458,6 +465,11 @@ function UserWallet({ toastSuccess, toastError }) {
   const [success, setSuccess] = useState('');
   const [transferring, setTransferring] = useState(false);
   const [showDepositForm, setShowDepositForm] = useState(false);
+  const [showFundForm, setShowFundForm] = useState(false);
+  const [fundReceiver, setFundReceiver] = useState('');
+  const [fundAmount, setFundAmount] = useState('');
+  const [fundBusy, setFundBusy] = useState(false);
+  const [fundError, setFundError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -514,6 +526,22 @@ function UserWallet({ toastSuccess, toastError }) {
     finally { setTransferring(false); }
   };
 
+  const handleFundTransfer = async () => {
+    setFundBusy(true);
+    setFundError('');
+    const amt = Number(fundAmount);
+    if (!fundReceiver || !amt || amt <= 0) { setFundError('Enter valid receiver ID and amount'); setFundBusy(false); return; }
+    try {
+      await transferFundToUser({ receiverId: fundReceiver, amount: amt });
+      toastSuccess('Fund Transfer Complete', `${fmt(amt)} transferred successfully.`);
+      setFundReceiver('');
+      setFundAmount('');
+      setShowFundForm(false);
+      await load();
+    } catch (er) { setFundError(er.response?.data?.message || 'Transfer failed'); toastError('Transfer Failed', er.response?.data?.message); }
+    finally { setFundBusy(false); }
+  };
+
   if (loading) return <Spinner label="Loading wallet..." />;
   if (error) return <ErrorBox message={error} />;
 
@@ -522,6 +550,8 @@ function UserWallet({ toastSuccess, toastError }) {
     { label: 'E-Wallet', value: fmt(wallet?.ewalletBalance), color: 'yellow', icon: WalletIcon },
     { label: 'ROI Wallet', value: fmt(wallet?.roiBalance), color: 'green', icon: TrendingUp },
     { label: 'Profit Share Wallet', value: fmt(wallet?.profitShareBalance), color: 'purple', icon: BarChart3 },
+    { label: 'Fund Wallet', value: fmt(wallet?.fundBalance), color: 'teal', icon: Users },
+    { label: 'Pending Commissions', value: fmt(wallet?.pendingCommissions), color: 'red', icon: AlertCircle },
   ];
 
   const today = new Date().getUTCDate();
@@ -552,12 +582,18 @@ function UserWallet({ toastSuccess, toastError }) {
       </div>
 
       {/* Transfer Sections */}
-      <div style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+      <div style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-4)', display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
         <button
           className="btn btn-primary"
           onClick={() => setShowDepositForm(!showDepositForm)}
         >
           <ArrowDownToLine size={16} /> {showDepositForm ? 'Close' : 'Request Deposit'}
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => setShowFundForm(!showFundForm)}
+        >
+          <ArrowRightLeft size={16} /> {showFundForm ? 'Close' : 'Fund Transfer'}
         </button>
       </div>
 
@@ -618,6 +654,27 @@ function UserWallet({ toastSuccess, toastError }) {
             </button>
             <p className="form-hint" style={{ marginTop: 'var(--space-2)' }}>Balance updates only after admin approval.</p>
           </form>
+        </div>
+      )}
+
+      {showFundForm && (
+        <div className="deposit-form" style={{ marginTop: 'var(--space-4)' }}>
+          <h3>Fund Wallet Transfer</h3>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Transfer funds from your Fund Wallet to another user. Available balance: <strong>{fmt(wallet?.fundBalance)}</strong>
+          </p>
+          <div className="form-group">
+            <label className="form-label">Receiver User ID</label>
+            <input className="form-input" value={fundReceiver} onChange={(e) => setFundReceiver(e.target.value)} placeholder="Enter receiver's user ID" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Amount</label>
+            <input className="form-input" type="number" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} placeholder="0.00" min="0.01" />
+          </div>
+          {fundError && <ErrorBox message={fundError} />}
+          <button className="btn btn-primary btn-block" onClick={handleFundTransfer} disabled={fundBusy || !fundReceiver || !fundAmount}>
+            {fundBusy ? <><span className="spinner" /> Transferring...</> : 'Transfer Funds'}
+          </button>
         </div>
       )}
 

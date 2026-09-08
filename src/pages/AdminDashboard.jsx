@@ -134,8 +134,7 @@ export default function AdminDashboard() {
           {page === 'reports' && <AdminReports />}
           {page === 'settings' && <AdminSettings toastSuccess={success} toastError={toastError} />}
         </div>
-      </div>
-      <ToastContainer />
+        </div>
     </div>
   );
 }
@@ -402,11 +401,18 @@ function UserDetailModal({ detail, loading, onClose }) {
             <div className="detail-grid">
               <div className="detail-item"><span className="k">Main Balance</span><span className="v">{fmt(d.financialSummary.mainBalance)}</span></div>
               <div className="detail-item"><span className="k">ROI Balance</span><span className="v">{fmt(d.financialSummary.roiBalance)}</span></div>
+              <div className="detail-item"><span className="k">E-Wallet Balance</span><span className="v">{fmt(d.financialSummary.ewalletBalance)}</span></div>
+              <div className="detail-item"><span className="k">Profit Share Balance</span><span className="v">{fmt(d.financialSummary.profitShareBalance)}</span></div>
+              <div className="detail-item"><span className="k">Fund Wallet Balance</span><span className="v">{fmt(d.financialSummary.fundBalance)}</span></div>
+              <div className="detail-item"><span className="k">Pending Commissions</span><span className="v">{fmt(d.financialSummary.pendingCommissions)}</span></div>
               <div className="detail-item"><span className="k">Commission Balance</span><span className="v">{fmt(d.financialSummary.commissionBalance)}</span></div>
               <div className="detail-item"><span className="k">Total Deposited</span><span className="v">{fmt(d.financialSummary.totalDeposited)}</span></div>
               <div className="detail-item"><span className="k">Total Invested</span><span className="v">{fmt(d.financialSummary.totalInvested)}</span></div>
               <div className="detail-item"><span className="k">Total ROI</span><span className="v">{fmt(d.financialSummary.totalRoi)}</span></div>
-              <div className="detail-item"><span className="k">Total Commission</span><span className="v">{fmt(d.financialSummary.totalCommission)}</span></div>
+              <div className="detail-item"><span className="k">Total Network Income</span><span className="v">{fmt(d.financialSummary.totalNetworkIncome)}</span></div>
+              <div className="detail-item"><span className="k">Network 3X Cap</span><span className="v">{fmt(d.financialSummary.network3xCap)}</span></div>
+              <div className="detail-item"><span className="k">Eligible Investment Base</span><span className="v">{fmt(d.financialSummary.eligibleInvestmentBase)}</span></div>
+              <div className="detail-item"><span className="k">Total Earnings</span><span className="v">{fmt(d.financialSummary.totalEarnings)}</span></div>
             </div>
           )}
 
@@ -420,7 +426,7 @@ function UserDetailModal({ detail, loading, onClose }) {
                 <div className="detail-item"><span className="k">Upline</span><span className="v">{d.referrals.upline ? d.referrals.upline.name : '—'}</span></div>
                 <div className="detail-item"><span className="k">Direct Referrals</span><span className="v">{d.referrals.downlines.length}</span></div>
               </div>
-              <SimpleTable rows={d.referrals.downlines} cols={[['name', 'Name'], ['email', 'Email'], ['accountStatus', 'Status'], ['createdAt', 'Joined']]} />
+               <SimpleTable rows={d.referrals.downlines} cols={[['name', 'Name'], ['email', 'Email'], ['accountStatus', 'Status'], ['createdAt', 'Joined']]} />
             </div>
           )}
         </div>
@@ -902,6 +908,8 @@ function AdminSettings({ toastSuccess, toastError }) {
   const [psMethod, setPsMethod] = useState('EQUAL');
   const [distAmount, setDistAmount] = useState('');
   const [distBusy, setDistBusy] = useState(false);
+  // Fund Wallet
+  const [fundTransferEnabled, setFundTransferEnabled] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -926,6 +934,7 @@ function AdminSettings({ toastSuccess, toastError }) {
         setPsTransferEnabled(s.profitShareTransferEnabled || false);
         setPsTransferDay(s.profitShareTransferDay || 15);
         setPsMethod(s.profitShareDistributionMethod || 'EQUAL');
+        setFundTransferEnabled(s.fundTransferEnabled || false);
       } catch (e) { setError(e.response?.data?.message || 'Failed to load settings'); }
       finally { setLoading(false); }
     })();
@@ -990,7 +999,7 @@ function AdminSettings({ toastSuccess, toastError }) {
   if (loading) return <Spinner label="Loading settings..." />;
   if (error) return <ErrorBox message={error} />;
 
-  const TABS = ['general', 'plans', 'roi', 'platform', 'ewallet', 'activation', 'income', 'roi-transfer', 'profit-share'];
+  const TABS = ['general', 'plans', 'roi', 'platform', 'ewallet', 'activation', 'income', 'roi-transfer', 'profit-share', 'fund-transfer'];
 
   return (
     <div>
@@ -999,7 +1008,7 @@ function AdminSettings({ toastSuccess, toastError }) {
           <button key={t} className={`tab ${tab === t ? 'active' : ''}`}
             onClick={() => navigate(`/admin/settings?tab=${t}`)}
             style={{ textTransform: 'capitalize', fontSize: 12 }}>
-            {t === 'ewallet' ? 'E-Wallet' : t === 'roi-transfer' ? 'ROI Transfer' : t === 'profit-share' ? 'Profit Share' : t}
+            {t === 'ewallet' ? 'E-Wallet' : t === 'roi-transfer' ? 'ROI Transfer' : t === 'profit-share' ? 'Profit Share' : t === 'fund-transfer' ? 'Fund Transfer' : t}
           </button>
         ))}
       </div>
@@ -1197,6 +1206,21 @@ function AdminSettings({ toastSuccess, toastError }) {
             <button className="btn btn-primary btn-sm" onClick={() => save({ profitShareDistributionMethod: psMethod, profitShareTransferEnabled: psTransferEnabled, profitShareTransferDay: Number(psTransferDay) })} disabled={busy}>Save Profit Share Settings</button>
             <button className="btn btn-secondary btn-sm" onClick={handlePsTransfer} disabled={busy}>Trigger Transfer Now</button>
           </div>
+        </div>
+      )}
+
+      {/* FUND TRANSFER */}
+      {tab === 'fund-transfer' && (
+        <div className="panel">
+          <h3>Fund Wallet Transfer Settings</h3>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Enable or disable user-to-user Fund Wallet transfers. When disabled, existing Fund Wallet balances are preserved.
+          </p>
+          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input type="checkbox" checked={fundTransferEnabled} onChange={(e) => setFundTransferEnabled(e.target.checked)} />
+            Enable Fund Wallet Transfers
+          </label>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ fundTransferEnabled })} disabled={busy}>Save Fund Transfer Settings</button>
         </div>
       )}
     </div>

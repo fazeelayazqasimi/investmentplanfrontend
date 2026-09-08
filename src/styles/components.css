@@ -1569,7 +1569,7 @@
 }
 
 /* ==========================================
-   WALLET CARDS - Yellow & Purple Variants
+   WALLET CARDS - Yellow, Purple, Red, Teal Variants
    ========================================== */
 .balance-card.yellow {
   border-left-color: #d97706;
@@ -1577,6 +1577,14 @@
 
 .balance-card.purple {
   border-left-color: #7c3aed;
+}
+
+.balance-card.red {
+  border-left-color: #dc2626;
+}
+
+.balance-card.teal {
+  border-left-color: #0891b2;
 }
 
 .balance-icon.yellow {
@@ -1587,6 +1595,16 @@
 .balance-icon.purple {
   background: rgba(124, 58, 237, 0.12);
   color: #7c3aed;
+}
+
+.balance-icon.red {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+}
+
+.balance-icon.teal {
+  background: rgba(8, 145, 178, 0.12);
+  color: #0891b2;
 }
 
 /* ==========================================
