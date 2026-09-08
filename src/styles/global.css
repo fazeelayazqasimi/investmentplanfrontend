@@ -1,5 +1,7 @@
 @import './theme.css';
 @import './components.css';
+@import './referrals.css';
+@import './admin-referrals.css';
 
 /* ==========================================
    RESET & BASE
@@ -197,23 +199,23 @@ input, button, textarea, select {
 
 .btn-danger {
   background: var(--color-danger);
-  color: #fff;
+  color: var(--color-text-on-primary);
   border-color: var(--color-danger);
 }
 .btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
-  border-color: #b91c1c;
+  background: var(--color-danger-dark);
+  border-color: var(--color-danger-dark);
   box-shadow: var(--shadow-md);
 }
 
 .btn-success {
   background: var(--color-success);
-  color: #fff;
+  color: var(--color-text-on-primary);
   border-color: var(--color-success);
 }
 .btn-success:hover:not(:disabled) {
-  background: #047857;
-  border-color: #047857;
+  background: var(--color-success-dark);
+  border-color: var(--color-success-dark);
 }
 
 .btn-ghost {
@@ -586,7 +588,7 @@ input, button, textarea, select {
 .confirm-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
+  background: var(--overlay-bg);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;

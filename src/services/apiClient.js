@@ -195,6 +195,30 @@ export const getMyDownlines = async () => {
   return data.data;
 };
 
+// User: referral upline
+export const getMyUpline = async () => {
+  const { data } = await apiClient.get('/users/upline');
+  return data.data;
+};
+
+// User: referral tree (nested)
+export const getMyReferralTree = async () => {
+  const { data } = await apiClient.get('/users/tree');
+  return data.data;
+};
+
+// User: enriched referral data (stats + direct + indirect + tree)
+export const getEnrichedReferralData = async () => {
+  const { data } = await apiClient.get('/users/referrals/enriched');
+  return data.data;
+};
+
+// User: referral stats only
+export const getReferralStats = async () => {
+  const { data } = await apiClient.get('/users/referrals/stats');
+  return data.data;
+};
+
 // ==========================================
 // WALLET TRANSFERS
 // ==========================================
@@ -236,5 +260,39 @@ export const triggerRoiTransfer = async () => {
 // Admin: trigger profit share transfer for all users
 export const triggerProfitShareTransfer = async () => {
   const { data } = await apiClient.post('/admin/profit-share/transfer');
+  return data.data;
+};
+
+// ==========================================
+// ADMIN - REFERRAL NETWORK MANAGEMENT
+// ==========================================
+
+// Admin: platform-wide referral network stats
+export const getAdminReferralStats = async () => {
+  const { data } = await apiClient.get('/admin/referrals/stats');
+  return data.data;
+};
+
+// Admin: search users for referral explorer
+export const searchAdminReferralMembers = async (query) => {
+  const { data } = await apiClient.get('/admin/referrals/search', { params: { q: query } });
+  return data.data;
+};
+
+// Admin: get enriched referral tree for any user
+export const getAdminReferralTree = async (userId, maxDepth = 10) => {
+  const { data } = await apiClient.get(`/admin/referrals/tree/${userId}`, { params: { maxDepth } });
+  return data.data;
+};
+
+// Admin: get member detail with upline path and downline summary
+export const getAdminReferralMemberDetail = async (userId) => {
+  const { data } = await apiClient.get(`/admin/referrals/member/${userId}`);
+  return data.data;
+};
+
+// Admin: paginated/sorted member list with filters
+export const getAdminReferralMembers = async (params = {}) => {
+  const { data } = await apiClient.get('/admin/referrals/members', { params });
   return data.data;
 };

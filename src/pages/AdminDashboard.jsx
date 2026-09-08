@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, LineChart, ArrowDownToLine, ArrowUpFromLine, Receipt,
   Percent, Share2, FileBarChart, Settings, LogOut, Search, Menu,
+  ChevronDown, ChevronRight, ChevronLeft, ZoomIn, ZoomOut,
+  Maximize2, Minimize2, RotateCcw, X, UserCheck, UserX,
+  Filter, Download, RefreshCw, ArrowUpDown, Network,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import apiClient, {
@@ -10,6 +13,8 @@ import apiClient, {
   getAdminTransactions, getAdminSettings, updateAdminSettings, processRoi,
   getPendingDeposits, approveDeposit, rejectDeposit,
   distributeProfitShare, triggerRoiTransfer, triggerProfitShareTransfer,
+  getAdminReferralStats, searchAdminReferralMembers, getAdminReferralTree,
+  getAdminReferralMemberDetail, getAdminReferralMembers,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -23,9 +28,15 @@ import StatusBadge from '../components/StatusBadge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import useToast from '../components/useToast';
 
-const CHART_COLORS = ['#2563eb', '#7c3aed', '#059669', '#d97706', '#dc2626', '#0891b2'];
+const CHART_COLORS = ['var(--chart-color-1)', 'var(--chart-color-2)', 'var(--chart-color-3)', 'var(--chart-color-4)', 'var(--chart-color-5)', 'var(--chart-color-6)'];
 
 const fmt = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtCompact = (n) => {
+  const v = Number(n || 0);
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `$${(v / 1e3).toFixed(1)}K`;
+  return `$${v.toFixed(2)}`;
+};
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
 const fmtDateTime = (d) => (d ? new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
 
@@ -34,18 +45,18 @@ function ResponsiveContainerWrap({ height, children }) {
 }
 
 /* ---------- Sidebar structure ---------- */
-const NAV = [
-  { key: 'overview', label: 'Overview', icon: LayoutDashboard, to: '/admin/overview' },
-  { key: 'users', label: 'Users', icon: Users, to: '/admin/users' },
-  { key: 'investments', label: 'Investments', icon: LineChart, to: '/admin/investments' },
-  { key: 'deposits', label: 'Deposits', icon: ArrowDownToLine, to: '/admin/deposits?status=PENDING' },
-  { key: 'withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine, to: '/admin/withdrawals' },
-  { key: 'transactions', label: 'Transactions', icon: Receipt, to: '/admin/transactions' },
-  { key: 'roi', label: 'ROI Management', icon: Percent, to: '/admin/roi' },
-  { key: 'referrals', label: 'Referral / MLM', icon: Share2, to: '/admin/referrals' },
-  { key: 'reports', label: 'Reports', icon: FileBarChart, to: '/admin/reports' },
-  { key: 'settings', label: 'Settings', icon: Settings, to: '/admin/settings' },
-];
+  const NAV = [
+    { key: 'overview', label: 'Overview', icon: LayoutDashboard, to: '/admin/overview' },
+    { key: 'users', label: 'Users', icon: Users, to: '/admin/users' },
+    { key: 'investments', label: 'Investments', icon: LineChart, to: '/admin/investments' },
+    { key: 'deposits', label: 'Deposits', icon: ArrowDownToLine, to: '/admin/deposits?status=PENDING' },
+    { key: 'withdrawals', label: 'Withdrawals', icon: ArrowUpFromLine, to: '/admin/withdrawals' },
+    { key: 'transactions', label: 'Transactions', icon: Receipt, to: '/admin/transactions' },
+    { key: 'roi', label: 'ROI Management', icon: Percent, to: '/admin/roi' },
+    { key: 'referrals', label: 'Network Center', icon: Share2, to: '/admin/referrals' },
+    { key: 'reports', label: 'Reports', icon: FileBarChart, to: '/admin/reports' },
+    { key: 'settings', label: 'Settings', icon: Settings, to: '/admin/settings' },
+  ];
 
 /* =========================================================
    SHELL
@@ -188,11 +199,11 @@ function AdminOverview() {
           <div className="chart-card-header"><h3>Signup Trend (6 months)</h3></div>
           <ResponsiveContainerWrap height={240}>
             <AreaChart data={stats.signupTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Area type="monotone" dataKey="users" stroke="#d32f2f" fill="#d32f2f" fillOpacity={0.12} />
+              <Area type="monotone" dataKey="users" stroke="var(--chart-deposits)" fill="var(--chart-deposits)" fillOpacity={0.12} />
             </AreaChart>
           </ResponsiveContainerWrap>
         </div>
@@ -217,12 +228,12 @@ function AdminOverview() {
           <div className="chart-card-header"><h3>Deposit vs Investment Trend</h3></div>
           <ResponsiveContainerWrap height={240}>
             <BarChart data={stats.depositTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="deposits" fill="#d32f2f" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="investments" fill="#b0b6bd" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="deposits" fill="var(--chart-deposits)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="investments" fill="var(--chart-bar-secondary)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainerWrap>
         </div>
@@ -230,11 +241,11 @@ function AdminOverview() {
           <div className="chart-card-header"><h3>ROI Distributed</h3></div>
           <ResponsiveContainerWrap height={240}>
             <BarChart data={stats.roiDistribution}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="roi" fill="#6b7178" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="roi" fill="var(--chart-roi)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainerWrap>
         </div>
@@ -732,9 +743,9 @@ function AdminRoi({ toastSuccess, toastError }) {
         <div className="chart-card-header"><h3>ROI Distribution (6 months)</h3></div>
         <ResponsiveContainerWrap height={240}>
           <BarChart data={stats.roiDistribution}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip />
-            <Bar dataKey="roi" fill="#6b7178" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="roi" fill="var(--chart-roi)" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainerWrap>
       </div>
@@ -746,65 +757,788 @@ function AdminRoi({ toastSuccess, toastError }) {
 }
 
 /* =========================================================
-   REFERRALS
+   REFERRALS — NETWORK MANAGEMENT CENTER
    ========================================================= */
 function AdminReferrals() {
   const q = new URLSearchParams(useLocation().search);
   const tab = q.get('tab') || 'overview';
   const [stats, setStats] = useState(null);
-  const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const s = await getAdminStats(); setStats(s);
-        if (tab === 'commissions') { const t = await getAdminTransactions({ type: 'COMMISSION' }); setRows(t.transactions || []); }
-      } catch (e) { setError(e.response?.data?.message || 'Failed to load referrals'); }
+        const s = await getAdminReferralStats();
+        setStats(s);
+      } catch (e) { setError(e.response?.data?.message || 'Failed to load referral stats'); }
       finally { setLoading(false); }
     })();
-  }, [tab]);
+  }, []);
 
-  if (loading) return <Spinner label="Loading..." />;
-  if (error) return <ErrorBox message={error} />;
-
-  if (tab === 'commissions') {
-    return (
-      <div className="table-card">
-        <table className="data-table">
-          <thead><tr><th>User</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-          <tbody>
-            {rows.length === 0 && <tr><td colSpan={4} className="table-empty">No commission transactions yet</td></tr>}
-            {rows.map((r) => (
-              <tr key={r._id}>
-                <td data-label="User" className="cell-strong">{r.user?.name}</td>
-                <td data-label="Amount">{fmt(r.amount)}</td>
-                <td data-label="Status"><StatusBadge status={r.status} /></td>
-                <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
+  const tabs = [
+    { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { key: 'explorer', label: 'Network Explorer', icon: Network },
+    { key: 'members', label: 'All Members', icon: Users },
+  ];
 
   return (
-    <div className="stats-grid">
-      <div className="stat-card">
-        <div className="stat-value">{stats.totalUsers}</div>
-        <div className="stat-label">Total Users</div>
+    <div className="arnm-page">
+      <div className="arnm-tabs">
+        {tabs.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.key}
+              className={`arnm-tab ${tab === t.key ? 'active' : ''}`}
+              onClick={() => navigate(`/admin/referrals?tab=${t.key}`)}
+            >
+              <Icon size={16} />
+              {t.label}
+            </button>
+          );
+        })}
       </div>
-      <div className="stat-card">
-        <div className="stat-value">{fmt(stats.totalCommission)}</div>
-        <div className="stat-label">Total Commission Paid</div>
+
+      {loading ? (
+        <Spinner label="Loading referral network..." />
+      ) : error ? (
+        <ErrorBox message={error} />
+      ) : (
+        <>
+          {tab === 'overview' && <ARNMOverview stats={stats} />}
+          {tab === 'explorer' && <ARNMExplorer />}
+          {tab === 'members' && <ARNMMembers />}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================
+   OVERVIEW — Network Stats
+   ========================================================= */
+function ARNMOverview({ stats }) {
+  const statCards = [
+    { label: 'Total Members', value: stats.totalMembers || 0, color: 'blue', icon: Users },
+    { label: 'Active Members', value: stats.activeMembers || 0, color: 'green', icon: UserCheck },
+    { label: 'Inactive Members', value: stats.inactiveMembers || 0, color: 'red', icon: UserX },
+    { label: 'Direct Relationships', value: stats.totalDirectRelationships || 0, color: 'purple', icon: Share2 },
+    { label: 'Indirect Relationships', value: stats.totalIndirectRelationships || 0, color: 'violet', icon: Network },
+    { label: 'Total Team Investment', value: fmt(stats.totalTeamInvestment), color: 'indigo', icon: LineChart },
+    { label: 'Network Income Generated', value: fmt(stats.totalNetworkIncome), color: 'teal', icon: Receipt },
+    { label: 'Pending Commissions', value: fmt(stats.pendingCommissions), color: 'orange', icon: Percent },
+    { label: 'Average Team Size', value: stats.averageTeamSize || 0, color: 'cyan', icon: Users },
+  ];
+
+  return (
+    <div>
+      <div className="arnm-overview-header">
+        <div>
+          <h2 className="arnm-overview-title">Referral Network Overview</h2>
+          <p className="arnm-overview-subtitle">Platform-wide referral and MLM network statistics</p>
+        </div>
+        <Link to="/admin/referrals?tab=explorer" className="btn btn-primary btn-sm">
+          <Network size={16} /> Explore Network
+        </Link>
       </div>
-      <div className="stat-card">
-        <div className="stat-value">{fmt(stats.totalDeposited)}</div>
-        <div className="stat-label">Total Deposited</div>
+      <div className="arnm-stats-grid">
+        {statCards.map((c) => {
+          const Icon = c.icon;
+          return (
+            <div key={c.label} className={`arnm-stat-card arnm-stat-${c.color}`}>
+              <div className="arnm-stat-icon"><Icon size={20} /></div>
+              <div className="arnm-stat-value">{c.value}</div>
+              <div className="arnm-stat-label">{c.label}</div>
+            </div>
+          );
+        })}
       </div>
+      <div className="arnm-overview-summary">
+        <div className="arnm-summary-card">
+          <h3>Income Breakdown</h3>
+          <div className="arnm-summary-row">
+            <span>Direct Income</span>
+            <strong className="text-blue">{fmt(stats.totalDirectIncome)}</strong>
+          </div>
+          <div className="arnm-summary-row">
+            <span>Level Income</span>
+            <strong className="text-purple">{fmt(stats.totalLevelIncome)}</strong>
+          </div>
+          <div className="arnm-summary-row total">
+            <span>Total Network Income</span>
+            <strong className="text-teal">{fmt(stats.totalNetworkIncome)}</strong>
+          </div>
+        </div>
+        <div className="arnm-summary-card">
+          <h3>Network Health</h3>
+          <div className="arnm-summary-row">
+            <span>Activation Rate</span>
+            <strong className="text-green">{stats.totalMembers > 0 ? Math.round((stats.activeMembers / stats.totalMembers) * 100) : 0}%</strong>
+          </div>
+          <div className="arnm-summary-row">
+            <span>Avg. Team Size</span>
+            <strong>{stats.averageTeamSize}</strong>
+          </div>
+          <div className="arnm-summary-row">
+            <span>Pending Payouts</span>
+            <strong className="text-orange">{fmt(stats.pendingCommissions)}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   EXPLORER — Interactive Network Tree
+   ========================================================= */
+function ARNMExplorer() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [treeData, setTreeData] = useState(null);
+  const [loadingTree, setLoadingTree] = useState(false);
+  const [memberDetail, setMemberDetail] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const searchTimeoutRef = useRef(null);
+
+  const handleSearch = (value) => {
+    setSearchQuery(value);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (!value || value.trim().length < 1) {
+      setSearchResults([]);
+      return;
+    }
+    searchTimeoutRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await searchAdminReferralMembers(value.trim());
+        setSearchResults(res.users || []);
+      } catch { setSearchResults([]); }
+      finally { setSearching(false); }
+    }, 300);
+  };
+
+  const selectMember = async (user) => {
+    setSelectedMember(user);
+    setSearchResults([]);
+    setSearchQuery(user.name || user.referralCode);
+    setLoadingTree(true);
+    try {
+      const res = await getAdminReferralTree(user._id, 8);
+      setTreeData(res.tree);
+    } catch { setTreeData(null); }
+    finally { setLoadingTree(false); }
+  };
+
+  const openMemberDetail = async (node) => {
+    try {
+      const res = await getAdminReferralMemberDetail(node._id);
+      setMemberDetail(res);
+      setShowDetail(true);
+    } catch { /* ignore */ }
+  };
+
+  return (
+    <div className="arnm-explorer">
+      <div className="arnm-explorer-header">
+        <div>
+          <h2 className="arnm-overview-title">Referral Network Explorer</h2>
+          <p className="arnm-overview-subtitle">Search any member and explore their complete referral hierarchy</p>
+        </div>
+      </div>
+
+      <div className="arnm-search-box">
+        <Search size={18} className="arnm-search-icon" />
+        <input
+          type="text"
+          className="arnm-search-input"
+          placeholder="Search by name, email, referral code, or user ID..."
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+        />
+        {searching && <span className="arnm-search-loading">Searching...</span>}
+        {searchResults.length > 0 && (
+          <div className="arnm-search-dropdown">
+            {searchResults.map((u) => (
+              <div key={u._id} className="arnm-search-item" onClick={() => selectMember(u)}>
+                <div className="arnm-search-item-avatar">{u.name?.charAt(0)?.toUpperCase()}</div>
+                <div className="arnm-search-item-info">
+                  <div className="arnm-search-item-name">{u.name}</div>
+                  <div className="arnm-search-item-meta">
+                    {u.referralCode} &middot; {u.directChildCount} direct &middot; {fmt(u.totalInvestment)}
+                  </div>
+                </div>
+                <span className={`arnm-search-item-status ${u.accountStatus === 'ACTIVE' && u.isActivated ? 'active' : 'inactive'}`}>
+                  {u.accountStatus === 'ACTIVE' && u.isActivated ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {loadingTree && <Spinner label="Loading referral tree..." />}
+
+      {!loadingTree && selectedMember && treeData && (
+        <div className="arnm-tree-section">
+          <div className="arnm-tree-root-label">
+            <span className="arnm-root-badge">ROOT</span>
+            <strong>{selectedMember.name}</strong>
+            <span className="arnm-root-code">{selectedMember.referralCode}</span>
+            <span className={`arnm-root-status ${selectedMember.accountStatus === 'ACTIVE' && selectedMember.isActivated ? 'active' : 'inactive'}`}>
+              {selectedMember.accountStatus === 'ACTIVE' && selectedMember.isActivated ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+          <AdminMemberTreeView treeData={treeData} onNodeClick={openMemberDetail} />
+        </div>
+      )}
+
+      {!loadingTree && selectedMember && !treeData && (
+        <EmptyState title="No referral tree found" subtitle="This member does not have any referrals yet." />
+      )}
+
+      {!selectedMember && !loadingTree && (
+        <EmptyState
+          title="Select a member to explore"
+          subtitle="Search for a member above to view their complete referral network hierarchy."
+          icon={<Network size={48} />}
+        />
+      )}
+
+      {showDetail && memberDetail && (
+        <AdminMemberDetailPanel detail={memberDetail} onClose={() => { setShowDetail(false); setMemberDetail(null); }} onSelectMember={selectMember} />
+      )}
+    </div>
+  );
+}
+
+/* =========================================================
+   ADMIN MEMBER TREE VIEW
+   ========================================================= */
+function AdminMemberTreeView({ treeData, onNodeClick }) {
+  const [zoom, setZoom] = useState(1);
+  const [expandedNodes, setExpandedNodes] = useState(new Set());
+  const treeRef = useRef(null);
+
+  useEffect(() => {
+    if (treeData) {
+      const autoExpand = new Set();
+      const helper = (node, depth) => {
+        if (depth < 2 && node.children && node.children.length > 0) {
+          autoExpand.add(node._id);
+          node.children.forEach((c) => helper(c, depth + 1));
+        }
+      };
+      helper(treeData, 0);
+      setExpandedNodes(autoExpand);
+    }
+  }, [treeData]);
+
+  const toggleNode = (id) => {
+    setExpandedNodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const expandAll = () => {
+    const all = new Set();
+    const collect = (n) => { if (n.children) { all.add(n._id); n.children.forEach(collect); } };
+    if (treeData) collect(treeData);
+    setExpandedNodes(all);
+  };
+
+  const collapseAll = () => setExpandedNodes(new Set());
+
+  return (
+    <div className="arnm-tree-viewer">
+      <div className="arnm-tree-controls">
+        <button className="arnm-tree-ctrl" onClick={() => setZoom((z) => Math.min(z + 0.15, 2))} title="Zoom In">
+          <ZoomIn size={16} />
+        </button>
+        <span className="arnm-tree-zoom">{Math.round(zoom * 100)}%</span>
+        <button className="arnm-tree-ctrl" onClick={() => setZoom((z) => Math.max(z - 0.15, 0.3))} title="Zoom Out">
+          <ZoomOut size={16} />
+        </button>
+        <div className="arnm-tree-ctrl-divider" />
+        <button className="arnm-tree-ctrl" onClick={expandAll} title="Expand All">
+          <Maximize2 size={16} />
+        </button>
+        <button className="arnm-tree-ctrl" onClick={collapseAll} title="Collapse All">
+          <Minimize2 size={16} />
+        </button>
+        <button className="arnm-tree-ctrl" onClick={() => { setZoom(1); }} title="Reset View">
+          <RotateCcw size={16} />
+        </button>
+      </div>
+
+      <div className="arnm-tree-canvas-wrapper" ref={treeRef}>
+        <div className="arnm-tree-canvas" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
+          <AdminTreeNode
+            node={treeData}
+            isRoot={true}
+            expandedNodes={expandedNodes}
+            toggleNode={toggleNode}
+            onNodeClick={onNodeClick}
+            depth={0}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   ADMIN TREE NODE
+   ========================================================= */
+function AdminTreeNode({ node, isRoot, expandedNodes, toggleNode, onNodeClick, depth }) {
+  const hasChildren = node.children && node.children.length > 0;
+  const isExpanded = expandedNodes.has(node._id);
+  const isActive = node.isActivated && node.accountStatus === 'ACTIVE';
+
+  return (
+    <div className={`arnm-node-wrapper ${isRoot ? 'root' : ''} depth-${Math.min(depth, 4)}`}>
+      <div className="arnm-node-connector">
+        {!isRoot && <div className="arnm-connector-line" />}
+      </div>
+
+      <div
+        className={`arnm-node ${isActive ? 'active' : 'inactive'} ${isRoot ? 'root-node' : ''}`}
+        onClick={() => onNodeClick(node)}
+      >
+        <div className={`arnm-node-avatar ${isActive ? 'active' : 'inactive'}`}>
+          {node.name?.charAt(0)?.toUpperCase() || 'U'}
+        </div>
+        <div className="arnm-node-info">
+          <div className="arnm-node-name">{node.name}</div>
+          <div className="arnm-node-meta">
+            <span className="arnm-node-code">{node.referralCode || '—'}</span>
+            <span className="arnm-node-date">{fmtDate(node.createdAt)}</span>
+          </div>
+        </div>
+        <div className="arnm-node-stats">
+          <div className="arnm-node-stat">
+            <span className="arnm-node-stat-label">Invested</span>
+            <span className="arnm-node-stat-value indigo">{fmtCompact(node.totalInvestment)}</span>
+          </div>
+          <div className="arnm-node-stat">
+            <span className="arnm-node-stat-label">ROI</span>
+            <span className="arnm-node-stat-value green">{fmtCompact(node.totalRoiEarned)}</span>
+          </div>
+          <div className="arnm-node-stat">
+            <span className="arnm-node-stat-label">Income</span>
+            <span className="arnm-node-stat-value teal">{fmtCompact((node.directIncome || 0) + (node.levelIncome || 0))}</span>
+          </div>
+        </div>
+        <div className="arnm-node-right">
+          <div className={`arnm-node-status ${isActive ? 'active' : 'inactive'}`}>
+            {isActive ? 'Active' : 'Inactive'}
+          </div>
+          <div className="arnm-node-team">
+            <Users size={12} /> {node.totalTeamCount || node.children?.length || 0}
+          </div>
+        </div>
+        {hasChildren && (
+          <button
+            className="arnm-node-toggle"
+            onClick={(e) => { e.stopPropagation(); toggleNode(node._id); }}
+          >
+            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <span className="arnm-child-count">{node.children.length}</span>
+          </button>
+        )}
+      </div>
+
+      {hasChildren && isExpanded && (
+        <div className="arnm-children">
+          {node.children.map((child) => (
+            <AdminTreeNode
+              key={child._id}
+              node={child}
+              isRoot={false}
+              expandedNodes={expandedNodes}
+              toggleNode={toggleNode}
+              onNodeClick={onNodeClick}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================
+   ADMIN MEMBER DETAIL PANEL
+   ========================================================= */
+function AdminMemberDetailPanel({ detail, onClose, onSelectMember }) {
+  const { user, wallet, uplinePath, directDownlines, totalDownlineCount, directDownlineCount, financial } = detail;
+  const isActive = user.isActivated && user.accountStatus === 'ACTIVE';
+
+  return (
+    <div className="arnm-detail-overlay" onClick={onClose}>
+      <div className="arnm-detail-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="arnm-detail-header">
+          <h3>Member Network Details</h3>
+          <button className="arnm-detail-close" onClick={onClose}><X size={18} /></button>
+        </div>
+
+        <div className="arnm-detail-body">
+          {/* Upline Path */}
+          {uplinePath && uplinePath.length > 0 && (
+            <div className="arnm-upline-section">
+              <h4 className="arnm-detail-section-title">Upline Path</h4>
+              <div className="arnm-upline-path">
+                {uplinePath.map((u, i) => (
+                  <span key={u._id} className="arnm-upline-chip">
+                    <span className="arnm-upline-avatar">{u.name?.charAt(0)?.toUpperCase()}</span>
+                    <span>{u.name}</span>
+                    {i < uplinePath.length - 1 && <ChevronRight size={14} className="arnm-upline-arrow" />}
+                  </span>
+                ))}
+                <span className="arnm-upline-arrow-separator">&rarr;</span>
+                <span className="arnm-upline-chip current">
+                  <span className="arnm-upline-avatar">{user.name?.charAt(0)?.toUpperCase()}</span>
+                  <span>{user.name}</span>
+                </span>
+              </div>
+            </div>
+          )}
+          {(!uplinePath || uplinePath.length === 0) && (
+            <div className="arnm-upline-section">
+              <h4 className="arnm-detail-section-title">Upline Path</h4>
+              <div className="arnm-upline-path">
+                <span className="arnm-upline-chip current">
+                  <span className="arnm-upline-avatar">{user.name?.charAt(0)?.toUpperCase()}</span>
+                  <span>{user.name}</span>
+                </span>
+                <span className="arnm-no-upline">(Top of network — no upline)</span>
+              </div>
+            </div>
+          )}
+
+          {/* Member Info */}
+          <div className="arnm-detail-member-section">
+            <div className={`arnm-detail-avatar ${isActive ? 'active' : 'inactive'}`}>
+              {user.name?.charAt(0)?.toUpperCase()}
+            </div>
+            <div className="arnm-detail-member-name">{user.name}</div>
+            <div className={`arnm-detail-member-status ${isActive ? 'active' : 'inactive'}`}>
+              {isActive ? <><UserCheck size={14} /> Active</> : <><UserX size={14} /> Inactive</>}
+            </div>
+          </div>
+
+          <div className="arnm-detail-grid">
+            <div className="arnm-detail-item">
+              <span>Email</span><span>{user.email}</span>
+            </div>
+            <div className="arnm-detail-item">
+              <span>Referral Code</span><span className="arnm-code">{user.referralCode}</span>
+            </div>
+            <div className="arnm-detail-item">
+              <span>Joined</span><span>{fmtDate(user.createdAt)}</span>
+            </div>
+            <div className="arnm-detail-item">
+              <span>Total Investment</span><span className="text-indigo">{fmt(financial.totalInvestment)}</span>
+            </div>
+            <div className="arnm-detail-item">
+              <span>Total ROI Earned</span><span className="text-green">{fmt(financial.totalRoiEarned)}</span>
+            </div>
+            <div className="arnm-detail-item">
+              <span>Direct Income</span><span className="text-blue">{fmt(financial.directIncome)}</span>
+            </div>
+            <div className="arnm-detail-item">
+              <span>Level Income</span><span className="text-purple">{fmt(financial.levelIncome)}</span>
+            </div>
+            <div className="arnm-detail-item">
+              <span>Direct Members</span><span>{directDownlineCount}</span>
+            </div>
+            <div className="arnm-detail-item">
+              <span>Total Team</span><span>{totalDownlineCount}</span>
+            </div>
+            <div className="arnm-detail-item">
+              <span>Pending</span><span className="text-orange">{fmt(financial.pendingCommissions)}</span>
+            </div>
+            <div className="arnm-detail-item">
+              <span>Total Earnings</span><span className="text-teal">{fmt(financial.totalEarnings)}</span>
+            </div>
+          </div>
+
+          {/* Direct Downlines */}
+          {directDownlines && directDownlines.length > 0 && (
+            <div className="arnm-downline-section">
+              <h4 className="arnm-detail-section-title">Direct Downlines ({directDownlines.length})</h4>
+              <div className="arnm-downline-list">
+                {directDownlines.map((d) => (
+                  <div key={d._id} className="arnm-downline-item" onClick={() => { onSelectMember(d); onClose(); }}>
+                    <div className={`arnm-downline-avatar ${d.isActivated && d.accountStatus === 'ACTIVE' ? 'active' : 'inactive'}`}>
+                      {d.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                    <div className="arnm-downline-info">
+                      <div className="arnm-downline-name">{d.name}</div>
+                      <div className="arnm-downline-code">{d.referralCode}</div>
+                    </div>
+                    <span className={`arnm-downline-status ${d.isActivated && d.accountStatus === 'ACTIVE' ? 'active' : 'inactive'}`}>
+                      {d.isActivated && d.accountStatus === 'ACTIVE' ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Wallet */}
+          {wallet && (
+            <div className="arnm-wallet-section">
+              <h4 className="arnm-detail-section-title">Wallet Summary</h4>
+              <div className="arnm-wallet-grid">
+                <div className="arnm-wallet-item blue"><span>Main</span><strong>{fmt(wallet.mainBalance)}</strong></div>
+                <div className="arnm-wallet-item green"><span>ROI</span><strong>{fmt(wallet.roiBalance)}</strong></div>
+                <div className="arnm-wallet-item yellow"><span>E-Wallet</span><strong>{fmt(wallet.ewalletBalance)}</strong></div>
+                <div className="arnm-wallet-item purple"><span>Profit Share</span><strong>{fmt(wallet.profitShareBalance)}</strong></div>
+                <div className="arnm-wallet-item red"><span>Pending</span><strong>{fmt(wallet.pendingCommissions)}</strong></div>
+                <div className="arnm-wallet-item teal"><span>Total Earnings</span><strong>{fmt(wallet.totalEarnings)}</strong></div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   MEMBERS — Full Member List
+   ========================================================= */
+function ARNMMembers() {
+  const [members, setMembers] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState('createdAt');
+  const [order, setOrder] = useState('desc');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [activatedFilter, setActivatedFilter] = useState('');
+  const [hasInvestment, setHasInvestment] = useState('');
+  const [showDetail, setShowDetail] = useState(false);
+  const [detailData, setDetailData] = useState(null);
+  const searchTimeoutRef = useRef(null);
+  const filtersRef = useRef({ page: 1, sort: 'createdAt', order: 'desc', search: '', status: '', activated: '', hasInvestment: '' });
+
+  const fetchMembers = async (overrides = {}) => {
+    const f = { ...filtersRef.current, ...overrides };
+    setLoading(true);
+    try {
+      const params = { page: f.page, limit: 20, sort: f.sort, order: f.order };
+      if (f.search) params.search = f.search;
+      if (f.status) params.status = f.status;
+      if (f.activated) params.activated = f.activated;
+      if (f.hasInvestment) params.hasInvestment = f.hasInvestment;
+      const res = await getAdminReferralMembers(params);
+      setMembers(res.members || []);
+      setTotal(res.total || 0);
+      setTotalPages(res.totalPages || 1);
+    } catch { setMembers([]); }
+    finally { setLoading(false); }
+  };
+
+  const syncAndFetch = (updates = {}) => {
+    const f = { ...filtersRef.current, ...updates };
+    filtersRef.current = f;
+    if (updates.page !== undefined) setPage(updates.page);
+    if (updates.sort !== undefined) setSort(updates.sort);
+    if (updates.order !== undefined) setOrder(updates.order);
+    if (updates.search !== undefined) setSearch(updates.search);
+    if (updates.status !== undefined) setStatusFilter(updates.status);
+    if (updates.activated !== undefined) setActivatedFilter(updates.activated);
+    if (updates.hasInvestment !== undefined) setHasInvestment(updates.hasInvestment);
+    fetchMembers(f);
+  };
+
+  useEffect(() => { fetchMembers(); }, []);
+
+  const handleSearch = (val) => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      syncAndFetch({ search: val, page: 1 });
+    }, 400);
+    setSearch(val);
+  };
+
+  const toggleSort = (field) => {
+    const newOrder = sort === field ? (order === 'asc' ? 'desc' : 'asc') : 'desc';
+    syncAndFetch({ sort: field, order: newOrder, page: 1 });
+  };
+
+  const openDetail = async (m) => {
+    try {
+      const res = await getAdminReferralMemberDetail(m._id);
+      setDetailData(res);
+      setShowDetail(true);
+    } catch { /* ignore */ }
+  };
+
+  const columns = [
+    { key: 'name', label: 'Member', sortable: true },
+    { key: 'referralCode', label: 'Referral Code', sortable: false },
+    { key: 'sponsorName', label: 'Sponsor', sortable: false },
+    { key: 'accountStatus', label: 'Status', sortable: true },
+    { key: 'isActivated', label: 'Activation', sortable: true },
+    { key: 'totalInvestment', label: 'Investment', sortable: true },
+    { key: 'totalRoiEarned', label: 'ROI Earned', sortable: true },
+    { key: 'directIncome', label: 'Direct Income', sortable: true },
+    { key: 'indirectIncome', label: 'Indirect Income', sortable: true },
+    { key: 'totalEarnings', label: 'Total Earnings', sortable: true },
+    { key: 'createdAt', label: 'Join Date', sortable: true },
+  ];
+
+  return (
+    <div>
+      <div className="arnm-overview-header">
+        <div>
+          <h2 className="arnm-overview-title">All Members</h2>
+          <p className="arnm-overview-subtitle">{total} total members in the network</p>
+        </div>
+      </div>
+
+      <div className="arnm-filters-bar">
+        <div className="arnm-search-box compact">
+          <Search size={16} className="arnm-search-icon" />
+          <input
+            type="text"
+            className="arnm-search-input"
+            placeholder="Search members..."
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+        </div>
+        <select className="arnm-filter-select" value={statusFilter} onChange={(e) => syncAndFetch({ status: e.target.value, page: 1 })}>
+          <option value="">All Status</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+          <option value="SUSPENDED">Suspended</option>
+        </select>
+        <select className="arnm-filter-select" value={activatedFilter} onChange={(e) => syncAndFetch({ activated: e.target.value, page: 1 })}>
+          <option value="">All Activation</option>
+          <option value="true">Activated</option>
+          <option value="false">Not Activated</option>
+        </select>
+        <select className="arnm-filter-select" value={hasInvestment} onChange={(e) => syncAndFetch({ hasInvestment: e.target.value, page: 1 })}>
+          <option value="">All Investment</option>
+          <option value="true">Has Investment</option>
+          <option value="false">No Investment</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <Spinner label="Loading members..." />
+      ) : (
+        <>
+          <div className="arnm-table-wrap">
+            <table className="arnm-table">
+              <thead>
+                <tr>
+                  {columns.map((col) => (
+                    <th
+                      key={col.key}
+                      className={col.sortable ? 'sortable' : ''}
+                      onClick={col.sortable ? () => toggleSort(col.key) : undefined}
+                    >
+                      <span className="arnm-th-content">
+                        {col.label}
+                        {col.sortable && (
+                          <ArrowUpDown size={12} className={`arnm-sort-icon ${sort === col.key ? 'active' : ''}`} />
+                        )}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {members.length === 0 && (
+                  <tr><td colSpan={columns.length} className="arnm-table-empty">No members found</td></tr>
+                )}
+                {members.map((m) => {
+                  const isActive = m.accountStatus === 'ACTIVE' && m.isActivated;
+                  return (
+                    <tr key={m._id} className="arnm-table-row" onClick={() => openDetail(m)}>
+                      <td>
+                        <div className="arnm-member-cell">
+                          <div className={`arnm-member-avatar-sm ${isActive ? 'active' : 'inactive'}`}>
+                            {m.name?.charAt(0)?.toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="arnm-member-name-sm">{m.name}</div>
+                            <div className="arnm-member-email-sm">{m.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td><span className="arnm-code">{m.referralCode}</span></td>
+                      <td>{m.sponsorName || '—'}</td>
+                      <td><span className={`arnm-status-badge ${m.accountStatus?.toLowerCase()}`}>{m.accountStatus}</span></td>
+                      <td><span className={`arnm-activation-badge ${m.isActivated ? 'yes' : 'no'}`}>{m.isActivated ? 'Activated' : 'Pending'}</span></td>
+                      <td className="text-indigo">{fmt(m.totalInvestment)}</td>
+                      <td className="text-green">{fmt(m.totalRoiEarned)}</td>
+                      <td className="text-blue">{fmt(m.directIncome)}</td>
+                      <td className="text-purple">{fmt(m.indirectIncome)}</td>
+                      <td className="text-teal">{fmt(m.totalEarnings)}</td>
+                      <td>{fmtDate(m.createdAt)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="arnm-pagination">
+              <span className="arnm-pagination-info">
+                Showing {((page - 1) * 20) + 1}–{Math.min(page * 20, total)} of {total}
+              </span>
+              <div className="arnm-pagination-controls">
+                <button className="arnm-page-btn" onClick={() => syncAndFetch({ page: page - 1 })} disabled={page <= 1}>
+                  <ChevronLeft size={14} />
+                </button>
+                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 7) pageNum = i + 1;
+                  else if (page <= 4) pageNum = i + 1;
+                  else if (page >= totalPages - 3) pageNum = totalPages - 6 + i;
+                  else pageNum = page - 3 + i;
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`arnm-page-btn ${page === pageNum ? 'active' : ''}`}
+                      onClick={() => syncAndFetch({ page: pageNum })}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                <button className="arnm-page-btn" onClick={() => syncAndFetch({ page: page + 1 })} disabled={page >= totalPages}>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {showDetail && detailData && (
+        <AdminMemberDetailPanel
+          detail={detailData}
+          onClose={() => { setShowDetail(false); setDetailData(null); }}
+          onSelectMember={(m) => { setShowDetail(false); setDetailData(null); openDetail(m); }}
+        />
+      )}
     </div>
   );
 }
@@ -843,11 +1577,11 @@ function AdminReports() {
           <div className="chart-card-header"><h3>Deposit Trend</h3></div>
           <ResponsiveContainerWrap height={240}>
             <BarChart data={stats.depositTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="deposits" fill="#d32f2f" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="deposits" fill="var(--chart-deposits)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainerWrap>
         </div>
@@ -855,11 +1589,11 @@ function AdminReports() {
           <div className="chart-card-header"><h3>Investment Trend</h3></div>
           <ResponsiveContainerWrap height={240}>
             <BarChart data={stats.investmentTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eceef1" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="investments" fill="#b0b6bd" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="investments" fill="var(--chart-bar-secondary)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainerWrap>
         </div>

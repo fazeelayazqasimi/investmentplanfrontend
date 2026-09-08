@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, LineChart, Wallet as WalletIcon, Receipt, Percent, Share2, User as UserIcon,
-  LogOut, Loader2, AlertCircle, TrendingUp, ArrowDownToLine, Menu, X, Copy, CheckCircle,
+  LogOut, Loader2, AlertCircle, TrendingUp, ArrowDownToLine, Menu, X, CheckCircle,
   BarChart3, CreditCard, Users, ArrowRightLeft,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import apiClient, {
   getMyInvestments, getMyWallet, getMyTransactions, requestDeposit, getPlans,
-  getMyRoiHistory, getMyDownlines, getMyProfile, updateMyProfile,
+  getMyRoiHistory, getMyProfile, updateMyProfile,
   transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
   transferFundToUser,
 } from '../services/apiClient';
@@ -21,8 +21,9 @@ import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
 import StatusBadge from '../components/StatusBadge';
 import useToast from '../components/useToast';
+import UserReferrals from './UserReferrals';
 
-const CHART_COLORS = ['#2563eb', '#7c3aed', '#059669', '#d97706', '#dc2626', '#0891b2'];
+const CHART_COLORS = ['var(--chart-color-1)', 'var(--chart-color-2)', 'var(--chart-color-3)', 'var(--chart-color-4)', 'var(--chart-color-5)', 'var(--chart-color-6)'];
 const fmt = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
 const fmtDateTime = (d) => (d ? new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
@@ -215,27 +216,16 @@ function UserOverview({ toastSuccess, toastError }) {
 
       {/* Activation Banner */}
       {profile && !profile.user?.isActivated && settings && settings.activationFee > 0 && (
-        <div style={{
-          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-          border: '1px solid #f59e0b',
-          borderRadius: 'var(--radius-lg)',
-          padding: 'var(--space-4) var(--space-5)',
-          marginTop: 'var(--space-4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 'var(--space-3)',
-        }}>
+        <div className="activation-banner">
           <div>
-            <div style={{ fontWeight: 600, color: '#92400e', fontSize: 15 }}>
+            <div className="activation-banner-title">
               <AlertCircle size={18} style={{ verticalAlign: 'middle', marginRight: 6 }} />
               Activate Your Account
             </div>
-            <div style={{ color: '#a16207', fontSize: 13, marginTop: 4 }}>
+            <div className="activation-banner-subtitle">
               Activation fee: <strong>${settings.activationFee}</strong> will be deducted from your Main Wallet ({fmt(wallet?.mainBalance)}).
               {wallet?.mainBalance < settings.activationFee && (
-                <span style={{ color: '#dc2626', marginLeft: 6 }}>Insufficient balance.</span>
+                <span className="activation-banner-warning"> Insufficient balance.</span>
               )}
             </div>
           </div>
@@ -803,126 +793,6 @@ function UserRoi() {
                   <td data-label="Amount">{fmt(r.roiAmount)}</td>
                   <td data-label="Status"><StatusBadge status={r.status} /></td>
                   <td data-label="Date">{fmtDate(r.roiDate)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   REFERRALS
-   ========================================================= */
-function UserReferrals() {
-  const q = new URLSearchParams(useLocation().search);
-  const tab = q.get('tab') || 'overview';
-  const [downlines, setDownlines] = useState([]);
-  const [commissions, setCommissions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [profile, setProfile] = useState(null);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const [d, p] = await Promise.all([getMyDownlines(), getMyProfile()]);
-        setDownlines(d.directDownlines || []);
-        setProfile(p);
-        if (tab === 'commissions') {
-          const c = await getMyTransactions({ type: 'COMMISSION' });
-          setCommissions(c.transactions || []);
-        }
-      } catch (e) { setError(e.response?.data?.message || 'Failed'); }
-      finally { setLoading(false); }
-    })();
-  }, [tab]);
-
-  const copyReferral = () => {
-    navigator.clipboard.writeText(profile?.referralLink || '');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  if (loading) return <Spinner label="Loading referrals..." />;
-  if (error) return <ErrorBox message={error} />;
-
-  if (tab === 'commissions') {
-    return (
-      <div className="slide-up">
-        <div className="page-header">
-          <div>
-            <h1>Commission Earnings</h1>
-            <p className="subtitle">Track your referral commission income</p>
-          </div>
-        </div>
-        <div className="table-card">
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead><tr><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-              <tbody>
-                {commissions.length === 0 && <tr><td colSpan={3} className="table-empty">No commission earnings yet</td></tr>}
-                {commissions.map((c) => (
-                  <tr key={c._id}>
-                    <td data-label="Amount" className="cell-strong">{fmt(c.amount)}</td>
-                    <td data-label="Status"><StatusBadge status={c.status} /></td>
-                    <td data-label="Date">{fmtDateTime(c.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="slide-up">
-      <div className="page-header">
-        <div>
-          <h1>Referrals</h1>
-          <p className="subtitle">Invite friends and earn commissions</p>
-        </div>
-      </div>
-
-      <div className="panel">
-        <h3>Your Referral Link</h3>
-        <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', marginTop: 'var(--space-3)' }}>
-          <input className="form-input" readOnly value={profile?.referralLink || ''} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
-          <button className="btn btn-secondary btn-sm" onClick={copyReferral}>
-            {copied ? <><CheckCircle size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
-          </button>
-        </div>
-        <div style={{ marginTop: 'var(--space-3)' }}>
-          <span className="text-muted text-sm">Your Referral Code: </span>
-          <strong>{profile?.user?.referralCode}</strong>
-        </div>
-      </div>
-
-      <div className="page-header" style={{ marginTop: 'var(--space-6)' }}>
-        <div>
-          <h2>My Referrals ({downlines.length})</h2>
-        </div>
-      </div>
-
-      <div className="table-card">
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr><th>Name</th><th>Email</th><th>Status</th><th>Joined</th></tr>
-            </thead>
-            <tbody>
-              {downlines.length === 0 && <tr><td colSpan={4} className="table-empty">No referrals yet</td></tr>}
-              {downlines.map((d) => (
-                <tr key={d._id}>
-                  <td data-label="Name" className="cell-strong">{d.name}</td>
-                  <td data-label="Email">{d.email}</td>
-                  <td data-label="Status"><StatusBadge status={d.accountStatus} /></td>
-                  <td data-label="Joined">{fmtDate(d.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,25 +1,98 @@
 :root {
   /* ==========================================
-     BRAND PALETTE
+     BRAND PALETTE — Primary (Indigo/Blue)
      ========================================== */
-  --color-primary: #2563eb;
-  --color-primary-dark: #1d4ed8;
-  --color-primary-light: #3b82f6;
-  --color-primary-soft: #eff6ff;
-  --color-primary-border: #bfdbfe;
+  --color-primary: #4f46e5;
+  --color-primary-dark: #4338ca;
+  --color-primary-light: #6366f1;
+  --color-primary-soft: #eef2ff;
+  --color-primary-border: #c7d2fe;
 
+  /* ==========================================
+     SEMANTIC STATUS COLORS
+     ========================================== */
   --color-success: #059669;
+  --color-success-dark: #047857;
   --color-success-soft: #ecfdf5;
   --color-success-border: #a7f3d0;
+
   --color-warning: #d97706;
+  --color-warning-dark: #b45309;
   --color-warning-soft: #fffbeb;
   --color-warning-border: #fde68a;
+
   --color-danger: #dc2626;
+  --color-danger-dark: #b91c1c;
   --color-danger-soft: #fef2f2;
   --color-danger-border: #fecaca;
+  --color-danger-light: #fca5a5;
+
   --color-info: #0891b2;
+  --color-info-dark: #0e7490;
   --color-info-soft: #ecfeff;
   --color-info-border: #a5f3fc;
+
+  /* ==========================================
+     EXTENDED ACCENT COLORS
+     ========================================== */
+  --color-purple: #7c3aed;
+  --color-purple-dark: #6d28d9;
+  --color-purple-light: #ede9fe;
+  --color-purple-soft: #f5f3ff;
+  --color-purple-border: #c4b5fd;
+
+  --color-orange: #ea580c;
+  --color-orange-dark: #c2410c;
+  --color-orange-soft: #fff7ed;
+  --color-orange-border: #fed7aa;
+
+  --color-teal: #0d9488;
+  --color-teal-dark: #0f766e;
+  --color-teal-soft: #f0fdfa;
+  --color-teal-border: #99f6e4;
+
+  --color-indigo: #4f46e5;
+  --color-indigo-dark: #4338ca;
+  --color-indigo-soft: #eef2ff;
+  --color-indigo-border: #c7d2fe;
+
+  --color-cyan: #06b6d4;
+  --color-cyan-dark: #0891b2;
+  --color-cyan-soft: #ecfeff;
+  --color-cyan-border: #a5f3fc;
+
+  --color-violet: #7c3aed;
+  --color-violet-dark: #6d28d9;
+  --color-violet-soft: #f5f3ff;
+  --color-violet-border: #c4b5fd;
+
+  --color-amber: #f59e0b;
+  --color-amber-dark: #d97706;
+  --color-amber-soft: #fffbeb;
+  --color-amber-border: #fde68a;
+
+  /* ==========================================
+     FUNCTIONAL SEMANTIC MAPPING
+     (Wallet, Income, Status → accent colors)
+     ========================================== */
+  --color-wallet-main: #059669;
+  --color-wallet-roi: #2563eb;
+  --color-wallet-ewallet: #d97706;
+  --color-wallet-profit: #7c3aed;
+  --color-wallet-pending: #dc2626;
+  --color-wallet-fund: #0d9488;
+
+  --color-income-direct: #059669;
+  --color-income-level: #2563eb;
+
+  --color-status-active: #059669;
+  --color-status-inactive: #dc2626;
+  --color-status-suspended: #d97706;
+
+  --color-deposit: #06b6d4;
+  --color-withdrawal: #dc2626;
+  --color-investment: #4f46e5;
+  --color-referral: #7c3aed;
 
   /* ==========================================
      BACKGROUND / SURFACE
@@ -38,6 +111,7 @@
   --color-text-muted: #64748b;
   --color-text-light: #94a3b8;
   --color-text-on-primary: #ffffff;
+  --color-text-on-dark: #ffffff;
 
   /* ==========================================
      BORDERS
@@ -48,13 +122,18 @@
   --color-border-focus: var(--color-primary);
 
   /* ==========================================
+     OVERLAYS
+     ========================================== */
+  --overlay-bg: rgba(15, 23, 42, 0.5);
+
+  /* ==========================================
      SIDEBAR
      ========================================== */
   --sidebar-bg: #0f172a;
   --sidebar-text: #94a3b8;
   --sidebar-text-hover: #e2e8f0;
-  --sidebar-active-bg: rgba(37, 99, 235, 0.15);
-  --sidebar-active-text: #60a5fa;
+  --sidebar-active-bg: rgba(79, 70, 229, 0.15);
+  --sidebar-active-text: #818cf8;
   --sidebar-border: #1e293b;
   --sidebar-width: 260px;
   --sidebar-collapsed-width: 72px;
@@ -69,13 +148,18 @@
   /* ==========================================
      CHARTS
      ========================================== */
-  --chart-color-1: #2563eb;
+  --chart-color-1: #4f46e5;
   --chart-color-2: #7c3aed;
   --chart-color-3: #059669;
   --chart-color-4: #d97706;
   --chart-color-5: #dc2626;
   --chart-color-6: #0891b2;
+  --chart-color-7: #ea580c;
   --chart-grid: #f1f5f9;
+  --chart-deposits: #06b6d4;
+  --chart-investments: #4f46e5;
+  --chart-roi: #059669;
+  --chart-bar-secondary: #cbd5e1;
 
   /* ==========================================
      SHADOWS
@@ -114,7 +198,6 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* Aliases for backward compatibility */
   --space-xs: var(--space-1);
   --space-sm: var(--space-2);
   --space-md: var(--space-3);
