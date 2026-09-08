@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import apiClient, {
   getMyInvestments, getMyWallet, getMyTransactions, requestDeposit, getPlans,
   getMyRoiHistory, getMyDownlines, getMyProfile, updateMyProfile,
-  transferRoiToMain, transferProfitShareToMain,
+  transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -117,7 +117,7 @@ export default function UserDashboard() {
         </header>
 
         <div className="page-content">
-          {page === 'dashboard' && <UserOverview />}
+          {page === 'dashboard' && <UserOverview toastSuccess={success} toastError={toastError} />}
           {page === 'investments' && <UserInvestments toastSuccess={success} toastError={toastError} />}
           {page === 'wallet' && <UserWallet toastSuccess={success} toastError={toastError} />}
           {page === 'transactions' && <UserTransactions />}
@@ -134,22 +134,40 @@ export default function UserDashboard() {
 /* =========================================================
    OVERVIEW
    ========================================================= */
-function UserOverview() {
+function UserOverview({ toastSuccess, toastError }) {
   const [wallet, setWallet] = useState(null);
   const [investments, setInvestments] = useState([]);
+  const [profile, setProfile] = useState(null);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activating, setActivating] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const [w, i] = await Promise.all([getMyWallet(), getMyInvestments({ status: 'ACTIVE' })]);
+        const [w, i, p] = await Promise.all([getMyWallet(), getMyInvestments({ status: 'ACTIVE' }), getMyProfile()]);
         setWallet(w.wallet);
         setInvestments(i.investments || []);
+        setProfile(p);
+        try { const s = await getUserConfig(); setSettings(s); } catch (_) {}
       } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
       finally { setLoading(false); }
     })();
   }, []);
+
+  const handleActivate = async () => {
+    setActivating(true);
+    try {
+      await activateAccount();
+      toastSuccess('Account Activated', 'Your account has been activated successfully!');
+      const p = await getMyProfile();
+      setProfile(p);
+      const w = await getMyWallet();
+      setWallet(w.wallet);
+    } catch (er) { toastError('Activation Failed', er.response?.data?.message || 'Activation failed'); }
+    finally { setActivating(false); }
+  };
 
   if (loading) return <Spinner label="Loading dashboard..." />;
   if (error) return <ErrorBox message={error} />;
@@ -187,6 +205,42 @@ function UserOverview() {
           );
         })}
       </div>
+
+      {/* Activation Banner */}
+      {profile && !profile.isActivated && settings && settings.activationFee > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+          border: '1px solid #f59e0b',
+          borderRadius: 'var(--radius-lg)',
+          padding: 'var(--space-4) var(--space-5)',
+          marginTop: 'var(--space-4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 'var(--space-3)',
+        }}>
+          <div>
+            <div style={{ fontWeight: 600, color: '#92400e', fontSize: 15 }}>
+              <AlertCircle size={18} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+              Activate Your Account
+            </div>
+            <div style={{ color: '#a16207', fontSize: 13, marginTop: 4 }}>
+              Activation fee: <strong>${settings.activationFee}</strong> will be deducted from your Main Wallet ({fmt(wallet?.mainBalance)}).
+              {wallet?.mainBalance < settings.activationFee && (
+                <span style={{ color: '#dc2626', marginLeft: 6 }}>Insufficient balance.</span>
+              )}
+            </div>
+          </div>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleActivate}
+            disabled={activating || (wallet?.mainBalance || 0) < settings.activationFee}
+          >
+            {activating ? 'Activating...' : `Activate Now — $${settings.activationFee}`}
+          </button>
+        </div>
+      )}
 
       <div className="charts-grid-equal">
         <div className="chart-card">
@@ -403,6 +457,7 @@ function UserWallet({ toastSuccess, toastError }) {
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
   const [transferring, setTransferring] = useState(false);
+  const [showDepositForm, setShowDepositForm] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -433,6 +488,7 @@ function UserWallet({ toastSuccess, toastError }) {
       toastSuccess('Deposit Submitted', `Deposit request for ${fmt(amt)} submitted successfully.`);
       setAmount('');
       setDesc('');
+      setShowDepositForm(false);
       await load();
     } catch (er) { setFormError(er.response?.data?.message || 'Deposit failed'); toastError('Deposit Failed', er.response?.data?.message); }
     finally { setBusy(false); }
@@ -496,7 +552,16 @@ function UserWallet({ toastSuccess, toastError }) {
       </div>
 
       {/* Transfer Sections */}
-      <div className="transfers-grid" style={{ marginTop: 'var(--space-4)' }}>
+      <div style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+        <button
+          className="btn btn-primary"
+          onClick={() => setShowDepositForm(!showDepositForm)}
+        >
+          <ArrowDownToLine size={16} /> {showDepositForm ? 'Close' : 'Request Deposit'}
+        </button>
+      </div>
+
+      <div className="transfers-grid">
         <div className="panel">
           <h3>ROI Wallet Transfer</h3>
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
@@ -534,7 +599,7 @@ function UserWallet({ toastSuccess, toastError }) {
         </div>
       </div>
 
-      {tab === 'deposit' && (
+      {showDepositForm && (
         <div className="deposit-form" style={{ marginTop: 'var(--space-4)' }}>
           <h3>Request Deposit</h3>
           <form onSubmit={submitDeposit}>
@@ -708,7 +773,7 @@ function UserReferrals() {
     (async () => {
       try {
         const [d, p] = await Promise.all([getMyDownlines(), getMyProfile()]);
-        setDownlines(d.downlines || []);
+        setDownlines(d.directDownlines || []);
         setProfile(p);
         if (tab === 'commissions') {
           const c = await getMyTransactions({ type: 'COMMISSION' });

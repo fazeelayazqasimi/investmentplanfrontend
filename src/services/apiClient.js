@@ -59,8 +59,8 @@ export default apiClient;
 // Each returns the inner `data.data` payload.
 // ==========================================
 
-export const getMyInvestments = async () => {
-  const { data } = await apiClient.get('/investments');
+export const getMyInvestments = async (params = {}) => {
+  const { data } = await apiClient.get('/investments', { params });
   return data.data;
 };
 
@@ -168,6 +168,18 @@ export const getMyProfile = async () => {
 
 export const updateMyProfile = async (payload) => {
   const { data } = await apiClient.put('/users/profile', payload);
+  return data.data;
+};
+
+// User: activate account (deducts activation fee from main wallet)
+export const activateAccount = async () => {
+  const { data } = await apiClient.post('/users/activate');
+  return data.data;
+};
+
+// User: get public config (activation fee, etc.)
+export const getUserConfig = async () => {
+  const { data } = await apiClient.get('/users/config');
   return data.data;
 };
 
