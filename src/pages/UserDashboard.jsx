@@ -7,10 +7,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import apiClient, {
-  getMyInvestments, getMyWallet, getMyTransactions, requestDeposit, getPlans,
+  getMyInvestments, getMyWallet, getMyTransactions, requestDeposit,
   getMyRoiHistory, getMyProfile, updateMyProfile,
   transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
-  transferFundToUser,
+  transferFundToUser, getTransferSettings,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -276,7 +276,7 @@ function UserOverview({ toastSuccess, toastError }) {
             <EmptyState title="No active investments" subtitle="Start investing to see your portfolio here." />
           ) : (
             <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={investments.map((iv) => ({ name: iv.plan, amount: iv.originalAmount }))}>
+              <BarChart data={investments.map((iv, idx) => ({ name: `Investment ${idx + 1}`, amount: iv.originalAmount }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
@@ -298,12 +298,11 @@ function UserInvestments({ toastSuccess, toastError }) {
   const location = useLocation();
   const q = new URLSearchParams(location.search);
   const status = q.get('status') || '';
-  const [plans, setPlans] = useState([]);
   const [mine, setMine] = useState([]);
   const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [invest, setInvest] = useState(null);
+  const [showModal, setShowModal] = useState(false);
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
@@ -311,8 +310,7 @@ function UserInvestments({ toastSuccess, toastError }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, m, w] = await Promise.all([getPlans(), getMyInvestments(status ? { status } : {}), getMyWallet()]);
-      setPlans(p.plans || []);
+      const [m, w] = await Promise.all([getMyInvestments(status ? { status } : {}), getMyWallet()]);
       setMine(m.investments || []);
       setWallet(w.wallet);
     } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
@@ -325,13 +323,12 @@ function UserInvestments({ toastSuccess, toastError }) {
     setBusy(true);
     setFormError('');
     const amt = Number(amount);
-    if (!invest || !amt || amt <= 0) { setFormError('Enter a valid amount'); setBusy(false); return; }
-    if (amt < invest.minAmount || amt > invest.maxAmount) { setFormError(`Amount must be between ${fmt(invest.minAmount)} and ${fmt(invest.maxAmount)}`); setBusy(false); return; }
+    if (!amt || amt <= 0) { setFormError('Enter a valid amount'); setBusy(false); return; }
     if (amt > (wallet?.mainBalance || 0)) { setFormError('Insufficient main balance'); setBusy(false); return; }
     try {
-      await apiClient.post('/investments', { amount: amt, planId: invest._id, plan: invest.name });
-      setInvest(null); setAmount('');
-      toastSuccess('Investment Created', `Successfully invested ${fmt(amt)} in ${invest.name}`);
+      await apiClient.post('/investments', { amount: amt });
+      setShowModal(false); setAmount('');
+      toastSuccess('Investment Created', `Successfully invested ${fmt(amt)}`);
       await load();
     } catch (e) { setFormError(e.response?.data?.message || 'Investment failed'); toastError('Investment Failed', e.response?.data?.message); }
     finally { setBusy(false); }
@@ -344,39 +341,15 @@ function UserInvestments({ toastSuccess, toastError }) {
     <div className="slide-up">
       <div className="page-header">
         <div>
-          <h1>Investment Plans</h1>
-          <p className="subtitle">Browse available plans and manage your investments</p>
+          <h1>Investments</h1>
+          <p className="subtitle">Invest any amount and track your portfolio</p>
         </div>
+        <button className="btn btn-primary btn-sm" onClick={() => { setShowModal(true); setAmount(''); }}>
+          <TrendingUp size={14} /> Invest Now
+        </button>
       </div>
 
-      {plans.length === 0 ? (
-        <EmptyState title="No plans available" subtitle="Admin has not published any investment plans yet." />
-      ) : (
-        <div className="investments-list">
-          {plans.map((p) => (
-            <div className="investment-card" key={p._id}>
-              <div className="investment-header">
-                <h3>{p.name}</h3>
-                <span className="badge badge-info">{p.roiPercentage}% ROI</span>
-              </div>
-              <div className="investment-details">
-                <div className="detail-row">
-                  <span>Duration: {p.durationDays} days</span>
-                  <span>Range: {fmt(p.minAmount)} – {fmt(p.maxAmount)}</span>
-                </div>
-                {p.description && <span>{p.description}</span>}
-              </div>
-              <div className="investment-actions">
-                <button className="btn btn-primary btn-sm" onClick={() => { setInvest(p); setAmount(p.minAmount); }}>
-                  <TrendingUp size={14} /> Invest Now
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="page-header" style={{ marginTop: 'var(--space-8)' }}>
+      <div className="page-header" style={{ marginTop: 'var(--space-4)' }}>
         <div>
           <h2>My Investments</h2>
           <p className="subtitle">Track your active and completed investments</p>
@@ -388,7 +361,6 @@ function UserInvestments({ toastSuccess, toastError }) {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Plan</th>
                 <th>Amount</th>
                 <th>ROI %</th>
                 <th>Start</th>
@@ -397,11 +369,10 @@ function UserInvestments({ toastSuccess, toastError }) {
               </tr>
             </thead>
             <tbody>
-              {mine.length === 0 && <tr><td colSpan={6} className="table-empty">No investments found</td></tr>}
+              {mine.length === 0 && <tr><td colSpan={5} className="table-empty">No investments found</td></tr>}
               {mine.map((iv) => (
                 <tr key={iv._id}>
-                  <td data-label="Plan" className="cell-strong">{iv.plan}</td>
-                  <td data-label="Amount">{fmt(iv.originalAmount)}</td>
+                  <td data-label="Amount" className="cell-strong">{fmt(iv.originalAmount)}</td>
                   <td data-label="ROI">{iv.roiPercentage}%</td>
                   <td data-label="Start">{fmtDate(iv.startDate)}</td>
                   <td data-label="End">{fmtDate(iv.endDate)}</td>
@@ -413,22 +384,22 @@ function UserInvestments({ toastSuccess, toastError }) {
         </div>
       </div>
 
-      {invest && (
-        <Modal title={`Invest — ${invest.name}`}
+      {showModal && (
+        <Modal title="Invest"
           footer={
             <>
-              <button className="btn btn-secondary btn-sm" onClick={() => setInvest(null)} disabled={busy}>Cancel</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowModal(false)} disabled={busy}>Cancel</button>
               <button className="btn btn-primary btn-sm" onClick={submitInvest} disabled={busy}>
                 {busy ? <><span className="spinner" /> Processing...</> : 'Confirm Investment'}
               </button>
             </>
           }
-          onClose={() => setInvest(null)}>
+          onClose={() => setShowModal(false)}>
           <p style={{ marginBottom: 'var(--space-4)' }}>Available main balance: <strong>{fmt(wallet?.mainBalance)}</strong></p>
           <div className="form-group">
             <label className="form-label">Investment Amount</label>
-            <input className="form-input" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min={invest.minAmount} max={invest.maxAmount} />
-            <span className="form-hint">Allowed: {fmt(invest.minAmount)} – {fmt(invest.maxAmount)}</span>
+            <input className="form-input" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="1" />
+            <span className="form-hint">Enter any amount you want to invest</span>
           </div>
           {formError && <ErrorBox message={formError} />}
         </Modal>
@@ -468,8 +439,8 @@ function UserWallet({ toastSuccess, toastError }) {
       setWallet(w.wallet);
       setTxns(t.transactions || []);
       try {
-        const s = await getAdminSettings();
-        setSettings(s.settings);
+        const s = await getTransferSettings();
+        setSettings(s);
       } catch (e) { /* settings fetch optional */ }
     } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
     finally { setLoading(false); }
@@ -544,9 +515,8 @@ function UserWallet({ toastSuccess, toastError }) {
     { label: 'Pending Commissions', value: fmt(wallet?.pendingCommissions), color: 'red', icon: AlertCircle },
   ];
 
-  const today = new Date().getUTCDate();
-  const roiTransferAllowed = settings?.roiTransferEnabled && today === settings?.roiTransferDay;
-  const psTransferAllowed = settings?.profitShareTransferEnabled && today === settings?.profitShareTransferDay;
+  const roiTransferAllowed = settings?.roiTransferEnabled;
+  const psTransferAllowed = settings?.profitShareTransferEnabled;
 
   return (
     <div className="slide-up">
@@ -591,7 +561,7 @@ function UserWallet({ toastSuccess, toastError }) {
         <div className="panel">
           <h3>ROI Wallet Transfer</h3>
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
-            Transfer ROI balance to Main Wallet. Available on {settings?.roiTransferDay || 1}th of each month.
+            Transfer ROI balance to Main Wallet. Max return is 2x your investment.
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
             <button
@@ -602,14 +572,13 @@ function UserWallet({ toastSuccess, toastError }) {
               {transferring ? 'Transferring...' : 'Transfer to Main Wallet'}
             </button>
             {!settings?.roiTransferEnabled && <span className="text-muted" style={{ fontSize: 12 }}>Disabled by admin</span>}
-            {settings?.roiTransferEnabled && !roiTransferAllowed && <span className="text-muted" style={{ fontSize: 12 }}>Available on {settings?.roiTransferDay}th</span>}
           </div>
         </div>
 
         <div className="panel">
           <h3>Profit Share Transfer</h3>
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
-            Transfer Profit Share balance to Main Wallet. Available on {settings?.profitShareTransferDay || 15}th of each month.
+            Transfer Profit Share balance to Main Wallet. Max return is 3x your investment.
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
             <button
@@ -620,7 +589,6 @@ function UserWallet({ toastSuccess, toastError }) {
               {transferring ? 'Transferring...' : 'Transfer to Main Wallet'}
             </button>
             {!settings?.profitShareTransferEnabled && <span className="text-muted" style={{ fontSize: 12 }}>Disabled by admin</span>}
-            {settings?.profitShareTransferEnabled && !psTransferAllowed && <span className="text-muted" style={{ fontSize: 12 }}>Available on {settings?.profitShareTransferDay}th</span>}
           </div>
         </div>
       </div>

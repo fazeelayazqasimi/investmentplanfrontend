@@ -154,12 +154,6 @@ export const processRoi = async () => {
   return data.data;
 };
 
-// User: active investment plans catalog
-export const getPlans = async () => {
-  const { data } = await apiClient.get('/investments/plans');
-  return data.data;
-};
-
 // User: profile
 export const getMyProfile = async () => {
   const { data } = await apiClient.get('/users/profile');
@@ -238,6 +232,12 @@ export const transferProfitShareToMain = async () => {
 // User: transfer fund wallet to another user
 export const transferFundToUser = async (payload) => {
   const { data } = await apiClient.post('/wallet/transfer/fund', payload);
+  return data.data;
+};
+
+// User: get transfer settings (ROI & Profit Share)
+export const getTransferSettings = async () => {
+  const { data } = await apiClient.get('/wallet/transfer-settings');
   return data.data;
 };
 

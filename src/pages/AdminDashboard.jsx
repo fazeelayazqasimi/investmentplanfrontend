@@ -429,7 +429,7 @@ function UserDetailModal({ detail, loading, onClose }) {
 
           {tab === 'deposits' && <SimpleTable rows={d.deposits} cols={[['amount', 'Amount'], ['status', 'Status'], ['createdAt', 'Date']]} />}
           {tab === 'transactions' && <SimpleTable rows={d.transactions} cols={[['type', 'Type'], ['amount', 'Amount'], ['status', 'Status'], ['createdAt', 'Date']]} />}
-          {tab === 'investments' && <SimpleTable rows={d.investments} cols={[['plan', 'Plan'], ['originalAmount', 'Amount'], ['status', 'Status'], ['startDate', 'Start']]} />}
+          {tab === 'investments' && <SimpleTable rows={d.investments} cols={[['originalAmount', 'Amount'], ['status', 'Status'], ['startDate', 'Start']]} />}
           {tab === 'roi' && <SimpleTable rows={d.roiHistory} cols={[['roiPercentage', 'ROI %'], ['roiAmount', 'Amount'], ['roiDate', 'Date'], ['status', 'Status']]} />}
           {tab === 'referrals' && (
             <div>
@@ -497,7 +497,7 @@ function AdminInvestments() {
     <div>
       <div className="toolbar">
         <div className="filter-bar">
-          <input className="search-input" placeholder="Search user, email, plan..." value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} />
+          <input className="search-input" placeholder="Search user, email..." value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} />
           <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All Status</option><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option>
           </select>
@@ -507,14 +507,13 @@ function AdminInvestments() {
       {loading ? <Spinner label="Loading investments..." /> : error ? <ErrorBox message={error} /> : (
         <div className="table-card">
           <table className="data-table">
-            <thead><tr><th>User</th><th>Email</th><th>Plan</th><th>Amount</th><th>ROI %</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
+            <thead><tr><th>User</th><th>Email</th><th>Amount</th><th>ROI %</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={8} className="table-empty">No investments found</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={7} className="table-empty">No investments found</td></tr>}
               {rows.map((r) => (
                 <tr key={r._id}>
                   <td data-label="User" className="cell-strong">{r.user?.name}</td>
                   <td data-label="Email">{r.user?.email}</td>
-                  <td data-label="Plan">{r.plan}</td>
                   <td data-label="Amount">{fmt(r.originalAmount)}</td>
                   <td data-label="ROI %">{r.roiPercentage}%</td>
                   <td data-label="Start">{fmtDate(r.startDate)}</td>
@@ -1621,8 +1620,6 @@ function AdminSettings({ toastSuccess, toastError }) {
   const [overallRoi, setOverallRoi] = useState(0);
   const [roiEnabled, setRoiEnabled] = useState(false);
   const [proc, setProc] = useState(null);
-  // Plans
-  const [plans, setPlans] = useState([]);
   // E-Wallet
   const [ewalletEnabled, setEwalletEnabled] = useState(false);
   const [ewalletUsageEnabled, setEwalletUsageEnabled] = useState(false);
@@ -1635,10 +1632,8 @@ function AdminSettings({ toastSuccess, toastError }) {
   const [levelIncome, setLevelIncome] = useState(0);
   // ROI Transfer
   const [roiTransferEnabled, setRoiTransferEnabled] = useState(false);
-  const [roiTransferDay, setRoiTransferDay] = useState(1);
   // Profit Share
   const [psTransferEnabled, setPsTransferEnabled] = useState(false);
-  const [psTransferDay, setPsTransferDay] = useState(15);
   const [psMethod, setPsMethod] = useState('EQUAL');
   const [distAmount, setDistAmount] = useState('');
   const [distBusy, setDistBusy] = useState(false);
@@ -1655,7 +1650,6 @@ function AdminSettings({ toastSuccess, toastError }) {
         setOverallRoi(s.overallRoiPercentage || 0);
         setRoiEnabled(s.roiProcessingEnabled);
         setAllowInvest(s.allowUserInvestment);
-        setPlans(s.plans || []);
         setEwalletEnabled(s.ewalletEnabled || false);
         setEwalletUsageEnabled(s.ewalletUsageEnabled || false);
         setSignupBonus(s.signupBonusAmount || 0);
@@ -1664,9 +1658,7 @@ function AdminSettings({ toastSuccess, toastError }) {
         setDirectIncome(s.directIncomePercentage || 0);
         setLevelIncome(s.levelIncomePercentage || 0);
         setRoiTransferEnabled(s.roiTransferEnabled || false);
-        setRoiTransferDay(s.roiTransferDay || 1);
         setPsTransferEnabled(s.profitShareTransferEnabled || false);
-        setPsTransferDay(s.profitShareTransferDay || 15);
         setPsMethod(s.profitShareDistributionMethod || 'EQUAL');
         setFundTransferEnabled(s.fundTransferEnabled || false);
       } catch (e) { setError(e.response?.data?.message || 'Failed to load settings'); }
@@ -1733,7 +1725,7 @@ function AdminSettings({ toastSuccess, toastError }) {
   if (loading) return <Spinner label="Loading settings..." />;
   if (error) return <ErrorBox message={error} />;
 
-  const TABS = ['general', 'plans', 'roi', 'platform', 'ewallet', 'activation', 'income', 'roi-transfer', 'profit-share', 'fund-transfer'];
+  const TABS = ['general', 'roi', 'platform', 'ewallet', 'activation', 'income', 'roi-transfer', 'profit-share', 'fund-transfer'];
 
   return (
     <div>
@@ -1756,26 +1748,6 @@ function AdminSettings({ toastSuccess, toastError }) {
             Allow user self-investment
           </label>
           <button className="btn btn-primary btn-sm" onClick={() => save({ allowUserInvestment: allowInvest })} disabled={busy}>Save General</button>
-        </div>
-      )}
-
-      {/* PLANS */}
-      {tab === 'plans' && (
-        <div className="panel">
-          <h3>Investment Plans</h3>
-          {plans.map((p, i) => (
-            <div key={p._id || i} className="detail-grid" style={{ marginBottom: 12 }}>
-              <input className="form-input" value={p.name} onChange={(e) => { const n = [...plans]; n[i].name = e.target.value; setPlans(n); }} placeholder="Name" />
-              <input className="form-input" type="number" value={p.roiPercentage} onChange={(e) => { const n = [...plans]; n[i].roiPercentage = Number(e.target.value); setPlans(n); }} placeholder="ROI %" />
-              <input className="form-input" type="number" value={p.durationDays} onChange={(e) => { const n = [...plans]; n[i].durationDays = Number(e.target.value); setPlans(n); }} placeholder="Duration (days)" />
-              <input className="form-input" type="number" value={p.minAmount} onChange={(e) => { const n = [...plans]; n[i].minAmount = Number(e.target.value); setPlans(n); }} placeholder="Min" />
-              <input className="form-input" type="number" value={p.maxAmount} onChange={(e) => { const n = [...plans]; n[i].maxAmount = Number(e.target.value); setPlans(n); }} placeholder="Max" />
-            </div>
-          ))}
-          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => setPlans([...plans, { name: '', roiPercentage: 1, durationDays: 30, minAmount: 100, maxAmount: 100000, active: true }])}>Add Plan</button>
-            <button className="btn btn-primary btn-sm" onClick={() => save({ plans })} disabled={busy}>Save Plans</button>
-          </div>
         </div>
       )}
 
@@ -1886,18 +1858,14 @@ function AdminSettings({ toastSuccess, toastError }) {
         <div className="panel">
           <h3>ROI Transfer Settings</h3>
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
-            Configure when users can transfer ROI balance to their Main Wallet. Users can only transfer on the configured day of each month.
+            Allow users to transfer ROI balance to their Main Wallet anytime. ROI max is 2x investment.
           </p>
           <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <input type="checkbox" checked={roiTransferEnabled} onChange={(e) => setRoiTransferEnabled(e.target.checked)} />
             Enable ROI Transfer
           </label>
-          <div className="form-group">
-            <label className="form-label">Transfer Day (1-31)</label>
-            <input className="form-input" type="number" value={roiTransferDay} onChange={(e) => setRoiTransferDay(Number(e.target.value))} min="1" max="31" />
-          </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-primary btn-sm" onClick={() => save({ roiTransferEnabled, roiTransferDay: Number(roiTransferDay) })} disabled={busy}>Save ROI Transfer Settings</button>
+            <button className="btn btn-primary btn-sm" onClick={() => save({ roiTransferEnabled })} disabled={busy}>Save ROI Transfer Settings</button>
             <button className="btn btn-secondary btn-sm" onClick={handleRoiTransfer} disabled={busy}>Trigger ROI Transfer Now</button>
           </div>
         </div>
@@ -1908,7 +1876,7 @@ function AdminSettings({ toastSuccess, toastError }) {
         <div className="panel">
           <h3>Profit Share Settings</h3>
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
-            Platform revenue distributed to users manually by admin. Goes to Profit Share Wallet. Users can transfer to Main Wallet on the configured day.
+            Platform revenue distributed to users manually by admin. Goes to Profit Share Wallet. Users can transfer anytime. Max is 3x investment.
           </p>
           <div className="form-group">
             <label className="form-label">Distribution Method</label>
@@ -1932,12 +1900,8 @@ function AdminSettings({ toastSuccess, toastError }) {
             <input type="checkbox" checked={psTransferEnabled} onChange={(e) => setPsTransferEnabled(e.target.checked)} />
             Enable Profit Share Transfer
           </label>
-          <div className="form-group">
-            <label className="form-label">Transfer Day (1-31)</label>
-            <input className="form-input" type="number" value={psTransferDay} onChange={(e) => setPsTransferDay(Number(e.target.value))} min="1" max="31" />
-          </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-primary btn-sm" onClick={() => save({ profitShareDistributionMethod: psMethod, profitShareTransferEnabled: psTransferEnabled, profitShareTransferDay: Number(psTransferDay) })} disabled={busy}>Save Profit Share Settings</button>
+            <button className="btn btn-primary btn-sm" onClick={() => save({ profitShareDistributionMethod: psMethod, profitShareTransferEnabled: psTransferEnabled })} disabled={busy}>Save Profit Share Settings</button>
             <button className="btn btn-secondary btn-sm" onClick={handlePsTransfer} disabled={busy}>Trigger Transfer Now</button>
           </div>
         </div>
