@@ -10,7 +10,7 @@ import apiClient, {
   getMyInvestments, getMyWallet, getMyTransactions, requestDeposit,
   getMyRoiHistory, getMyProfile, updateMyProfile,
   transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
-  transferFundToUser, getTransferSettings,
+  transferFundToUser, getTransferSettings, getProgressData,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -141,6 +141,7 @@ function UserOverview({ toastSuccess, toastError }) {
   const [investments, setInvestments] = useState([]);
   const [profile, setProfile] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activating, setActivating] = useState(false);
@@ -153,6 +154,7 @@ function UserOverview({ toastSuccess, toastError }) {
         setInvestments(i.investments || []);
         setProfile(p);
         try { const s = await getUserConfig(); setSettings(s); } catch (_) {}
+        try { const pr = await getProgressData(); setProgress(pr); } catch (_) {}
       } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
       finally { setLoading(false); }
     })();
@@ -213,6 +215,61 @@ function UserOverview({ toastSuccess, toastError }) {
           );
         })}
       </div>
+
+      {/* Progress Bars for 2X and 3X Milestones */}
+      {progress && (
+        <div className="progress-section">
+          <div className="progress-card progress-2x">
+            <div className="progress-header">
+              <div className="progress-title">
+                <TrendingUp size={18} />
+                <span>ROI 2X Milestone</span>
+              </div>
+              <span className="progress-badge green">{progress.percentage2x}%</span>
+            </div>
+            <div className="progress-bar-track">
+              <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
+            </div>
+            <div className="progress-info">
+              <span>Earned: {fmt(progress.progress2x)}</span>
+              <span>Target: {fmt(progress.milestone2x)}</span>
+            </div>
+            {progress.remaining2x > 0 && (
+              <div className="progress-remaining">
+                {fmt(progress.remaining2x)} remaining to reach 2X
+              </div>
+            )}
+            {progress.remaining2x <= 0 && (
+              <div className="progress-complete">2X Milestone Reached! Reinvest to continue earning.</div>
+            )}
+          </div>
+
+          <div className="progress-card progress-3x">
+            <div className="progress-header">
+              <div className="progress-title">
+                <BarChart3 size={18} />
+                <span>Total Earnings 3X Cap</span>
+              </div>
+              <span className="progress-badge purple">{progress.percentage3x}%</span>
+            </div>
+            <div className="progress-bar-track">
+              <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
+            </div>
+            <div className="progress-info">
+              <span>Earned: {fmt(progress.progress3x)}</span>
+              <span>Cap: {fmt(progress.milestone3x)}</span>
+            </div>
+            {progress.remaining3x > 0 && (
+              <div className="progress-remaining">
+                {fmt(progress.remaining3x)} remaining before 3X cap
+              </div>
+            )}
+            {progress.remaining3x <= 0 && (
+              <div className="progress-complete">3X Cap Reached! Reinvest to continue earning.</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Activation Banner */}
       {profile && !profile.user?.isActivated && settings && settings.activationFee > 0 && (
@@ -300,6 +357,7 @@ function UserInvestments({ toastSuccess, toastError }) {
   const status = q.get('status') || '';
   const [mine, setMine] = useState([]);
   const [wallet, setWallet] = useState(null);
+  const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -313,6 +371,7 @@ function UserInvestments({ toastSuccess, toastError }) {
       const [m, w] = await Promise.all([getMyInvestments(status ? { status } : {}), getMyWallet()]);
       setMine(m.investments || []);
       setWallet(w.wallet);
+      try { const pr = await getProgressData(); setProgress(pr); } catch (_) {}
     } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
     finally { setLoading(false); }
   }, [status]);
@@ -348,6 +407,51 @@ function UserInvestments({ toastSuccess, toastError }) {
           <TrendingUp size={14} /> Invest Now
         </button>
       </div>
+
+      {/* Progress Bars */}
+      {progress && (
+        <div className="progress-section">
+          <div className="progress-card progress-2x">
+            <div className="progress-header">
+              <div className="progress-title">
+                <TrendingUp size={18} />
+                <span>ROI 2X Milestone</span>
+              </div>
+              <span className="progress-badge green">{progress.percentage2x}%</span>
+            </div>
+            <div className="progress-bar-track">
+              <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
+            </div>
+            <div className="progress-info">
+              <span>Earned: {fmt(progress.progress2x)}</span>
+              <span>Target: {fmt(progress.milestone2x)}</span>
+            </div>
+            {progress.remaining2x <= 0 && (
+              <div className="progress-complete">2X Reached! Reinvest to continue.</div>
+            )}
+          </div>
+
+          <div className="progress-card progress-3x">
+            <div className="progress-header">
+              <div className="progress-title">
+                <BarChart3 size={18} />
+                <span>Total Earnings 3X Cap</span>
+              </div>
+              <span className="progress-badge purple">{progress.percentage3x}%</span>
+            </div>
+            <div className="progress-bar-track">
+              <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
+            </div>
+            <div className="progress-info">
+              <span>Earned: {fmt(progress.progress3x)}</span>
+              <span>Cap: {fmt(progress.milestone3x)}</span>
+            </div>
+            {progress.remaining3x <= 0 && (
+              <div className="progress-complete">3X Cap Reached! Reinvest to continue.</div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="page-header" style={{ marginTop: 'var(--space-4)' }}>
         <div>
@@ -725,13 +829,17 @@ function UserTransactions() {
    ========================================================= */
 function UserRoi() {
   const [rows, setRows] = useState([]);
+  const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     (async () => {
-      try { const r = await getMyRoiHistory(); setRows(r.history || []); }
-      catch (e) { setError(e.response?.data?.message || 'Failed'); }
+      try {
+        const r = await getMyRoiHistory();
+        setRows(r.history || []);
+        try { const pr = await getProgressData(); setProgress(pr); } catch (_) {}
+      } catch (e) { setError(e.response?.data?.message || 'Failed'); }
       finally { setLoading(false); }
     })();
   }, []);
@@ -747,6 +855,61 @@ function UserRoi() {
           <p className="subtitle">Track your return on investment earnings</p>
         </div>
       </div>
+
+      {/* Progress Bars */}
+      {progress && (
+        <div className="progress-section">
+          <div className="progress-card progress-2x">
+            <div className="progress-header">
+              <div className="progress-title">
+                <TrendingUp size={18} />
+                <span>ROI 2X Milestone</span>
+              </div>
+              <span className="progress-badge green">{progress.percentage2x}%</span>
+            </div>
+            <div className="progress-bar-track">
+              <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
+            </div>
+            <div className="progress-info">
+              <span>Returned: {fmt(progress.progress2x)}</span>
+              <span>Max Return: {fmt(progress.milestone2x)}</span>
+            </div>
+            {progress.remaining2x > 0 && (
+              <div className="progress-remaining">
+                {fmt(progress.remaining2x)} remaining to reach 2X
+              </div>
+            )}
+            {progress.remaining2x <= 0 && (
+              <div className="progress-complete">2X Milestone Reached! Reinvest to continue earning.</div>
+            )}
+          </div>
+
+          <div className="progress-card progress-3x">
+            <div className="progress-header">
+              <div className="progress-title">
+                <BarChart3 size={18} />
+                <span>Total Earnings 3X Cap</span>
+              </div>
+              <span className="progress-badge purple">{progress.percentage3x}%</span>
+            </div>
+            <div className="progress-bar-track">
+              <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
+            </div>
+            <div className="progress-info">
+              <span>Earned: {fmt(progress.progress3x)}</span>
+              <span>Cap: {fmt(progress.milestone3x)}</span>
+            </div>
+            {progress.remaining3x > 0 && (
+              <div className="progress-remaining">
+                {fmt(progress.remaining3x)} remaining before 3X cap
+              </div>
+            )}
+            {progress.remaining3x <= 0 && (
+              <div className="progress-complete">3X Cap Reached! Reinvest to continue.</div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="table-card">
         <div className="table-wrap">
           <table className="data-table">

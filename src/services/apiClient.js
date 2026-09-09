@@ -213,6 +213,12 @@ export const getReferralStats = async () => {
   return data.data;
 };
 
+// User: get progress data for 2X and 3X milestones
+export const getProgressData = async () => {
+  const { data } = await apiClient.get('/users/progress');
+  return data.data;
+};
+
 // ==========================================
 // WALLET TRANSFERS
 // ==========================================
