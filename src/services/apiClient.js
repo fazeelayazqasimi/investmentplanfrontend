@@ -241,6 +241,24 @@ export const transferFundToUser = async (payload) => {
   return data.data;
 };
 
+// User: transfer main wallet to fund wallet
+export const transferMainToFund = async (payload) => {
+  const { data } = await apiClient.post('/wallet/transfer/main-to-fund', payload);
+  return data.data;
+};
+
+// User: activate account with wallet source
+export const activateAccountWithSource = async (walletSource) => {
+  const { data } = await apiClient.post('/users/activate', { walletSource });
+  return data.data;
+};
+
+// User: invest for downline using E-Wallet + Main Wallet
+export const investForDownline = async (payload) => {
+  const { data } = await apiClient.post('/investments/downline', payload);
+  return data.data;
+};
+
 // User: get transfer settings (ROI & Profit Share)
 export const getTransferSettings = async () => {
   const { data } = await apiClient.get('/wallet/transfer-settings');

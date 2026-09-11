@@ -14,11 +14,11 @@
    REFERRAL LINK SECTION
    ========================================== */
 .ref-link-section {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-purple) 50%, var(--color-primary-light) 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--purple) 50%, var(--color-primary-light) 100%);
   border-radius: var(--radius-xl);
   padding: var(--space-6);
   margin-bottom: var(--space-6);
-  color: var(--color-text-on-dark);
+  color: white;
   position: relative;
   overflow: hidden;
 }
@@ -53,7 +53,7 @@
 }
 
 .ref-link-info h3 {
-  color: var(--color-text-on-dark);
+  color: white;
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   margin-bottom: var(--space-1);
@@ -79,7 +79,7 @@
   border: 1px solid rgba(255,255,255,0.25);
   border-radius: var(--radius-md);
   padding: 10px 14px;
-  color: var(--color-text-on-dark);
+  color: white;
   font-size: var(--font-size-sm);
   backdrop-filter: blur(8px);
 }
@@ -99,7 +99,7 @@
   border: 1px solid rgba(255,255,255,0.3);
   border-radius: var(--radius-md);
   padding: 10px 16px;
-  color: var(--color-text-on-dark);
+  color: white;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
@@ -124,7 +124,7 @@
 }
 
 .ref-code strong {
-  color: var(--color-text-on-dark);
+  color: white;
   font-size: var(--font-size-md);
   letter-spacing: 0.08em;
   background: rgba(255,255,255,0.15);
@@ -160,10 +160,10 @@
   transform: translateY(-1px);
 }
 
-.ref-stat-purple { border-left-color: var(--color-purple); }
+.ref-stat-purple { border-left-color: var(--purple); }
 .ref-stat-green { border-left-color: var(--color-success); }
 .ref-stat-blue { border-left-color: var(--color-primary); }
-.ref-stat-orange { border-left-color: var(--color-orange); }
+.ref-stat-orange { border-left-color: var(--orange); }
 .ref-stat-red { border-left-color: var(--color-danger); }
 
 .ref-stat-icon {
@@ -176,12 +176,12 @@
   flex-shrink: 0;
 }
 
-.ref-stat-icon.purple { background: var(--color-purple-soft); color: var(--color-purple); }
+.ref-stat-icon.purple { background: var(--purple-soft); color: var(--purple); }
 .ref-stat-icon.green { background: var(--color-success-soft); color: var(--color-success); }
 .ref-stat-icon.blue { background: var(--color-primary-soft); color: var(--color-primary); }
 .ref-stat-icon.yellow { background: var(--color-warning-soft); color: var(--color-warning); }
 .ref-stat-icon.red { background: var(--color-danger-soft); color: var(--color-danger); }
-.ref-stat-icon.orange { background: var(--color-orange-soft); color: var(--color-orange); }
+.ref-stat-icon.orange { background: var(--orange-soft); color: var(--orange); }
 .ref-stat-icon.teal { background: var(--color-info-soft); color: var(--color-info); }
 
 .ref-stat-value {
@@ -232,8 +232,8 @@
 }
 
 .ref-tab.active {
-  color: var(--color-purple);
-  border-bottom-color: var(--color-purple);
+  color: var(--purple);
+  border-bottom-color: var(--purple);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -247,8 +247,8 @@
 }
 
 .ref-tab.active .ref-tab-count {
-  background: var(--color-purple-soft);
-  color: var(--color-purple);
+  background: var(--purple-soft);
+  color: var(--purple);
 }
 
 /* ==========================================
@@ -296,8 +296,8 @@
 }
 
 .ref-search-input:focus {
-  border-color: var(--color-purple);
-  box-shadow: 0 0 0 3px var(--color-purple-border);
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px var(--purple-border);
 }
 
 .ref-search-input::placeholder {
@@ -350,8 +350,8 @@
 }
 
 .ref-select:focus {
-  border-color: var(--color-purple);
-  box-shadow: 0 0 0 3px var(--color-purple-border);
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px var(--purple-border);
 }
 
 /* ==========================================
@@ -514,7 +514,7 @@
 }
 
 .ref-detail-income {
-  color: var(--color-purple);
+  color: var(--purple);
 }
 
 /* ==========================================
@@ -532,7 +532,7 @@
   gap: var(--space-1);
   background: none;
   border: none;
-  color: var(--color-purple);
+  color: var(--purple);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
@@ -542,7 +542,7 @@
 }
 
 .ref-expand-btn:hover {
-  background: var(--color-purple-soft);
+  background: var(--purple-soft);
 }
 
 .ref-wallet-grid {
@@ -570,7 +570,7 @@
 .ref-wallet-item.blue { color: var(--color-primary); background: var(--color-primary-soft); }
 .ref-wallet-item.green { color: var(--color-success); background: var(--color-success-soft); }
 .ref-wallet-item.yellow { color: var(--color-warning); background: var(--color-warning-soft); }
-.ref-wallet-item.purple { color: var(--color-purple); background: var(--color-purple-soft); }
+.ref-wallet-item.purple { color: var(--purple); background: var(--purple-soft); }
 .ref-wallet-item.red { color: var(--color-danger); background: var(--color-danger-soft); }
 .ref-wallet-item.teal { color: var(--color-info); background: var(--color-info-soft); }
 
@@ -622,9 +622,9 @@
 }
 
 .ref-page-btn.active {
-  background: var(--color-purple);
-  color: var(--color-text-on-primary);
-  border-color: var(--color-purple);
+  background: var(--purple);
+  color: white;
+  border-color: var(--purple);
 }
 
 .ref-page-btn:disabled {
@@ -788,16 +788,16 @@
 }
 
 .tree-node.selected {
-  box-shadow: 0 0 0 3px var(--color-purple-border);
-  border-color: var(--color-purple);
+  box-shadow: 0 0 0 3px var(--purple-border);
+  border-color: var(--purple);
 }
 
 .tree-node.root-node {
   min-width: 260px;
   padding: var(--space-4) var(--space-5);
   border-width: 3px;
-  background: var(--color-purple-soft);
-  border-color: var(--color-purple);
+  background: var(--purple-soft);
+  border-color: var(--purple);
 }
 
 .tree-node-avatar {
@@ -1099,7 +1099,7 @@
 .tree-detail-wallet-item.blue { background: var(--color-primary-soft); color: var(--color-primary); }
 .tree-detail-wallet-item.green { background: var(--color-success-soft); color: var(--color-success); }
 .tree-detail-wallet-item.yellow { background: var(--color-warning-soft); color: var(--color-warning); }
-.tree-detail-wallet-item.purple { background: var(--color-purple-soft); color: var(--color-purple); }
+.tree-detail-wallet-item.purple { background: var(--purple-soft); color: var(--purple); }
 .tree-detail-wallet-item.red { background: var(--color-danger-soft); color: var(--color-danger); }
 .tree-detail-wallet-item.teal { background: var(--color-info-soft); color: var(--color-info); }
 

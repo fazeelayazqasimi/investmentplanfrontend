@@ -146,29 +146,29 @@
 .arnm-stat-red .arnm-stat-icon { background: var(--color-danger-soft); color: var(--color-danger); }
 .arnm-stat-red .arnm-stat-value { color: var(--color-danger); }
 
-.arnm-stat-purple::before { background: var(--color-purple); }
-.arnm-stat-purple .arnm-stat-icon { background: var(--color-purple-soft); color: var(--color-purple); }
-.arnm-stat-purple .arnm-stat-value { color: var(--color-purple); }
+.arnm-stat-purple::before { background: var(--purple); }
+.arnm-stat-purple .arnm-stat-icon { background: var(--purple-soft); color: var(--purple); }
+.arnm-stat-purple .arnm-stat-value { color: var(--purple); }
 
-.arnm-stat-violet::before { background: var(--color-violet); }
-.arnm-stat-violet .arnm-stat-icon { background: var(--color-violet-soft); color: var(--color-violet); }
-.arnm-stat-violet .arnm-stat-value { color: var(--color-violet); }
+.arnm-stat-violet::before { background: var(--violet); }
+.arnm-stat-violet .arnm-stat-icon { background: var(--violet-soft); color: var(--violet); }
+.arnm-stat-violet .arnm-stat-value { color: var(--violet); }
 
 .arnm-stat-indigo::before { background: var(--color-indigo); }
 .arnm-stat-indigo .arnm-stat-icon { background: var(--color-indigo-soft); color: var(--color-indigo); }
 .arnm-stat-indigo .arnm-stat-value { color: var(--color-indigo); }
 
-.arnm-stat-teal::before { background: var(--color-teal); }
-.arnm-stat-teal .arnm-stat-icon { background: var(--color-teal-soft); color: var(--color-teal); }
-.arnm-stat-teal .arnm-stat-value { color: var(--color-teal); }
+.arnm-stat-teal::before { background: var(--teal); }
+.arnm-stat-teal .arnm-stat-icon { background: var(--teal-soft); color: var(--teal); }
+.arnm-stat-teal .arnm-stat-value { color: var(--teal); }
 
-.arnm-stat-orange::before { background: var(--color-orange); }
-.arnm-stat-orange .arnm-stat-icon { background: var(--color-orange-soft); color: var(--color-orange); }
-.arnm-stat-orange .arnm-stat-value { color: var(--color-orange); }
+.arnm-stat-orange::before { background: var(--orange); }
+.arnm-stat-orange .arnm-stat-icon { background: var(--orange-soft); color: var(--orange); }
+.arnm-stat-orange .arnm-stat-value { color: var(--orange); }
 
-.arnm-stat-cyan::before { background: var(--color-cyan); }
-.arnm-stat-cyan .arnm-stat-icon { background: var(--color-cyan-soft); color: var(--color-cyan); }
-.arnm-stat-cyan .arnm-stat-value { color: var(--color-cyan); }
+.arnm-stat-cyan::before { background: var(--cyan); }
+.arnm-stat-cyan .arnm-stat-icon { background: var(--color-cyan-soft); color: var(--cyan); }
+.arnm-stat-cyan .arnm-stat-value { color: var(--cyan); }
 
 /* ==========================================
    OVERVIEW SUMMARY
@@ -642,7 +642,7 @@
 
 .arnm-node-stat-value.indigo { color: var(--color-indigo); }
 .arnm-node-stat-value.green { color: var(--color-success); }
-.arnm-node-stat-value.teal { color: var(--color-teal); }
+.arnm-node-stat-value.teal { color: var(--teal); }
 
 .arnm-node-right {
   display: flex;
@@ -1074,7 +1074,7 @@
 .arnm-wallet-item.blue { background: var(--color-primary-soft); color: var(--color-primary); }
 .arnm-wallet-item.green { background: var(--color-success-soft); color: var(--color-success); }
 .arnm-wallet-item.yellow { background: var(--color-warning-soft); color: var(--color-warning); }
-.arnm-wallet-item.purple { background: var(--color-purple-soft); color: var(--color-purple); }
+.arnm-wallet-item.purple { background: var(--purple-soft); color: var(--purple); }
 .arnm-wallet-item.red { background: var(--color-danger-soft); color: var(--color-danger); }
 .arnm-wallet-item.teal { background: var(--color-info-soft); color: var(--color-info); }
 
@@ -1331,10 +1331,10 @@
    ========================================== */
 .text-blue { color: var(--color-primary) !important; }
 .text-green { color: var(--color-success) !important; }
-.text-purple { color: var(--color-purple) !important; }
+.text-purple { color: var(--purple) !important; }
 .text-indigo { color: var(--color-indigo) !important; }
-.text-teal { color: var(--color-teal) !important; }
-.text-orange { color: var(--color-orange) !important; }
+.text-teal { color: var(--teal) !important; }
+.text-orange { color: var(--orange) !important; }
 .text-red { color: var(--color-danger) !important; }
 
 /* ==========================================

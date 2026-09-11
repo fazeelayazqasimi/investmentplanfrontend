@@ -1,6 +1,20 @@
+import { useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
 
 export default function Modal({ title, children, footer, onClose, size = '' }) {
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Escape') onClose?.();
+  }, [onClose]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [handleKeyDown]);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className={`modal ${size}`} onClick={(e) => e.stopPropagation()}>

@@ -11,6 +11,7 @@ import apiClient, {
   getMyRoiHistory, getMyProfile, updateMyProfile,
   transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
   transferFundToUser, getTransferSettings, getProgressData,
+  transferMainToFund, activateAccountWithSource, investForDownline, getMyDownlines,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -160,14 +161,15 @@ function UserOverview({ toastSuccess, toastError }) {
     })();
   }, []);
 
-  const handleActivate = async () => {
+  const handleActivate = async (walletSource = 'mainBalance') => {
     setActivating(true);
     try {
-      const res = await activateAccount();
+      const res = await activateAccountWithSource(walletSource);
       if (res.alreadyActivated) {
         toastSuccess('Already Activated', 'Your account is already activated');
       } else {
-        toastSuccess('Account Activated', 'Your account has been activated successfully!');
+        const walletName = res.walletSource === 'fundBalance' ? 'Fund Wallet' : 'Main Wallet';
+        toastSuccess('Account Activated', `Your account has been activated using ${walletName}!`);
       }
       const p = await getMyProfile();
       setProfile(p);
@@ -181,13 +183,13 @@ function UserOverview({ toastSuccess, toastError }) {
   if (error) return <ErrorBox message={error} />;
 
   const summary = [
-    { label: 'Main Wallet', value: fmt(wallet?.mainBalance), color: 'blue', icon: CreditCard },
-    { label: 'E-Wallet', value: fmt(wallet?.ewalletBalance), color: 'yellow', icon: WalletIcon },
-    { label: 'ROI Wallet', value: fmt(wallet?.roiBalance), color: 'green', icon: TrendingUp },
-    { label: 'Profit Share', value: fmt(wallet?.profitShareBalance), color: 'purple', icon: BarChart3 },
-    { label: 'Fund Wallet', value: fmt(wallet?.fundBalance), color: 'teal', icon: Users },
-    { label: 'Pending Commissions', value: fmt(wallet?.pendingCommissions), color: 'red', icon: AlertCircle },
-    { label: 'Total Earnings', value: fmt(wallet?.totalEarnings), color: 'orange', icon: TrendingUp },
+    { label: 'Main Wallet', value: fmt(wallet?.mainBalance), accent: 'stat-success', icon: CreditCard },
+    { label: 'E-Wallet', value: fmt(wallet?.ewalletBalance), accent: 'stat-amber', icon: WalletIcon },
+    { label: 'ROI Wallet', value: fmt(wallet?.roiBalance), accent: 'stat-info', icon: TrendingUp },
+    { label: 'Profit Share', value: fmt(wallet?.profitShareBalance), accent: 'stat-purple', icon: BarChart3 },
+    { label: 'Fund Wallet', value: fmt(wallet?.fundBalance), accent: 'stat-teal', icon: Users },
+    { label: 'Pending Commissions', value: fmt(wallet?.pendingCommissions), accent: 'stat-danger', icon: AlertCircle },
+    { label: 'Total Earnings', value: fmt(wallet?.totalEarnings), accent: 'stat-orange', icon: TrendingUp },
   ];
 
   const pie = [
@@ -200,16 +202,16 @@ function UserOverview({ toastSuccess, toastError }) {
   ].filter((p) => p.value > 0);
 
   return (
-    <div className="slide-up">
+    <div className="animate-slide-up">
       <div className="stats-grid">
         {summary.map((s) => {
           const Icon = s.icon;
           return (
-            <div className="stat-card" key={s.label}>
-              <div className={`stat-icon ${s.color}`}><Icon size={22} /></div>
-              <div>
-                <div className="stat-value">{s.value}</div>
+            <div className={`stat-card ${s.accent}`} key={s.label}>
+              <div className="stat-icon"><Icon size={22} /></div>
+              <div className="stat-content">
                 <div className="stat-label">{s.label}</div>
+                <div className="stat-value">{s.value}</div>
               </div>
             </div>
           );
@@ -219,18 +221,18 @@ function UserOverview({ toastSuccess, toastError }) {
       {/* Progress Bars for 2X and 3X Milestones */}
       {progress && (
         <div className="progress-section">
-          <div className="progress-card progress-2x">
+          <div className="progress-card">
             <div className="progress-header">
-              <div className="progress-title">
+              <div className="progress-label">
                 <TrendingUp size={18} />
                 <span>ROI 2X Milestone</span>
               </div>
-              <span className="progress-badge green">{progress.percentage2x}%</span>
+              <span className="badge badge-success">{progress.percentage2x}%</span>
             </div>
             <div className="progress-bar-track">
               <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
             </div>
-            <div className="progress-info">
+            <div className="progress-details">
               <span>Earned: {fmt(progress.progress2x)}</span>
               <span>Target: {fmt(progress.milestone2x)}</span>
             </div>
@@ -240,22 +242,24 @@ function UserOverview({ toastSuccess, toastError }) {
               </div>
             )}
             {progress.remaining2x <= 0 && (
-              <div className="progress-complete">2X Milestone Reached! Reinvest to continue earning.</div>
+              <div className="progress-complete">
+                2X Milestone Reached! Reinvest to continue earning.
+              </div>
             )}
           </div>
 
-          <div className="progress-card progress-3x">
+          <div className="progress-card">
             <div className="progress-header">
-              <div className="progress-title">
+              <div className="progress-label">
                 <BarChart3 size={18} />
                 <span>Total Earnings 3X Cap</span>
               </div>
-              <span className="progress-badge purple">{progress.percentage3x}%</span>
+              <span className="badge badge-purple">{progress.percentage3x}%</span>
             </div>
             <div className="progress-bar-track">
               <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
             </div>
-            <div className="progress-info">
+            <div className="progress-details">
               <span>Earned: {fmt(progress.progress3x)}</span>
               <span>Cap: {fmt(progress.milestone3x)}</span>
             </div>
@@ -265,7 +269,9 @@ function UserOverview({ toastSuccess, toastError }) {
               </div>
             )}
             {progress.remaining3x <= 0 && (
-              <div className="progress-complete">3X Cap Reached! Reinvest to continue earning.</div>
+              <div className="progress-complete">
+                3X Cap reached — overflow goes to pending commissions.
+              </div>
             )}
           </div>
         </div>
@@ -274,25 +280,29 @@ function UserOverview({ toastSuccess, toastError }) {
       {/* Activation Banner */}
       {profile && !profile.user?.isActivated && settings && settings.activationFee > 0 && (
         <div className="activation-banner">
-          <div>
-            <div className="activation-banner-title">
-              <AlertCircle size={18} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-              Activate Your Account
-            </div>
-            <div className="activation-banner-subtitle">
-              Activation fee: <strong>${settings.activationFee}</strong> will be deducted from your Main Wallet ({fmt(wallet?.mainBalance)}).
-              {wallet?.mainBalance < settings.activationFee && (
-                <span className="activation-banner-warning"> Insufficient balance.</span>
-              )}
+          <div className="activation-banner-text">
+            <AlertCircle size={20} style={{ color: 'var(--color-warning)', flexShrink: 0 }} />
+            <div>
+              <h3>Activate Your Account</h3>
+              <p>Activation fee: <strong>${settings.activationFee}</strong></p>
             </div>
           </div>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={handleActivate}
-            disabled={activating || (wallet?.mainBalance || 0) < settings.activationFee}
-          >
-            {activating ? 'Activating...' : `Activate Now — $${settings.activationFee}`}
-          </button>
+          <div className="activation-banner-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => handleActivate('mainBalance')}
+              disabled={activating || (wallet?.mainBalance || 0) < settings.activationFee}
+            >
+              {activating ? 'Activating...' : `Main Wallet (${fmt(wallet?.mainBalance)})`}
+            </button>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => handleActivate('fundBalance')}
+              disabled={activating || (wallet?.fundBalance || 0) < settings.activationFee}
+            >
+              {activating ? 'Activating...' : `Fund Wallet (${fmt(wallet?.fundBalance)})`}
+            </button>
+          </div>
         </div>
       )}
 
@@ -361,7 +371,12 @@ function UserInvestments({ toastSuccess, toastError }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showDownlineModal, setShowDownlineModal] = useState(false);
   const [amount, setAmount] = useState('');
+  const [downlines, setDownlines] = useState([]);
+  const [downlineReceiver, setDownlineReceiver] = useState('');
+  const [downlineEwallet, setDownlineEwallet] = useState('');
+  const [downlineSettings, setDownlineSettings] = useState(null);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -372,6 +387,8 @@ function UserInvestments({ toastSuccess, toastError }) {
       setMine(m.investments || []);
       setWallet(w.wallet);
       try { const pr = await getProgressData(); setProgress(pr); } catch (_) {}
+      try { const dl = await getMyDownlines(); setDownlines(dl.downlines || []); } catch (_) {}
+      try { const s = await getTransferSettings(); setDownlineSettings(s); } catch (_) {}
     } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
     finally { setLoading(false); }
   }, [status]);
@@ -393,11 +410,28 @@ function UserInvestments({ toastSuccess, toastError }) {
     finally { setBusy(false); }
   };
 
+  const submitDownlineInvest = async () => {
+    setBusy(true);
+    setFormError('');
+    const amt = Number(amount);
+    const ewalletAmt = Number(downlineEwallet) || 0;
+    if (!amt || amt <= 0) { setFormError('Enter a valid amount'); setBusy(false); return; }
+    if (!downlineReceiver) { setFormError('Select a downline member'); setBusy(false); return; }
+    if (ewalletAmt < 0) { setFormError('E-Wallet amount cannot be negative'); setBusy(false); return; }
+    try {
+      await investForDownline({ receiverId: downlineReceiver, amount: amt, ewalletAmount: ewalletAmt });
+      setShowDownlineModal(false); setAmount(''); setDownlineReceiver(''); setDownlineEwallet('');
+      toastSuccess('Investment Created', `Successfully invested ${fmt(amt)} for downline`);
+      await load();
+    } catch (e) { setFormError(e.response?.data?.message || 'Investment failed'); toastError('Investment Failed', e.response?.data?.message); }
+    finally { setBusy(false); }
+  };
+
   if (loading) return <Spinner label="Loading investments..." />;
   if (error) return <ErrorBox message={error} />;
 
   return (
-    <div className="slide-up">
+    <div className="animate-slide-up">
       <div className="page-header">
         <div>
           <h1>Investments</h1>
@@ -406,6 +440,11 @@ function UserInvestments({ toastSuccess, toastError }) {
         <button className="btn btn-primary btn-sm" onClick={() => { setShowModal(true); setAmount(''); }}>
           <TrendingUp size={14} /> Invest Now
         </button>
+        {downlines.length > 0 && downlineSettings?.ewalletDownlineOfferEnabled && (
+          <button className="btn btn-secondary btn-sm" onClick={() => { setShowDownlineModal(true); setAmount(''); setDownlineReceiver(''); setDownlineEwallet(''); }}>
+            <Users size={14} /> Invest for Downline
+          </button>
+        )}
       </div>
 
       {/* Progress Bars */}
@@ -508,6 +547,43 @@ function UserInvestments({ toastSuccess, toastError }) {
           {formError && <ErrorBox message={formError} />}
         </Modal>
       )}
+
+      {showDownlineModal && (
+        <Modal title="Invest for Downline"
+          footer={
+            <>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowDownlineModal(false)} disabled={busy}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={submitDownlineInvest} disabled={busy}>
+                {busy ? <><span className="spinner" /> Processing...</> : 'Confirm Investment'}
+              </button>
+            </>
+          }
+          onClose={() => setShowDownlineModal(false)}>
+          <p style={{ marginBottom: 'var(--space-2)' }}>Available main balance: <strong>{fmt(wallet?.mainBalance)}</strong></p>
+          <p style={{ marginBottom: 'var(--space-4)' }}>Available E-Wallet: <strong>{fmt(wallet?.ewalletBalance)}</strong></p>
+          <div className="form-group">
+            <label className="form-label">Select Downline Member</label>
+            <select className="select" value={downlineReceiver} onChange={(e) => setDownlineReceiver(e.target.value)}>
+              <option value="">Choose a member...</option>
+              {downlines.map((dl) => (
+                <option key={dl._id || dl.user?._id} value={dl._id || dl.user?._id}>
+                  {dl.name || dl.user?.name} ({dl.email || dl.user?.email})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Total Investment Amount</label>
+            <input className="form-input" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="1" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">E-Wallet Contribution (max {downlineSettings?.ewalletMaxPercentage || 0}%)</label>
+            <input className="form-input" type="number" value={downlineEwallet} onChange={(e) => setDownlineEwallet(e.target.value)} min="0" max={amount ? (Number(amount) * (downlineSettings?.ewalletMaxPercentage || 0) / 100) : 0} />
+            <span className="form-hint">Remaining will be paid from Main Wallet</span>
+          </div>
+          {formError && <ErrorBox message={formError} />}
+        </Modal>
+      )}
     </div>
   );
 }
@@ -531,6 +607,10 @@ function UserWallet({ toastSuccess, toastError }) {
   const [transferring, setTransferring] = useState(false);
   const [showDepositForm, setShowDepositForm] = useState(false);
   const [showFundForm, setShowFundForm] = useState(false);
+  const [showMainToFundForm, setShowMainToFundForm] = useState(false);
+  const [mainToFundAmount, setMainToFundAmount] = useState('');
+  const [mainToFundBusy, setMainToFundBusy] = useState(false);
+  const [mainToFundError, setMainToFundError] = useState('');
   const [fundReceiver, setFundReceiver] = useState('');
   const [fundAmount, setFundAmount] = useState('');
   const [fundBusy, setFundBusy] = useState(false);
@@ -591,6 +671,22 @@ function UserWallet({ toastSuccess, toastError }) {
     finally { setTransferring(false); }
   };
 
+  const handleMainToFund = async () => {
+    setMainToFundBusy(true);
+    setMainToFundError('');
+    const amt = Number(mainToFundAmount);
+    if (!amt || amt <= 0) { setMainToFundError('Enter a valid amount'); setMainToFundBusy(false); return; }
+    if (amt > (wallet?.mainBalance || 0)) { setMainToFundError('Insufficient Main Wallet balance'); setMainToFundBusy(false); return; }
+    try {
+      await transferMainToFund({ amount: amt });
+      toastSuccess('Transfer Complete', `${fmt(amt)} transferred from Main Wallet to Fund Wallet.`);
+      setMainToFundAmount('');
+      setShowMainToFundForm(false);
+      await load();
+    } catch (er) { setMainToFundError(er.response?.data?.message || 'Transfer failed'); toastError('Transfer Failed', er.response?.data?.message); }
+    finally { setMainToFundBusy(false); }
+  };
+
   const handleFundTransfer = async () => {
     setFundBusy(true);
     setFundError('');
@@ -623,7 +719,7 @@ function UserWallet({ toastSuccess, toastError }) {
   const psTransferAllowed = settings?.profitShareTransferEnabled;
 
   return (
-    <div className="slide-up">
+    <div className="animate-slide-up">
       <div className="page-header">
         <div>
           <h1>Wallet</h1>
@@ -645,13 +741,24 @@ function UserWallet({ toastSuccess, toastError }) {
         ))}
       </div>
 
+      <div className="info-banner danger">
+        <AlertCircle size={14} />
+        Fund Wallet cannot be withdrawn. It can only be used for downline transfers and account activation.
+      </div>
+
       {/* Transfer Sections */}
-      <div style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-4)', display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+      <div className="toolbar">
         <button
           className="btn btn-primary"
           onClick={() => setShowDepositForm(!showDepositForm)}
         >
           <ArrowDownToLine size={16} /> {showDepositForm ? 'Close' : 'Request Deposit'}
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => setShowMainToFundForm(!showMainToFundForm)}
+        >
+          <ArrowRightLeft size={16} /> {showMainToFundForm ? 'Close' : 'Move to Fund Wallet'}
         </button>
         <button
           className="btn btn-secondary"
@@ -667,7 +774,7 @@ function UserWallet({ toastSuccess, toastError }) {
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
             Transfer ROI balance to Main Wallet. Max return is 2x your investment.
           </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <div className="filter-group">
             <button
               className="btn btn-primary btn-sm"
               onClick={handleRoiTransfer}
@@ -684,7 +791,7 @@ function UserWallet({ toastSuccess, toastError }) {
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
             Transfer Profit Share balance to Main Wallet. Max return is 3x your investment.
           </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <div className="filter-group">
             <button
               className="btn btn-primary btn-sm"
               onClick={handleProfitShareTransfer}
@@ -697,8 +804,28 @@ function UserWallet({ toastSuccess, toastError }) {
         </div>
       </div>
 
+      {showMainToFundForm && (
+        <div className="deposit-form">
+          <h3>Move to Fund Wallet</h3>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Transfer funds from your Main Wallet to your Fund Wallet. Available: <strong>{fmt(wallet?.mainBalance)}</strong>
+          </p>
+          <p className="text-muted" style={{ fontSize: 12, marginBottom: 'var(--space-3)', color: 'var(--color-danger)' }}>
+            Fund Wallet cannot be withdrawn. It can only be used for downline transfers and account activation.
+          </p>
+          <div className="form-group">
+            <label className="form-label">Amount</label>
+            <input className="form-input" type="number" value={mainToFundAmount} onChange={(e) => setMainToFundAmount(e.target.value)} placeholder="0.00" min="1" />
+          </div>
+          {mainToFundError && <ErrorBox message={mainToFundError} />}
+          <button className="btn btn-primary btn-block" onClick={handleMainToFund} disabled={mainToFundBusy || !mainToFundAmount}>
+            {mainToFundBusy ? <><span className="spinner" /> Transferring...</> : 'Transfer to Fund Wallet'}
+          </button>
+        </div>
+      )}
+
       {showDepositForm && (
-        <div className="deposit-form" style={{ marginTop: 'var(--space-4)' }}>
+        <div className="deposit-form">
           <h3>Request Deposit</h3>
           <form onSubmit={submitDeposit}>
             <div className="form-group">
@@ -720,7 +847,7 @@ function UserWallet({ toastSuccess, toastError }) {
       )}
 
       {showFundForm && (
-        <div className="deposit-form" style={{ marginTop: 'var(--space-4)' }}>
+        <div className="deposit-form">
           <h3>Fund Wallet Transfer</h3>
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
             Transfer funds from your Fund Wallet to another user. Available balance: <strong>{fmt(wallet?.fundBalance)}</strong>
@@ -793,7 +920,7 @@ function UserTransactions() {
   if (error) return <ErrorBox message={error} />;
 
   return (
-    <div className="slide-up">
+    <div className="animate-slide-up">
       <div className="page-header">
         <div>
           <h1>Transactions</h1>
@@ -848,7 +975,7 @@ function UserRoi() {
   if (error) return <ErrorBox message={error} />;
 
   return (
-    <div className="slide-up">
+    <div className="animate-slide-up">
       <div className="page-header">
         <div>
           <h1>ROI History</h1>
@@ -977,7 +1104,7 @@ function UserProfile({ toastSuccess, toastError }) {
   const u = profile.user;
 
   return (
-    <div className="slide-up">
+    <div className="animate-slide-up">
       <div className="page-header">
         <div>
           <h1>Profile</h1>
@@ -985,7 +1112,7 @@ function UserProfile({ toastSuccess, toastError }) {
         </div>
       </div>
 
-      <div className="panel" style={{ maxWidth: 600 }}>
+      <div className="panel max-w-md">
         {!edit ? (
           <>
             <div className="detail-grid">
@@ -995,7 +1122,7 @@ function UserProfile({ toastSuccess, toastError }) {
               <div className="detail-item"><span className="k">Status</span><span className="v"><StatusBadge status={u.accountStatus} /></span></div>
               <div className="detail-item"><span className="k">Referral Code</span><span className="v">{u.referralCode}</span></div>
             </div>
-            <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--space-5)' }} onClick={() => setEdit(true)}>
+            <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--space-4)' }} onClick={() => setEdit(true)}>
               Edit Profile
             </button>
           </>
@@ -1009,7 +1136,7 @@ function UserProfile({ toastSuccess, toastError }) {
               <label className="form-label">Phone</label>
               <input className="form-input" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
-            <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+            <div className="filter-group">
               <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>
                 {saving ? <><span className="spinner" /> Saving...</> : 'Save Changes'}
               </button>

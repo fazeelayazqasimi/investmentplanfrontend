@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronRight, ChevronLeft, ZoomIn, ZoomOut,
   Maximize2, Minimize2, RotateCcw, X, UserCheck, UserX,
   Filter, Download, RefreshCw, ArrowUpDown, Network,
+  DollarSign, Activity, TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import apiClient, {
@@ -133,7 +134,7 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <div className="page-content slide-up">
+        <div className="page-content animate-slide-up">
           {page === 'overview' && <AdminOverview toastSuccess={success} toastError={toastError} />}
           {page === 'users' && <AdminUsers toastSuccess={success} toastError={toastError} />}
           {page === 'investments' && <AdminInvestments />}
@@ -174,24 +175,29 @@ function AdminOverview() {
   if (error) return <ErrorBox message={error} />;
 
   const cards = [
-    { label: 'Total Users', value: stats.totalUsers, color: 'blue' },
-    { label: 'Pending Deposits', value: stats.pendingDeposits, color: 'yellow' },
-    { label: 'Total Deposited', value: fmt(stats.totalDeposited), color: 'green' },
-    { label: 'Total Invested', value: fmt(stats.totalInvested), color: 'purple' },
-    { label: 'Active Investments', value: stats.activeInvestments, color: 'teal' },
-    { label: 'Total ROI Paid', value: fmt(stats.totalRoiDistributed), color: 'red' },
+    { label: 'Total Users', value: stats.totalUsers, color: 'blue', icon: Users },
+    { label: 'Pending Deposits', value: stats.pendingDeposits, color: 'yellow', icon: ArrowDownToLine },
+    { label: 'Total Deposited', value: fmt(stats.totalDeposited), color: 'green', icon: DollarSign },
+    { label: 'Total Invested', value: fmt(stats.totalInvested), color: 'purple', icon: LineChart },
+    { label: 'Active Investments', value: stats.activeInvestments, color: 'teal', icon: Activity },
+    { label: 'Total ROI Paid', value: fmt(stats.totalRoiDistributed), color: 'red', icon: Percent },
   ];
 
   return (
     <div>
       <div className="stats-grid">
-        {cards.map((c) => (
-          <div className={`stat-card stat-icon-${c.color}`} key={c.label}>
-            <div className="stat-icon" />
-            <div className="stat-value">{c.value}</div>
-            <div className="stat-label">{c.label}</div>
-          </div>
-        ))}
+        {cards.map((c) => {
+          const Icon = c.icon;
+          return (
+            <div className={`stat-card stat-${c.color}`} key={c.label}>
+              <div className="stat-icon"><Icon size={20} /></div>
+              <div className="stat-content">
+                <div className="stat-label">{c.label}</div>
+                <div className="stat-value">{c.value}</div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="charts-grid">
@@ -596,7 +602,7 @@ function AdminDeposits({ toastSuccess, toastError }) {
                   <td data-label="Status"><StatusBadge status={r.status} /></td>
                   <td>
                     {r.status === 'PENDING' && (
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      <div className="filter-group">
                         <button className="btn btn-primary btn-sm" onClick={() => { setConfirm(r); setAction('approve'); }}>Approve</button>
                         <button className="btn btn-danger btn-sm" onClick={() => { setConfirm(r); setAction('reject'); }}>Reject</button>
                       </div>
@@ -801,17 +807,17 @@ function AdminReferrals() {
         })}
       </div>
 
-      {loading ? (
-        <Spinner label="Loading referral network..." />
-      ) : error ? (
-        <ErrorBox message={error} />
-      ) : (
-        <>
-          {tab === 'overview' && <ARNMOverview stats={stats} />}
-          {tab === 'explorer' && <ARNMExplorer />}
-          {tab === 'members' && <ARNMMembers />}
-        </>
+      {tab === 'overview' && (
+        loading ? (
+          <Spinner label="Loading referral network..." />
+        ) : error ? (
+          <ErrorBox message={error} />
+        ) : (
+          <ARNMOverview stats={stats} />
+        )
       )}
+      {tab === 'explorer' && <ARNMExplorer />}
+      {tab === 'members' && <ARNMMembers />}
     </div>
   );
 }
@@ -1625,6 +1631,9 @@ function AdminSettings({ toastSuccess, toastError }) {
   const [ewalletUsageEnabled, setEwalletUsageEnabled] = useState(false);
   const [signupBonus, setSignupBonus] = useState(0);
   const [uplineBonus, setUplineBonus] = useState(0);
+  // E-Wallet Downline Offer
+  const [ewalletDownlineOfferEnabled, setEwalletDownlineOfferEnabled] = useState(false);
+  const [ewalletMaxPercentage, setEwalletMaxPercentage] = useState(0);
   // Activation
   const [activationFee, setActivationFee] = useState(0);
   // Income
@@ -1639,6 +1648,9 @@ function AdminSettings({ toastSuccess, toastError }) {
   const [distBusy, setDistBusy] = useState(false);
   // Fund Wallet
   const [fundTransferEnabled, setFundTransferEnabled] = useState(false);
+  // Day-wise ROI
+  const [roiDays, setRoiDays] = useState(0);
+  const [daySchedule, setDaySchedule] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -1661,10 +1673,23 @@ function AdminSettings({ toastSuccess, toastError }) {
         setPsTransferEnabled(s.profitShareTransferEnabled || false);
         setPsMethod(s.profitShareDistributionMethod || 'EQUAL');
         setFundTransferEnabled(s.fundTransferEnabled || false);
+        setEwalletDownlineOfferEnabled(s.ewalletDownlineOfferEnabled || false);
+        setEwalletMaxPercentage(s.ewalletMaxPercentage || 0);
+        setRoiDays(s.roiDays || 0);
+        setDaySchedule(s.dayWiseRoiSchedule || []);
       } catch (e) { setError(e.response?.data?.message || 'Failed to load settings'); }
       finally { setLoading(false); }
     })();
   }, []);
+
+  const updateDaySchedule = (index, value) => {
+    const newSchedule = [...daySchedule];
+    while (newSchedule.length <= index) {
+      newSchedule.push({ day: newSchedule.length + 1, percentage: 0 });
+    }
+    newSchedule[index] = { day: index + 1, percentage: Number(value) || 0 };
+    setDaySchedule(newSchedule);
+  };
 
   const save = async (fields) => {
     setBusy(true);
@@ -1743,7 +1768,7 @@ function AdminSettings({ toastSuccess, toastError }) {
       {tab === 'general' && (
         <div className="panel">
           <h3>General</h3>
-          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <label className="form-group filter-group">
             <input type="checkbox" checked={allowInvest} onChange={(e) => setAllowInvest(e.target.checked)} />
             Allow user self-investment
           </label>
@@ -1765,12 +1790,50 @@ function AdminSettings({ toastSuccess, toastError }) {
             <label className="form-label">Overall ROI % (per cycle)</label>
             <input className="form-input" type="number" value={overallRoi} onChange={(e) => setOverallRoi(e.target.value)} />
           </div>
-          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <label className="form-group filter-group">
             <input type="checkbox" checked={roiEnabled} onChange={(e) => setRoiEnabled(e.target.checked)} />
             Enable ROI processing
           </label>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-primary btn-sm" onClick={() => save({ roiMode, overallRoiPercentage: Number(overallRoi), roiProcessingEnabled: roiEnabled })} disabled={busy}>Save ROI Settings</button>
+          {roiMode === 'DAY_WISE' && (
+            <>
+              <div className="form-group">
+                <label className="form-label">ROI Days</label>
+                <input className="form-input" type="number" value={roiDays} onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setRoiDays(val);
+                  const newSchedule = [];
+                  for (let i = 0; i < val; i++) {
+                    newSchedule.push(daySchedule[i] || { day: i + 1, percentage: 0 });
+                  }
+                  setDaySchedule(newSchedule);
+                }} min="0" max="365" />
+                <p className="form-hint">Number of days in the ROI cycle</p>
+              </div>
+              {roiDays > 0 && (
+                <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 8, padding: 'var(--space-3)' }}>
+                  {Array.from({ length: roiDays }, (_, i) => (
+                    <div key={i} className="filter-group" style={{ marginBottom: 8 }}>
+                      <label style={{ minWidth: 60, fontSize: 13, fontWeight: 500 }}>Day {i + 1}:</label>
+                      <input
+                        className="form-input"
+                        type="number"
+                        value={daySchedule[i]?.percentage || 0}
+                        onChange={(e) => updateDaySchedule(i, e.target.value)}
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        style={{ width: 100 }}
+                      />
+                      <span style={{ fontSize: 13 }}>%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="filter-group" style={{ marginTop: 'var(--space-3)' }}>
+            <button className="btn btn-primary btn-sm" onClick={() => save({ roiMode, overallRoiPercentage: Number(overallRoi), roiProcessingEnabled: roiEnabled, roiDays: Number(roiDays), dayWiseRoiSchedule: daySchedule })} disabled={busy}>Save ROI Settings</button>
             <button className="btn btn-secondary btn-sm" onClick={runRoi} disabled={busy}>Process ROI (today)</button>
           </div>
           {proc && <div className="text-muted" style={{ marginTop: 12, fontSize: 13 }}>Processed: {proc.processed}, Skipped: {proc.skipped}</div>}
@@ -1781,7 +1844,7 @@ function AdminSettings({ toastSuccess, toastError }) {
       {tab === 'platform' && (
         <div className="panel">
           <h3>Platform</h3>
-          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <label className="form-group filter-group">
             <input type="checkbox" checked={!allowInvest} onChange={(e) => setAllowInvest(!e.target.checked)} />
             Maintenance mode (disables self-investment)
           </label>
@@ -1796,11 +1859,11 @@ function AdminSettings({ toastSuccess, toastError }) {
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
             E-Wallet is a bonus wallet credited on registration. Disabling it does NOT reset existing balances.
           </p>
-          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <label className="form-group filter-group">
             <input type="checkbox" checked={ewalletEnabled} onChange={(e) => setEwalletEnabled(e.target.checked)} />
             E-Wallet enabled
           </label>
-          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <label className="form-group filter-group">
             <input type="checkbox" checked={ewalletUsageEnabled} onChange={(e) => setEwalletUsageEnabled(e.target.checked)} />
             Allow users to use E-Wallet (withdraw/transfer)
           </label>
@@ -1812,7 +1875,22 @@ function AdminSettings({ toastSuccess, toastError }) {
             <label className="form-label">Upline Signup Bonus Amount ($)</label>
             <input className="form-input" type="number" value={uplineBonus} onChange={(e) => setUplineBonus(Number(e.target.value))} min="0" />
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => save({ ewalletEnabled, ewalletUsageEnabled, signupBonusAmount: Number(signupBonus), uplineSignupBonusAmount: Number(uplineBonus) })} disabled={busy}>Save E-Wallet Settings</button>
+
+          <h4 style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-2)' }}>Downline Investment Offer</h4>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Allow users to use their E-Wallet balance toward a downline member's investment. This does NOT allow using E-Wallet for own investment.
+          </p>
+          <label className="form-group filter-group">
+            <input type="checkbox" checked={ewalletDownlineOfferEnabled} onChange={(e) => setEwalletDownlineOfferEnabled(e.target.checked)} />
+            Allow E-Wallet for downline investment
+          </label>
+          <div className="form-group">
+            <label className="form-label">Maximum E-Wallet Percentage (%)</label>
+            <input className="form-input" type="number" value={ewalletMaxPercentage} onChange={(e) => setEwalletMaxPercentage(Number(e.target.value))} min="0" max="100" />
+            <p className="form-hint">Maximum percentage of downline investment that can be paid from E-Wallet</p>
+          </div>
+
+          <button className="btn btn-primary btn-sm" onClick={() => save({ ewalletEnabled, ewalletUsageEnabled, signupBonusAmount: Number(signupBonus), uplineSignupBonusAmount: Number(uplineBonus), ewalletDownlineOfferEnabled, ewalletMaxPercentage: Number(ewalletMaxPercentage) })} disabled={busy}>Save E-Wallet Settings</button>
         </div>
       )}
 
@@ -1860,11 +1938,11 @@ function AdminSettings({ toastSuccess, toastError }) {
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
             Allow users to transfer ROI balance to their Main Wallet anytime. ROI max is 2x investment.
           </p>
-          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <label className="form-group filter-group">
             <input type="checkbox" checked={roiTransferEnabled} onChange={(e) => setRoiTransferEnabled(e.target.checked)} />
             Enable ROI Transfer
           </label>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="filter-group">
             <button className="btn btn-primary btn-sm" onClick={() => save({ roiTransferEnabled })} disabled={busy}>Save ROI Transfer Settings</button>
             <button className="btn btn-secondary btn-sm" onClick={handleRoiTransfer} disabled={busy}>Trigger ROI Transfer Now</button>
           </div>
@@ -1887,7 +1965,7 @@ function AdminSettings({ toastSuccess, toastError }) {
           </div>
           <div className="form-group">
             <label className="form-label">Distribution Amount ($)</label>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div className="filter-group">
               <input className="form-input" type="number" value={distAmount} onChange={(e) => setDistAmount(e.target.value)} min="0" placeholder="0.00" />
               <button className="btn btn-primary btn-sm" onClick={handleDistribute} disabled={distBusy}>
                 {distBusy ? 'Distributing...' : 'Distribute Now'}
@@ -1896,11 +1974,11 @@ function AdminSettings({ toastSuccess, toastError }) {
           </div>
           <hr style={{ margin: 'var(--space-3) 0' }} />
           <h4 style={{ marginBottom: 'var(--space-2)' }}>User Transfer Settings</h4>
-          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <label className="form-group filter-group">
             <input type="checkbox" checked={psTransferEnabled} onChange={(e) => setPsTransferEnabled(e.target.checked)} />
             Enable Profit Share Transfer
           </label>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="filter-group">
             <button className="btn btn-primary btn-sm" onClick={() => save({ profitShareDistributionMethod: psMethod, profitShareTransferEnabled: psTransferEnabled })} disabled={busy}>Save Profit Share Settings</button>
             <button className="btn btn-secondary btn-sm" onClick={handlePsTransfer} disabled={busy}>Trigger Transfer Now</button>
           </div>
@@ -1914,7 +1992,7 @@ function AdminSettings({ toastSuccess, toastError }) {
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
             Enable or disable user-to-user Fund Wallet transfers. When disabled, existing Fund Wallet balances are preserved.
           </p>
-          <label className="form-group" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <label className="form-group filter-group">
             <input type="checkbox" checked={fundTransferEnabled} onChange={(e) => setFundTransferEnabled(e.target.checked)} />
             Enable Fund Wallet Transfers
           </label>
