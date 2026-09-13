@@ -149,8 +149,42 @@ export const updateAdminSettings = async (payload) => {
 };
 
 // Admin: manually trigger ROI processing
-export const processRoi = async () => {
-  const { data } = await apiClient.post('/admin/roi/process');
+export const processRoi = async (payload = {}) => {
+  const { data } = await apiClient.post('/admin/roi/process', payload);
+  return data.data;
+};
+
+// ==========================================
+// BANK ACCOUNTS
+// ==========================================
+
+// Public: get active bank accounts (for user deposit page)
+export const getBankAccounts = async () => {
+  const { data } = await apiClient.get('/bank-accounts');
+  return data.data;
+};
+
+// Admin: get all bank accounts
+export const getAdminBankAccounts = async () => {
+  const { data } = await apiClient.get('/bank-accounts/admin');
+  return data.data;
+};
+
+// Admin: create bank account
+export const createBankAccount = async (payload) => {
+  const { data } = await apiClient.post('/bank-accounts/admin', payload);
+  return data.data;
+};
+
+// Admin: update bank account
+export const updateBankAccount = async (id, payload) => {
+  const { data } = await apiClient.put(`/bank-accounts/admin/${id}`, payload);
+  return data.data;
+};
+
+// Admin: delete bank account
+export const deleteBankAccount = async (id) => {
+  const { data } = await apiClient.delete(`/bank-accounts/admin/${id}`);
   return data.data;
 };
 

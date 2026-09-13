@@ -16,6 +16,7 @@ import apiClient, {
   distributeProfitShare, triggerRoiTransfer, triggerProfitShareTransfer,
   getAdminReferralStats, searchAdminReferralMembers, getAdminReferralTree,
   getAdminReferralMemberDetail, getAdminReferralMembers,
+  getAdminBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -588,30 +589,32 @@ function AdminDeposits({ toastSuccess, toastError }) {
       </div>
       {loading ? <Spinner label="Loading deposits..." /> : error ? <ErrorBox message={error} /> : (
         <div className="table-card">
-          <table className="data-table">
-            <thead><tr><th>User</th><th>Email</th><th>Amount</th><th>Transaction ID</th><th>Date</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              {rows.length === 0 && <tr><td colSpan={7} className="table-empty">No deposits found</td></tr>}
-              {rows.map((r) => (
-                <tr key={r._id}>
-                  <td data-label="User" className="cell-strong">{r.user?.name}</td>
-                  <td data-label="Email">{r.user?.email}</td>
-                  <td data-label="Amount">{fmt(r.amount)}</td>
-                  <td data-label="Transaction ID" style={{ fontFamily: 'monospace', fontSize: 12 }}>{r._id}</td>
-                  <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
-                  <td data-label="Status"><StatusBadge status={r.status} /></td>
-                  <td>
-                    {r.status === 'PENDING' && (
-                      <div className="filter-group">
-                        <button className="btn btn-primary btn-sm" onClick={() => { setConfirm(r); setAction('approve'); }}>Approve</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => { setConfirm(r); setAction('reject'); }}>Reject</button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead><tr><th>User</th><th>Email</th><th>Amount</th><th>Transaction ID</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                {rows.length === 0 && <tr><td colSpan={7} className="table-empty">No deposits found</td></tr>}
+                {rows.map((r) => (
+                  <tr key={r._id}>
+                    <td data-label="User" className="cell-strong">{r.user?.name}</td>
+                    <td data-label="Email">{r.user?.email}</td>
+                    <td data-label="Amount">{fmt(r.amount)}</td>
+                    <td data-label="Transaction ID" style={{ fontFamily: 'monospace', fontSize: 12 }}>{r._id.slice(-8)}</td>
+                    <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
+                    <td data-label="Status"><StatusBadge status={r.status} /></td>
+                    <td data-label="Actions">
+                      {r.status === 'PENDING' && (
+                        <div className="filter-group" style={{ flexWrap: 'wrap' }}>
+                          <button className="btn btn-primary btn-sm" onClick={() => { setConfirm(r); setAction('approve'); }}>Approve</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => { setConfirm(r); setAction('reject'); }}>Reject</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1626,6 +1629,7 @@ function AdminSettings({ toastSuccess, toastError }) {
   const [overallRoi, setOverallRoi] = useState(0);
   const [roiEnabled, setRoiEnabled] = useState(false);
   const [proc, setProc] = useState(null);
+  const [roiDate, setRoiDate] = useState('');
   // E-Wallet
   const [ewalletEnabled, setEwalletEnabled] = useState(false);
   const [ewalletUsageEnabled, setEwalletUsageEnabled] = useState(false);
@@ -1707,7 +1711,8 @@ function AdminSettings({ toastSuccess, toastError }) {
   const runRoi = async () => {
     setBusy(true);
     try {
-      const r = await processRoi(); setProc(r);
+      const payload = roiDate ? { date: roiDate } : {};
+      const r = await processRoi(payload); setProc(r);
       toastSuccess('Success', `ROI processed: ${r.processed} credited, ${r.skipped} skipped`);
     } catch (e) {
       const msg = e.response?.data?.message || 'Failed';
@@ -1750,7 +1755,7 @@ function AdminSettings({ toastSuccess, toastError }) {
   if (loading) return <Spinner label="Loading settings..." />;
   if (error) return <ErrorBox message={error} />;
 
-  const TABS = ['general', 'roi', 'platform', 'ewallet', 'activation', 'income', 'roi-transfer', 'profit-share', 'fund-transfer'];
+  const TABS = ['general', 'roi', 'platform', 'ewallet', 'activation', 'income', 'roi-transfer', 'profit-share', 'fund-transfer', 'bank-accounts'];
 
   return (
     <div>
@@ -1759,7 +1764,7 @@ function AdminSettings({ toastSuccess, toastError }) {
           <button key={t} className={`tab ${tab === t ? 'active' : ''}`}
             onClick={() => navigate(`/admin/settings?tab=${t}`)}
             style={{ textTransform: 'capitalize', fontSize: 12 }}>
-            {t === 'ewallet' ? 'E-Wallet' : t === 'roi-transfer' ? 'ROI Transfer' : t === 'profit-share' ? 'Profit Share' : t === 'fund-transfer' ? 'Fund Transfer' : t}
+            {t === 'ewallet' ? 'E-Wallet' : t === 'roi-transfer' ? 'ROI Transfer' : t === 'profit-share' ? 'Profit Share' : t === 'fund-transfer' ? 'Fund Transfer' : t === 'bank-accounts' ? 'Bank Accounts' : t}
           </button>
         ))}
       </div>
@@ -1834,7 +1839,10 @@ function AdminSettings({ toastSuccess, toastError }) {
 
           <div className="filter-group" style={{ marginTop: 'var(--space-3)' }}>
             <button className="btn btn-primary btn-sm" onClick={() => save({ roiMode, overallRoiPercentage: Number(overallRoi), roiProcessingEnabled: roiEnabled, roiDays: Number(roiDays), dayWiseRoiSchedule: daySchedule })} disabled={busy}>Save ROI Settings</button>
-            <button className="btn btn-secondary btn-sm" onClick={runRoi} disabled={busy}>Process ROI (today)</button>
+            <div className="filter-group" style={{ marginLeft: 'var(--space-2)' }}>
+              <input className="form-input" type="date" value={roiDate} onChange={(e) => setRoiDate(e.target.value)} style={{ width: 160, padding: '6px 8px', fontSize: 12 }} title="Leave empty for today" />
+              <button className="btn btn-secondary btn-sm" onClick={runRoi} disabled={busy}>Process ROI</button>
+            </div>
           </div>
           {proc && <div className="text-muted" style={{ marginTop: 12, fontSize: 13 }}>Processed: {proc.processed}, Skipped: {proc.skipped}</div>}
         </div>
@@ -1998,6 +2006,189 @@ function AdminSettings({ toastSuccess, toastError }) {
           </label>
           <button className="btn btn-primary btn-sm" onClick={() => save({ fundTransferEnabled })} disabled={busy}>Save Fund Transfer Settings</button>
         </div>
+      )}
+
+      {/* BANK ACCOUNTS */}
+      {tab === 'bank-accounts' && <AdminBankAccounts toastSuccess={toastSuccess} toastError={toastError} />}
+    </div>
+  );
+}
+
+/* =========================================================
+   BANK ACCOUNTS MANAGEMENT
+   ========================================================= */
+function AdminBankAccounts({ toastSuccess, toastError }) {
+  const [accounts, setAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+
+  const [bankName, setBankName] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [iban, setIban] = useState('');
+  const [accountType, setAccountType] = useState('BANK');
+  const [displayOrder, setDisplayOrder] = useState(0);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const d = await getAdminBankAccounts();
+      setAccounts(d.accounts || []);
+    } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const resetForm = () => {
+    setBankName(''); setAccountHolder(''); setAccountNumber('');
+    setIban(''); setAccountType('BANK'); setDisplayOrder(0);
+    setEditId(null); setShowForm(false);
+  };
+
+  const startEdit = (acc) => {
+    setBankName(acc.bankName); setAccountHolder(acc.accountHolder);
+    setAccountNumber(acc.accountNumber); setIban(acc.iban || '');
+    setAccountType(acc.accountType); setDisplayOrder(acc.displayOrder || 0);
+    setEditId(acc._id); setShowForm(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!bankName || !accountHolder || !accountNumber) {
+      toastError('Error', 'Bank name, account holder, and account number are required');
+      return;
+    }
+    setBusy(true);
+    try {
+      const payload = { bankName, accountHolder, accountNumber, iban, accountType, displayOrder: Number(displayOrder) };
+      if (editId) {
+        await updateBankAccount(editId, payload);
+        toastSuccess('Success', 'Bank account updated');
+      } else {
+        await createBankAccount(payload);
+        toastSuccess('Success', 'Bank account added');
+      }
+      resetForm();
+      await load();
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Operation failed'); }
+    finally { setBusy(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm) return;
+    setBusy(true);
+    try {
+      await deleteBankAccount(confirm._id);
+      toastSuccess('Success', 'Bank account deleted');
+      setConfirm(null);
+      await load();
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Delete failed'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div>
+      <div className="panel-header" style={{ marginBottom: 'var(--space-4)' }}>
+        <div>
+          <h3 style={{ margin: 0 }}>Bank Accounts</h3>
+          <p className="text-muted" style={{ fontSize: 13 }}>Manage bank/payment accounts shown to users during deposit</p>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => { resetForm(); setShowForm(!showForm); }}>
+          {showForm ? 'Cancel' : '+ Add Account'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="panel" style={{ marginBottom: 'var(--space-4)' }}>
+          <h4>{editId ? 'Edit Bank Account' : 'Add Bank Account'}</h4>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Bank Name</label>
+              <input className="form-input" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. HBL, Meezan Bank" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Account Holder</label>
+              <input className="form-input" value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} placeholder="Account holder name" />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Account Number</label>
+              <input className="form-input" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Account number" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">IBAN (optional)</label>
+              <input className="form-input" value={iban} onChange={(e) => setIban(e.target.value)} placeholder="IBAN" />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Account Type</label>
+              <select className="select" value={accountType} onChange={(e) => setAccountType(e.target.value)}>
+                <option value="BANK">Bank</option>
+                <option value="JAZZCASH">JazzCash</option>
+                <option value="EASYPAISA">EasyPaisa</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Display Order</label>
+              <input className="form-input" type="number" value={displayOrder} onChange={(e) => setDisplayOrder(e.target.value)} min="0" />
+            </div>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={handleSubmit} disabled={busy}>
+            {busy ? 'Saving...' : editId ? 'Update Account' : 'Add Account'}
+          </button>
+        </div>
+      )}
+
+      {loading ? <Spinner label="Loading accounts..." /> : error ? <ErrorBox message={error} /> : (
+        <div className="table-card">
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Type</th><th>Bank Name</th><th>Account Holder</th><th>Account Number</th><th>IBAN</th><th>Order</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {accounts.length === 0 && <tr><td colSpan={7} className="table-empty">No bank accounts configured</td></tr>}
+                {accounts.map((acc) => (
+                  <tr key={acc._id}>
+                    <td data-label="Type"><span className="badge badge-primary">{acc.accountType}</span></td>
+                    <td data-label="Bank Name" className="cell-strong">{acc.bankName}</td>
+                    <td data-label="Account Holder">{acc.accountHolder}</td>
+                    <td data-label="Account Number" style={{ fontFamily: 'monospace' }}>{acc.accountNumber}</td>
+                    <td data-label="IBAN" style={{ fontFamily: 'monospace', fontSize: 12 }}>{acc.iban || '—'}</td>
+                    <td data-label="Order">{acc.displayOrder}</td>
+                    <td>
+                      <div className="filter-group">
+                        <button className="btn btn-secondary btn-sm" onClick={() => startEdit(acc)}>Edit</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => setConfirm(acc)}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {confirm && (
+        <ConfirmDialog
+          title="Delete Bank Account"
+          message={`Are you sure you want to delete ${confirm.bankName} (${confirm.accountNumber})?`}
+          confirmLabel="Delete"
+          variant="danger"
+          loading={busy}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirm(null)}
+        />
       )}
     </div>
   );

@@ -12,6 +12,7 @@ import apiClient, {
   transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
   transferFundToUser, getTransferSettings, getProgressData,
   transferMainToFund, activateAccountWithSource, investForDownline, getMyDownlines,
+  getBankAccounts,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -606,6 +607,9 @@ function UserWallet({ toastSuccess, toastError }) {
   const [success, setSuccess] = useState('');
   const [transferring, setTransferring] = useState(false);
   const [showDepositForm, setShowDepositForm] = useState(false);
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [selectedBank, setSelectedBank] = useState('');
+  const [bankLoading, setBankLoading] = useState(false);
   const [showFundForm, setShowFundForm] = useState(false);
   const [showMainToFundForm, setShowMainToFundForm] = useState(false);
   const [mainToFundAmount, setMainToFundAmount] = useState('');
@@ -632,6 +636,16 @@ function UserWallet({ toastSuccess, toastError }) {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (showDepositForm && bankAccounts.length === 0) {
+      setBankLoading(true);
+      getBankAccounts()
+        .then((d) => setBankAccounts(d.accounts || []))
+        .catch(() => {})
+        .finally(() => setBankLoading(false));
+    }
+  }, [showDepositForm]);
+
   const submitDeposit = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -640,11 +654,12 @@ function UserWallet({ toastSuccess, toastError }) {
     const amt = Number(amount);
     if (!amt || amt <= 0) { setFormError('Enter a valid amount'); setBusy(false); return; }
     try {
-      await requestDeposit({ amount: amt, description: desc });
+      await requestDeposit({ amount: amt, description: desc, bankAccountId: selectedBank || undefined });
       setSuccess('Deposit request submitted. Awaiting admin approval.');
       toastSuccess('Deposit Submitted', `Deposit request for ${fmt(amt)} submitted successfully.`);
       setAmount('');
       setDesc('');
+      setSelectedBank('');
       setShowDepositForm(false);
       await load();
     } catch (er) { setFormError(er.response?.data?.message || 'Deposit failed'); toastError('Deposit Failed', er.response?.data?.message); }
@@ -828,13 +843,42 @@ function UserWallet({ toastSuccess, toastError }) {
         <div className="deposit-form">
           <h3>Request Deposit</h3>
           <form onSubmit={submitDeposit}>
+            {bankLoading ? (
+              <div style={{ textAlign: 'center', padding: 'var(--space-4)' }}><Spinner label="Loading bank accounts..." /></div>
+            ) : bankAccounts.length > 0 ? (
+              <div className="form-group">
+                <label className="form-label">Select Bank / Payment Method</label>
+                <div className="bank-accounts-grid">
+                  {bankAccounts.map((acc) => (
+                    <div
+                      key={acc._id}
+                      className={`bank-account-card ${selectedBank === acc._id ? 'selected' : ''}`}
+                      onClick={() => setSelectedBank(acc._id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && setSelectedBank(acc._id)}
+                    >
+                      <div className="bank-card-type">{acc.accountType === 'BANK' ? 'Bank' : acc.accountType === 'JAZZCASH' ? 'JazzCash' : acc.accountType === 'EASYPAISA' ? 'EasyPaisa' : 'Other'}</div>
+                      <div className="bank-card-name">{acc.bankName}</div>
+                      <div className="bank-card-holder">{acc.accountHolder}</div>
+                      <div className="bank-card-number">{acc.accountNumber}</div>
+                      {acc.iban && <div className="bank-card-iban">{acc.iban}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="info-banner info" style={{ marginBottom: 'var(--space-3)' }}>
+                No bank accounts configured. Please contact admin for deposit details.
+              </div>
+            )}
             <div className="form-group">
-              <label className="form-label">Amount</label>
+              <label className="form-label">Amount ($)</label>
               <input className="form-input" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" min="1" />
             </div>
             <div className="form-group">
               <label className="form-label">Details / Reference</label>
-              <input className="form-input" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Optional — payment reference or note" />
+              <input className="form-input" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Payment reference or transaction ID" />
             </div>
             {formError && <ErrorBox message={formError} />}
             {success && <div className="success-box" style={{ marginBottom: 'var(--space-3)' }}><CheckCircle size={18} /> {success}</div>}
