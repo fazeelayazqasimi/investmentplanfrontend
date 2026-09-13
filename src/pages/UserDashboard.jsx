@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, LineChart, Wallet as WalletIcon, Receipt, Percent, Share2, User as UserIcon,
   LogOut, Loader2, AlertCircle, TrendingUp, ArrowDownToLine, Menu, X, CheckCircle,
-  BarChart3, CreditCard, Users, ArrowRightLeft,
+  BarChart3, CreditCard, Users, ArrowRightLeft, DollarSign, Copy,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import apiClient, {
@@ -12,7 +12,7 @@ import apiClient, {
   transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
   transferFundToUser, getTransferSettings, getProgressData,
   transferMainToFund, activateAccountWithSource, investForDownline, getMyDownlines,
-  getBankAccounts,
+  getBankAccounts, getActiveAnnouncements,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -24,6 +24,7 @@ import Modal from '../components/Modal';
 import StatusBadge from '../components/StatusBadge';
 import useToast from '../components/useToast';
 import UserReferrals from './UserReferrals';
+import ChatWidget from '../components/ChatWidget';
 
 const CHART_COLORS = ['var(--chart-color-1)', 'var(--chart-color-2)', 'var(--chart-color-3)', 'var(--chart-color-4)', 'var(--chart-color-5)', 'var(--chart-color-6)'];
 const fmt = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -35,6 +36,7 @@ const NAV = [
   { key: 'investments', label: 'My Investments', icon: LineChart, to: '/dashboard/investments' },
   { key: 'wallet', label: 'Wallet', icon: WalletIcon, to: '/dashboard/wallet' },
   { key: 'transactions', label: 'Transactions', icon: Receipt, to: '/dashboard/transactions' },
+  { key: 'income', label: 'Income', icon: DollarSign, to: '/dashboard/income' },
   { key: 'roi', label: 'ROI', icon: Percent, to: '/dashboard/roi' },
   { key: 'referrals', label: 'Referrals', icon: Share2, to: '/dashboard/referrals' },
   { key: 'profile', label: 'Profile', icon: UserIcon, to: '/dashboard/profile' },
@@ -50,10 +52,31 @@ export default function UserDashboard() {
 
   const handleLogout = async () => { await logout(); navigate('/login', { replace: true }); };
   const closeSidebar = () => setSidebarOpen(false);
+  const [announcements, setAnnouncements] = useState([]);
+  const [dismissedAnnouncements, setDismissedAnnouncements] = useState(new Set());
+  const [modalAnnouncement, setModalAnnouncement] = useState(null);
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getActiveAnnouncements();
+        const list = data.announcements || [];
+        setAnnouncements(list);
+        const modalItem = list.find((a) => a.showModal);
+        if (modalItem && !dismissedAnnouncements.has(modalItem._id)) {
+          setModalAnnouncement(modalItem);
+        }
+      } catch (_) {}
+    })();
+  }, []);
+
+  const dismissAnnouncement = (id) => {
+    setDismissedAnnouncements((prev) => new Set([...prev, id]));
+  };
 
   if (user?.role === 'ADMIN') {
     return (
@@ -121,16 +144,78 @@ export default function UserDashboard() {
         </header>
 
         <div className="page-content">
+          {announcements.filter((a) => a.showBanner && !dismissedAnnouncements.has(a._id)).length > 0 && (
+            <div style={{ marginBottom: 'var(--space-4)' }}>
+              {announcements.filter((a) => a.showBanner && !dismissedAnnouncements.has(a._id)).map((a) => {
+                const colors = { INFO: '#eef2ff', PROMOTION: '#ecfdf5', WARNING: '#fef9c3', UPDATE: '#f0f9ff', EVENT: '#fdf2f8' };
+                const borders = { INFO: '#c7d2fe', PROMOTION: '#6ee7b7', WARNING: '#fde047', UPDATE: '#7dd3fc', EVENT: '#f9a8d4' };
+                const icons = { INFO: 'ℹ️', PROMOTION: '🎉', WARNING: '⚠️', UPDATE: '🔄', EVENT: '📅' };
+                return (
+                  <div key={a._id} style={{
+                    background: colors[a.type] || '#eef2ff',
+                    border: `1px solid ${borders[a.type] || '#c7d2fe'}`,
+                    borderRadius: 'var(--radius-xl)',
+                    padding: '14px 20px',
+                    marginBottom: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <span style={{ fontSize: 18, flexShrink: 0 }}>{icons[a.type] || 'ℹ️'}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <strong style={{ fontSize: 14 }}>{a.title}</strong>
+                        <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>{a.message}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => dismissAnnouncement(a._id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', flexShrink: 0, padding: 4 }}
+                    ><X size={16} /></button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {page === 'dashboard' && <UserOverview toastSuccess={success} toastError={toastError} />}
           {page === 'investments' && <UserInvestments toastSuccess={success} toastError={toastError} />}
           {page === 'wallet' && <UserWallet toastSuccess={success} toastError={toastError} />}
           {page === 'transactions' && <UserTransactions />}
+          {page === 'income' && <UserIncome />}
           {page === 'roi' && <UserRoi />}
           {page === 'referrals' && <UserReferrals />}
           {page === 'profile' && <UserProfile toastSuccess={success} toastError={toastError} />}
         </div>
       </div>
       <ToastContainer />
+      <ChatWidget />
+
+      {modalAnnouncement && (
+        <div className="modal-overlay" onClick={() => { dismissAnnouncement(modalAnnouncement._id); setModalAnnouncement(null); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <h3>{modalAnnouncement.title}</h3>
+              <button className="modal-close" onClick={() => { dismissAnnouncement(modalAnnouncement._id); setModalAnnouncement(null); }}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <div style={{
+                padding: '16px 20px',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: 14,
+                lineHeight: 1.7,
+                color: 'var(--color-text)',
+              }}>
+                {modalAnnouncement.message}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => { dismissAnnouncement(modalAnnouncement._id); setModalAnnouncement(null); }}>Got it</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -139,6 +224,7 @@ export default function UserDashboard() {
    OVERVIEW
    ========================================================= */
 function UserOverview({ toastSuccess, toastError }) {
+  const { user } = useAuth();
   const [wallet, setWallet] = useState(null);
   const [investments, setInvestments] = useState([]);
   const [profile, setProfile] = useState(null);
@@ -147,6 +233,18 @@ function UserOverview({ toastSuccess, toastError }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activating, setActivating] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const referralLink = profile?.referralLink || `${window.location.origin}/register?ref=${user?.referralCode || ''}`;
+
+  const copyReferral = async () => {
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      setCopied(true);
+      toastSuccess('Copied', 'Referral link copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* fallback */ }
+  };
 
   useEffect(() => {
     (async () => {
@@ -204,6 +302,77 @@ function UserOverview({ toastSuccess, toastError }) {
 
   return (
     <div className="animate-slide-up">
+      {/* Referral Link Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)',
+        border: '1px solid #c7d2fe',
+        borderRadius: 'var(--radius-xl)',
+        padding: '20px 24px',
+        marginBottom: 'var(--space-5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: 'var(--color-primary)', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <Share2 size={18} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--color-text)' }}>Refer & Earn</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Share your link and earn income from referrals</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 280 }}>
+          <input
+            readOnly
+            value={referralLink}
+            style={{
+              flex: 1, padding: '8px 12px', border: '1px solid #c7d2fe', borderRadius: 8,
+              fontSize: 13, background: '#fff', color: 'var(--color-text)', fontFamily: 'monospace',
+            }}
+          />
+          <button className="btn btn-primary btn-sm" onClick={copyReferral} style={{ flexShrink: 0 }}>
+            {copied ? <><CheckCircle size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+          </button>
+        </div>
+      </div>
+
+      {/* Activation Banner */}
+      {profile && !profile.user?.isActivated && settings && settings.activationFee > 0 && (
+        <div className="activation-banner">
+          <div className="activation-banner-text">
+            <AlertCircle size={20} style={{ color: 'var(--color-warning)', flexShrink: 0 }} />
+            <div>
+              <h3>Activate Your Account</h3>
+              <p>Activation fee: <strong>${settings.activationFee}</strong></p>
+            </div>
+          </div>
+          <div className="activation-banner-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => handleActivate('mainBalance')}
+              disabled={activating || (wallet?.mainBalance || 0) < settings.activationFee}
+            >
+              {activating ? 'Activating...' : `Main Wallet (${fmt(wallet?.mainBalance)})`}
+            </button>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => handleActivate('fundBalance')}
+              disabled={activating || (wallet?.fundBalance || 0) < settings.activationFee}
+            >
+              {activating ? 'Activating...' : `Fund Wallet (${fmt(wallet?.fundBalance)})`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Wallet Stats */}
       <div className="stats-grid">
         {summary.map((s) => {
           const Icon = s.icon;
@@ -278,35 +447,6 @@ function UserOverview({ toastSuccess, toastError }) {
         </div>
       )}
 
-      {/* Activation Banner */}
-      {profile && !profile.user?.isActivated && settings && settings.activationFee > 0 && (
-        <div className="activation-banner">
-          <div className="activation-banner-text">
-            <AlertCircle size={20} style={{ color: 'var(--color-warning)', flexShrink: 0 }} />
-            <div>
-              <h3>Activate Your Account</h3>
-              <p>Activation fee: <strong>${settings.activationFee}</strong></p>
-            </div>
-          </div>
-          <div className="activation-banner-actions">
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => handleActivate('mainBalance')}
-              disabled={activating || (wallet?.mainBalance || 0) < settings.activationFee}
-            >
-              {activating ? 'Activating...' : `Main Wallet (${fmt(wallet?.mainBalance)})`}
-            </button>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => handleActivate('fundBalance')}
-              disabled={activating || (wallet?.fundBalance || 0) < settings.activationFee}
-            >
-              {activating ? 'Activating...' : `Fund Wallet (${fmt(wallet?.fundBalance)})`}
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="charts-grid-equal">
         <div className="chart-card">
           <div className="chart-card-header">
@@ -355,6 +495,73 @@ function UserOverview({ toastSuccess, toastError }) {
           )}
         </div>
       </div>
+
+      {/* My Investments Section */}
+      <div style={{ marginTop: 'var(--space-6)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+          <div>
+            <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600 }}>My Investments</h3>
+            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Track your active investments and ROI progress</p>
+          </div>
+          <Link to="/dashboard/investments" className="btn btn-secondary btn-sm">View All</Link>
+        </div>
+        {investments.length === 0 ? (
+          <div className="table-card">
+            <EmptyState title="No investments yet" subtitle="Start investing to see your portfolio here." />
+          </div>
+        ) : (
+          <div className="table-card">
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Amount</th>
+                    <th>ROI %</th>
+                    <th>ROI Earned</th>
+                    <th>Max Return</th>
+                    <th>Remaining</th>
+                    <th>Progress</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {investments.slice(0, 5).map((iv) => {
+                    const maxReturn = iv.maxReturnAmount || iv.originalAmount * 2;
+                    const roiEarned = iv.totalRoiEarned || 0;
+                    const remaining = Math.max(0, maxReturn - (iv.totalReturned || 0));
+                    const progressPct = maxReturn > 0 ? Math.min(100, ((iv.totalReturned || 0) / maxReturn) * 100) : 0;
+                    return (
+                      <tr key={iv._id}>
+                        <td data-label="Amount" className="cell-strong">{fmt(iv.originalAmount)}</td>
+                        <td data-label="ROI %">{iv.roiPercentage || '—'}%</td>
+                        <td data-label="ROI Earned" className="text-success">{fmt(roiEarned)}</td>
+                        <td data-label="Max Return">{fmt(maxReturn)}</td>
+                        <td data-label="Remaining">{fmt(remaining)}</td>
+                        <td data-label="Progress">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ flex: 1, height: 6, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{ width: `${progressPct}%`, height: '100%', background: progressPct >= 100 ? 'var(--color-success)' : 'var(--color-primary)', borderRadius: 3 }} />
+                            </div>
+                            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 36 }}>{Math.round(progressPct)}%</span>
+                          </div>
+                        </td>
+                        <td data-label="Status"><StatusBadge status={iv.status} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {investments.length > 5 && (
+              <div style={{ padding: '12px 16px', textAlign: 'center', borderTop: '1px solid var(--color-border)' }}>
+                <Link to="/dashboard/investments" style={{ fontSize: 13, color: 'var(--color-primary)', fontWeight: 500 }}>
+                  View all {investments.length} investments →
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -374,6 +581,9 @@ function UserInvestments({ toastSuccess, toastError }) {
   const [showModal, setShowModal] = useState(false);
   const [showDownlineModal, setShowDownlineModal] = useState(false);
   const [amount, setAmount] = useState('');
+  const [mainAmount, setMainAmount] = useState('');
+  const [ewalletAmount, setEwalletAmount] = useState('');
+  const [fundAmount, setFundAmount] = useState('');
   const [downlines, setDownlines] = useState([]);
   const [downlineReceiver, setDownlineReceiver] = useState('');
   const [downlineEwallet, setDownlineEwallet] = useState('');
@@ -400,11 +610,21 @@ function UserInvestments({ toastSuccess, toastError }) {
     setBusy(true);
     setFormError('');
     const amt = Number(amount);
-    if (!amt || amt <= 0) { setFormError('Enter a valid amount'); setBusy(false); return; }
-    if (amt > (wallet?.mainBalance || 0)) { setFormError('Insufficient main balance'); setBusy(false); return; }
+    const mainAmt = Number(mainAmount) || 0;
+    const ewalletAmt = Number(ewalletAmount) || 0;
+    const fundAmt = Number(fundAmount) || 0;
+    if (!amt || amt <= 0) { setFormError('Enter a valid investment amount'); setBusy(false); return; }
+    const totalWallet = mainAmt + ewalletAmt + fundAmt;
+    if (Math.abs(totalWallet - amt) > 0.01) { setFormError(`Wallet split (${fmt(totalWallet)}) must equal investment amount (${fmt(amt)})`); setBusy(false); return; }
+    if (mainAmt > (wallet?.mainBalance || 0)) { setFormError('Main Wallet amount exceeds available balance'); setBusy(false); return; }
+    if (ewalletAmt > (wallet?.ewalletBalance || 0)) { setFormError('E-Wallet amount exceeds available balance'); setBusy(false); return; }
+    if (fundAmt > (wallet?.fundBalance || 0)) { setFormError('Fund Wallet amount exceeds available balance'); setBusy(false); return; }
     try {
-      await apiClient.post('/investments', { amount: amt });
-      setShowModal(false); setAmount('');
+      await apiClient.post('/investments', {
+        amount: amt,
+        walletBreakdown: { main: mainAmt, ewallet: ewalletAmt, fund: fundAmt },
+      });
+      setShowModal(false); setAmount(''); setMainAmount(''); setEwalletAmount(''); setFundAmount('');
       toastSuccess('Investment Created', `Successfully invested ${fmt(amt)}`);
       await load();
     } catch (e) { setFormError(e.response?.data?.message || 'Investment failed'); toastError('Investment Failed', e.response?.data?.message); }
@@ -539,11 +759,43 @@ function UserInvestments({ toastSuccess, toastError }) {
             </>
           }
           onClose={() => setShowModal(false)}>
-          <p style={{ marginBottom: 'var(--space-4)' }}>Available main balance: <strong>{fmt(wallet?.mainBalance)}</strong></p>
           <div className="form-group">
-            <label className="form-label">Investment Amount</label>
-            <input className="form-input" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="1" />
-            <span className="form-hint">Enter any amount you want to invest</span>
+            <label className="form-label">Total Investment Amount ($)</label>
+            <input className="form-input" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="1" placeholder="0.00" />
+          </div>
+          <div style={{ margin: 'var(--space-3) 0', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-3)' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', marginBottom: 'var(--space-3)' }}>
+              Pay from wallets:
+            </p>
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Main Wallet</span>
+                <span style={{ fontWeight: 400, color: 'var(--gray-500)', fontSize: 12 }}>Available: {fmt(wallet?.mainBalance)}</span>
+              </label>
+              <input className="form-input" type="number" value={mainAmount} onChange={(e) => setMainAmount(e.target.value)} min="0" max={wallet?.mainBalance || 0} placeholder="0.00" />
+            </div>
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>E-Wallet</span>
+                <span style={{ fontWeight: 400, color: 'var(--gray-500)', fontSize: 12 }}>Available: {fmt(wallet?.ewalletBalance)}</span>
+              </label>
+              <input className="form-input" type="number" value={ewalletAmount} onChange={(e) => setEwalletAmount(e.target.value)} min="0" max={wallet?.ewalletBalance || 0} placeholder="0.00" />
+            </div>
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Fund Wallet</span>
+                <span style={{ fontWeight: 400, color: 'var(--gray-500)', fontSize: 12 }}>Available: {fmt(wallet?.fundBalance)}</span>
+              </label>
+              <input className="form-input" type="number" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} min="0" max={wallet?.fundBalance || 0} placeholder="0.00" />
+            </div>
+            {amount && (
+              <div style={{ fontSize: 13, color: 'var(--gray-500)', marginTop: 'var(--space-2)' }}>
+                Split: {fmt(Number(mainAmount) || 0)} + {fmt(Number(ewalletAmount) || 0)} + {fmt(Number(fundAmount) || 0)} = <strong>{fmt((Number(mainAmount) || 0) + (Number(ewalletAmount) || 0) + (Number(fundAmount) || 0))}</strong>
+                {Math.abs(((Number(mainAmount) || 0) + (Number(ewalletAmount) || 0) + (Number(fundAmount) || 0)) - Number(amount)) > 0.01 && (
+                  <span style={{ color: 'var(--color-danger)', marginLeft: 8 }}>(must equal {fmt(amount)})</span>
+                )}
+              </div>
+            )}
           </div>
           {formError && <ErrorBox message={formError} />}
         </Modal>
@@ -732,6 +984,7 @@ function UserWallet({ toastSuccess, toastError }) {
 
   const roiTransferAllowed = settings?.roiTransferEnabled;
   const psTransferAllowed = settings?.profitShareTransferEnabled;
+  const fundTransferAllowed = settings?.fundTransferEnabled;
 
   return (
     <div className="animate-slide-up">
@@ -772,16 +1025,23 @@ function UserWallet({ toastSuccess, toastError }) {
         <button
           className="btn btn-secondary"
           onClick={() => setShowMainToFundForm(!showMainToFundForm)}
+          disabled={!fundTransferAllowed}
         >
           <ArrowRightLeft size={16} /> {showMainToFundForm ? 'Close' : 'Move to Fund Wallet'}
         </button>
         <button
           className="btn btn-secondary"
           onClick={() => setShowFundForm(!showFundForm)}
+          disabled={!fundTransferAllowed}
         >
           <ArrowRightLeft size={16} /> {showFundForm ? 'Close' : 'Fund Transfer'}
         </button>
       </div>
+      {!fundTransferAllowed && (
+        <div className="info-banner danger" style={{ marginBottom: 'var(--space-3)' }}>
+          Fund Wallet transfers are currently disabled by admin.
+        </div>
+      )}
 
       <div className="transfers-grid">
         <div className="panel">
@@ -905,7 +1165,7 @@ function UserWallet({ toastSuccess, toastError }) {
             <input className="form-input" type="number" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} placeholder="0.00" min="0.01" />
           </div>
           {fundError && <ErrorBox message={fundError} />}
-          <button className="btn btn-primary btn-block" onClick={handleFundTransfer} disabled={fundBusy || !fundReceiver || !fundAmount}>
+          <button className="btn btn-primary btn-block" onClick={handleFundTransfer} disabled={fundBusy || !fundReceiver || !fundAmount || !fundTransferAllowed}>
             {fundBusy ? <><span className="spinner" /> Transferring...</> : 'Transfer Funds'}
           </button>
         </div>
@@ -983,6 +1243,142 @@ function UserTransactions() {
                 <tr key={t._id}>
                   <td data-label="Type" className="cell-strong">{t.type}</td>
                   <td data-label="Amount">{fmt(t.amount)}</td>
+                  <td data-label="Status"><StatusBadge status={t.status} /></td>
+                  <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   INCOME — Direct & Level Income
+   ========================================================= */
+function UserIncome() {
+  const [tab, setTab] = useState('direct');
+  const [directRows, setDirectRows] = useState([]);
+  const [levelRows, setLevelRows] = useState([]);
+  const [wallet, setWallet] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [directTxn, levelTxn, w] = await Promise.all([
+          getMyTransactions({ type: 'DIRECT_INCOME' }),
+          getMyTransactions({ type: 'LEVEL_INCOME' }),
+          getMyWallet(),
+        ]);
+        setDirectRows(directTxn.transactions || []);
+        setLevelRows(levelTxn.transactions || []);
+        setWallet(w.wallet);
+      } catch (e) { setError(e.response?.data?.message || 'Failed to load income data'); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  if (loading) return <Spinner label="Loading income data..." />;
+  if (error) return <ErrorBox message={error} />;
+
+  const totalDirect = directRows.reduce((s, t) => s + (t.amount || 0), 0);
+  const totalLevel = levelRows.reduce((s, t) => s + (t.amount || 0), 0);
+
+  return (
+    <div className="animate-slide-up">
+      <div className="page-header">
+        <div>
+          <h1>Income</h1>
+          <p className="subtitle">Track your Direct and Level income earnings</p>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card stat-success">
+          <div className="stat-icon"><DollarSign size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Total Direct Income</div>
+            <div className="stat-value">{fmt(totalDirect)}</div>
+          </div>
+        </div>
+        <div className="stat-card stat-info">
+          <div className="stat-icon"><BarChart3 size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Total Level Income</div>
+            <div className="stat-value">{fmt(totalLevel)}</div>
+          </div>
+        </div>
+        <div className="stat-card stat-purple">
+          <div className="stat-icon"><TrendingUp size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Total Network Income</div>
+            <div className="stat-value">{fmt(totalDirect + totalLevel)}</div>
+          </div>
+        </div>
+        <div className="stat-card stat-amber">
+          <div className="stat-icon"><WalletIcon size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Main Wallet Balance</div>
+            <div className="stat-value">{fmt(wallet?.mainBalance)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="toolbar" style={{ marginTop: 'var(--space-4)' }}>
+        <button
+          className={`btn ${tab === 'direct' ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+          onClick={() => setTab('direct')}
+        >
+          <DollarSign size={14} /> Direct Income (Level 1)
+        </button>
+        <button
+          className={`btn ${tab === 'level' ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+          onClick={() => setTab('level')}
+        >
+          <BarChart3 size={14} /> Level Income (Level 2+)
+        </button>
+      </div>
+
+      <div className="table-card" style={{ marginTop: 'var(--space-4)' }}>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>From</th>
+                <th>Investment Amount</th>
+                <th>Income %</th>
+                <th>Income Amount</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tab === 'direct' && directRows.length === 0 && (
+                <tr><td colSpan={6} className="table-empty">No direct income earned yet</td></tr>
+              )}
+              {tab === 'level' && levelRows.length === 0 && (
+                <tr><td colSpan={6} className="table-empty">No level income earned yet</td></tr>
+              )}
+              {tab === 'direct' && directRows.map((t) => (
+                <tr key={t._id}>
+                  <td data-label="From" className="cell-strong">{t.description || 'Referral'}</td>
+                  <td data-label="Investment">{fmt(t.metadata?.investmentAmount)}</td>
+                  <td data-label="Income %">{t.metadata?.percentage ? `${t.metadata.percentage}%` : '—'}</td>
+                  <td data-label="Amount" className="text-success cell-strong">{fmt(t.amount)}</td>
+                  <td data-label="Status"><StatusBadge status={t.status} /></td>
+                  <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
+                </tr>
+              ))}
+              {tab === 'level' && levelRows.map((t) => (
+                <tr key={t._id}>
+                  <td data-label="From" className="cell-strong">{t.description || 'Referral'}</td>
+                  <td data-label="Investment">{fmt(t.metadata?.investmentAmount)}</td>
+                  <td data-label="Income %">{t.metadata?.percentage ? `${t.metadata.percentage}%` : '—'}</td>
+                  <td data-label="Amount" className="text-blue cell-strong">{fmt(t.amount)}</td>
                   <td data-label="Status"><StatusBadge status={t.status} /></td>
                   <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
                 </tr>

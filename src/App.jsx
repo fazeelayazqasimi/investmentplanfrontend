@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import { AdminRoute, ProtectedRoute } from './routes/ProtectedRoute';
 import './styles/global.css';
 
+import LandingPage from './pages/LandingPage';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import UserDashboard from './pages/UserDashboard';
@@ -47,10 +48,10 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

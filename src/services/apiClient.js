@@ -354,3 +354,86 @@ export const getAdminReferralMembers = async (params = {}) => {
   const { data } = await apiClient.get('/admin/referrals/members', { params });
   return data.data;
 };
+
+// ==================== ANNOUNCEMENTS ====================
+export const getAnnouncements = async (params = {}) => {
+  const { data } = await apiClient.get('/announcements', { params });
+  return data;
+};
+
+export const getActiveAnnouncements = async () => {
+  const { data } = await apiClient.get('/announcements/active');
+  return data;
+};
+
+export const createAnnouncement = async (payload) => {
+  const { data } = await apiClient.post('/announcements', payload);
+  return data;
+};
+
+export const updateAnnouncement = async (id, payload) => {
+  const { data } = await apiClient.put(`/announcements/${id}`, payload);
+  return data;
+};
+
+export const deleteAnnouncement = async (id) => {
+  const { data } = await apiClient.delete(`/announcements/${id}`);
+  return data;
+};
+
+export const toggleAnnouncement = async (id) => {
+  const { data } = await apiClient.patch(`/announcements/${id}/toggle`);
+  return data;
+};
+
+// ==================== CHAT ====================
+export const getUserConversations = async () => {
+  const { data } = await apiClient.get('/chat/user/conversations');
+  return data;
+};
+
+export const getUserMessages = async (id) => {
+  const { data } = await apiClient.get(`/chat/user/conversations/${id}`);
+  return data;
+};
+
+export const createUserConversation = async (payload) => {
+  const { data } = await apiClient.post('/chat/user/conversations', payload);
+  return data;
+};
+
+export const sendUserMessage = async (id, message) => {
+  const { data } = await apiClient.post(`/chat/user/conversations/${id}/messages`, { message });
+  return data;
+};
+
+export const closeConversation = async (id) => {
+  const { data } = await apiClient.patch(`/chat/user/conversations/${id}/close`);
+  return data;
+};
+
+// Admin chat
+export const getAdminConversations = async (params = {}) => {
+  const { data } = await apiClient.get('/chat/admin/conversations', { params });
+  return data;
+};
+
+export const getAdminChatMessages = async (id) => {
+  const { data } = await apiClient.get(`/chat/admin/conversations/${id}`);
+  return data;
+};
+
+export const sendAdminMessage = async (id, message) => {
+  const { data } = await apiClient.post(`/chat/admin/conversations/${id}/messages`, { message });
+  return data;
+};
+
+export const updateConversationStatus = async (id, status) => {
+  const { data } = await apiClient.patch(`/chat/admin/conversations/${id}/status`, { status });
+  return data;
+};
+
+export const getAdminChatUnread = async () => {
+  const { data } = await apiClient.get('/chat/admin/unread');
+  return data;
+};

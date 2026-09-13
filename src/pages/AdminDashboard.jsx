@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronRight, ChevronLeft, ZoomIn, ZoomOut,
   Maximize2, Minimize2, RotateCcw, X, UserCheck, UserX,
   Filter, Download, RefreshCw, ArrowUpDown, Network,
-  DollarSign, Activity, TrendingUp,
+  DollarSign, Activity, TrendingUp, Megaphone, MessageSquare, Send,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import apiClient, {
@@ -17,6 +17,8 @@ import apiClient, {
   getAdminReferralStats, searchAdminReferralMembers, getAdminReferralTree,
   getAdminReferralMemberDetail, getAdminReferralMembers,
   getAdminBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
+  getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement, toggleAnnouncement,
+  getAdminConversations, getAdminChatMessages, sendAdminMessage, updateConversationStatus,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -56,6 +58,8 @@ function ResponsiveContainerWrap({ height, children }) {
     { key: 'transactions', label: 'Transactions', icon: Receipt, to: '/admin/transactions' },
     { key: 'roi', label: 'ROI Management', icon: Percent, to: '/admin/roi' },
     { key: 'referrals', label: 'Network Center', icon: Share2, to: '/admin/referrals' },
+    { key: 'announcements', label: 'Announcements', icon: Megaphone, to: '/admin/announcements' },
+    { key: 'support', label: 'Support Chat', icon: MessageSquare, to: '/admin/support' },
     { key: 'reports', label: 'Reports', icon: FileBarChart, to: '/admin/reports' },
     { key: 'settings', label: 'Settings', icon: Settings, to: '/admin/settings' },
   ];
@@ -144,6 +148,8 @@ export default function AdminDashboard() {
           {page === 'transactions' && <AdminTransactions />}
           {page === 'roi' && <AdminRoi toastSuccess={success} toastError={toastError} />}
           {page === 'referrals' && <AdminReferrals />}
+          {page === 'announcements' && <AdminAnnouncements toastSuccess={success} toastError={toastError} />}
+          {page === 'support' && <AdminSupportChat toastSuccess={success} toastError={toastError} />}
           {page === 'reports' && <AdminReports />}
           {page === 'settings' && <AdminSettings toastSuccess={success} toastError={toastError} />}
         </div>
@@ -776,15 +782,31 @@ function AdminReferrals() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (tab !== 'overview') return;
     (async () => {
       setLoading(true);
+      setError('');
       try {
         const s = await getAdminReferralStats();
         setStats(s);
-      } catch (e) { setError(e.response?.data?.message || 'Failed to load referral stats'); }
+      } catch (e) { setError(e.response?.data?.message || 'Failed to load referral stats. Please try again.'); }
       finally { setLoading(false); }
     })();
-  }, []);
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab === 'overview' && !stats && !loading) {
+      setLoading(true);
+      setError('');
+      (async () => {
+        try {
+          const s = await getAdminReferralStats();
+          setStats(s);
+        } catch (e) { setError(e.response?.data?.message || 'Failed to load referral stats.'); }
+        finally { setLoading(false); }
+      })();
+    }
+  }, [tab, stats, loading]);
 
   const tabs = [
     { key: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -815,8 +837,10 @@ function AdminReferrals() {
           <Spinner label="Loading referral network..." />
         ) : error ? (
           <ErrorBox message={error} />
-        ) : (
+        ) : stats ? (
           <ARNMOverview stats={stats} />
+        ) : (
+          <EmptyState title="No data available" subtitle="Could not load referral network stats." />
         )
       )}
       {tab === 'explorer' && <ARNMExplorer />}
@@ -2190,6 +2214,453 @@ function AdminBankAccounts({ toastSuccess, toastError }) {
           onCancel={() => setConfirm(null)}
         />
       )}
+    </div>
+  );
+}
+
+/* =========================================================
+   ANNOUNCEMENTS
+   ========================================================= */
+function AdminAnnouncements({ toastSuccess, toastError }) {
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editItem, setEditItem] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({ title: '', message: '', type: 'INFO', priority: 'MEDIUM', showBanner: true, showModal: false });
+  const [confirm, setConfirm] = useState(null);
+
+  const load = async () => {
+    try {
+      setLoading(true);
+      const data = await getAnnouncements({ limit: 100 });
+      setAnnouncements(data.announcements || []);
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Failed to load'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const startCreate = () => {
+    setEditItem(null);
+    setForm({ title: '', message: '', type: 'INFO', priority: 'MEDIUM', showBanner: true, showModal: false });
+    setShowForm(true);
+  };
+
+  const startEdit = (item) => {
+    setEditItem(item);
+    setForm({ title: item.title, message: item.message, type: item.type, priority: item.priority, showBanner: item.showBanner, showModal: item.showModal });
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.title || !form.message) { toastError('Error', 'Title and message required'); return; }
+    setBusy(true);
+    try {
+      if (editItem) {
+        await updateAnnouncement(editItem._id, form);
+        toastSuccess('Updated', 'Announcement updated');
+      } else {
+        await createAnnouncement(form);
+        toastSuccess('Created', 'Announcement created');
+      }
+      setShowForm(false);
+      await load();
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Save failed'); }
+    finally { setBusy(false); }
+  };
+
+  const handleToggle = async (id) => {
+    try {
+      await toggleAnnouncement(id);
+      await load();
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Toggle failed'); }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm) return;
+    setBusy(true);
+    try {
+      await deleteAnnouncement(confirm._id);
+      toastSuccess('Deleted', 'Announcement deleted');
+      setConfirm(null);
+      await load();
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Delete failed'); }
+    finally { setBusy(false); }
+  };
+
+  const TYPE_COLORS = { INFO: 'blue', PROMOTION: 'green', WARNING: 'yellow', UPDATE: 'purple', EVENT: 'red' };
+  const PRIORITY_COLORS = { LOW: 'gray', MEDIUM: 'blue', HIGH: 'orange', URGENT: 'red' };
+
+  if (loading) return <Spinner label="Loading announcements..." />;
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h2 className="page-title">Announcements & Promotions</h2>
+          <p className="page-subtitle">Create and manage announcements for all users</p>
+        </div>
+        <button className="btn btn-primary" onClick={startCreate}>+ New Announcement</button>
+      </div>
+
+      {announcements.length === 0 ? (
+        <div className="table-card"><EmptyState title="No announcements" subtitle="Create your first announcement to get started." /></div>
+      ) : (
+        <div className="table-card">
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>Priority</th>
+                  <th>Banner</th>
+                  <th>Modal</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {announcements.map((a) => (
+                  <tr key={a._id}>
+                    <td data-label="Title" className="cell-strong">{a.title}</td>
+                    <td data-label="Type"><span className={`badge badge-${TYPE_COLORS[a.type] || 'blue'}`}>{a.type}</span></td>
+                    <td data-label="Priority"><span className={`badge badge-${PRIORITY_COLORS[a.priority] || 'gray'}`}>{a.priority}</span></td>
+                    <td data-label="Banner">{a.showBanner ? '✓' : '—'}</td>
+                    <td data-label="Modal">{a.showModal ? '✓' : '—'}</td>
+                    <td data-label="Status">
+                      <button
+                        className={`btn btn-sm ${a.active ? 'btn-success' : 'btn-secondary'}`}
+                        onClick={() => handleToggle(a._id)}
+                      >
+                        {a.active ? 'Active' : 'Inactive'}
+                      </button>
+                    </td>
+                    <td data-label="Created">{new Date(a.createdAt).toLocaleDateString()}</td>
+                    <td>
+                      <div className="filter-group">
+                        <button className="btn btn-secondary btn-sm" onClick={() => startEdit(a)}>Edit</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => setConfirm(a)}>Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {showForm && (
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <div className="modal-header">
+              <h3>{editItem ? 'Edit Announcement' : 'New Announcement'}</h3>
+              <button className="modal-close" onClick={() => setShowForm(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Title *</label>
+                <input className="form-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Announcement title" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Message *</label>
+                <textarea className="form-input" rows={4} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Announcement message" />
+              </div>
+              <div className="form-row">
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Type</label>
+                  <select className="form-input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                    <option value="INFO">Info</option>
+                    <option value="PROMOTION">Promotion</option>
+                    <option value="WARNING">Warning</option>
+                    <option value="UPDATE">Update</option>
+                    <option value="EVENT">Event</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Priority</label>
+                  <select className="form-input" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="URGENT">Urgent</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-row" style={{ gap: 24 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={form.showBanner} onChange={(e) => setForm({ ...form, showBanner: e.target.checked })} />
+                  Show Banner
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={form.showModal} onChange={(e) => setForm({ ...form, showModal: e.target.checked })} />
+                  Show Modal Popup
+                </label>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSave} disabled={busy}>
+                {busy ? 'Saving...' : editItem ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirm && (
+        <ConfirmDialog
+          title="Delete Announcement"
+          message={`Are you sure you want to delete "${confirm.title}"?`}
+          confirmLabel="Delete"
+          variant="danger"
+          loading={busy}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* =========================================================
+   SUPPORT CHAT
+   ========================================================= */
+function AdminSupportChat({ toastSuccess, toastError }) {
+  const [conversations, setConversations] = useState([]);
+  const [activeConvo, setActiveConvo] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('');
+  const messagesEnd = useRef(null);
+
+  const loadConversations = async () => {
+    try {
+      setLoading(true);
+      const params = {};
+      if (statusFilter) params.status = statusFilter;
+      const data = await getAdminConversations(params);
+      setConversations(data.conversations || []);
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Failed to load'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadConversations(); }, [statusFilter]);
+
+  const loadMessages = async (id) => {
+    try {
+      setLoading(true);
+      const data = await getAdminChatMessages(id);
+      setMessages(data.messages || []);
+      setActiveConvo(data.conversation);
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Failed to load'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    messagesEnd.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!input.trim() || !activeConvo) return;
+    setSending(true);
+    try {
+      const data = await sendAdminMessage(activeConvo._id, input);
+      setMessages((prev) => [...prev, data.message]);
+      setInput('');
+      await loadConversations();
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Send failed'); }
+    finally { setSending(false); }
+  };
+
+  const handleStatusChange = async (id, status) => {
+    try {
+      await updateConversationStatus(id, status);
+      if (activeConvo?._id === id) setActiveConvo((prev) => ({ ...prev, status }));
+      await loadConversations();
+      toastSuccess('Updated', `Status changed to ${status}`);
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Update failed'); }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const STATUS_COLORS = { OPEN: 'blue', IN_PROGRESS: 'orange', RESOLVED: 'green', CLOSED: 'gray' };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h2 className="page-title">Support Chat</h2>
+          <p className="page-subtitle">Manage user conversations and support requests</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 16, height: 'calc(100vh - 200px)', minHeight: 500 }}>
+        {/* Conversations List */}
+        <div style={{
+          width: 340, flexShrink: 0, background: '#fff', borderRadius: 'var(--radius-xl)',
+          border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        }}>
+          <div style={{ padding: 12, borderBottom: '1px solid var(--color-border)' }}>
+            <select
+              className="form-input"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{ fontSize: 13 }}
+            >
+              <option value="">All Status</option>
+              <option value="OPEN">Open</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="CLOSED">Closed</option>
+            </select>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {loading && conversations.length === 0 && (
+              <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>Loading...</div>
+            )}
+            {!loading && conversations.length === 0 && (
+              <div style={{ textAlign: 'center', padding: 40, color: '#999', fontSize: 13 }}>No conversations</div>
+            )}
+            {conversations.map((c) => (
+              <div
+                key={c._id}
+                onClick={() => loadMessages(c._id)}
+                style={{
+                  padding: '12px 14px', cursor: 'pointer',
+                  background: activeConvo?._id === c._id ? 'var(--color-bg-secondary, #f3f4f6)' : 'transparent',
+                  borderBottom: '1px solid var(--color-border, #f3f4f6)',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                onMouseLeave={(e) => e.currentTarget.style.background = activeConvo?._id === c._id ? '#f3f4f6' : 'transparent'}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>{c.user?.name || 'User'}</span>
+                  <span className={`badge badge-${STATUS_COLORS[c.status] || 'gray'}`} style={{ fontSize: 10 }}>
+                    {c.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>{c.subject}</div>
+                <div style={{ fontSize: 11, color: '#9ca3af', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{new Date(c.lastMessageAt).toLocaleDateString()}</span>
+                  {c.unreadByAdmin > 0 && (
+                    <span style={{
+                      background: '#ef4444', color: '#fff', padding: '1px 6px',
+                      borderRadius: 8, fontSize: 10,
+                    }}>{c.unreadByAdmin}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat Area */}
+        <div style={{
+          flex: 1, background: '#fff', borderRadius: 'var(--radius-xl)',
+          border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        }}>
+          {!activeConvo ? (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
+              <div style={{ textAlign: 'center' }}>
+                <MessageSquare size={48} style={{ opacity: 0.3, marginBottom: 12 }} />
+                <div>Select a conversation to view messages</div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Chat Header */}
+              <div style={{
+                padding: '12px 20px', borderBottom: '1px solid var(--color-border)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{activeConvo.user?.name || 'User'}</div>
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>{activeConvo.subject}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map((s) => (
+                    <button
+                      key={s}
+                      className={`btn btn-sm ${activeConvo.status === s ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => handleStatusChange(activeConvo._id, s)}
+                      style={{ fontSize: 11 }}
+                    >
+                      {s.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px' }}>
+                {loading && <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>Loading...</div>}
+                {messages.map((m) => {
+                  const isAdmin = m.senderRole === 'ADMIN';
+                  return (
+                    <div key={m._id} style={{
+                      display: 'flex', justifyContent: isAdmin ? 'flex-end' : 'flex-start',
+                      marginBottom: 10,
+                    }}>
+                      <div style={{
+                        maxWidth: '70%', padding: '10px 14px', borderRadius: 12,
+                        background: isAdmin ? 'var(--color-primary, #5B4BFF)' : '#f3f4f6',
+                        color: isAdmin ? '#fff' : 'var(--color-text, #1a1a2e)',
+                        fontSize: 13, lineHeight: 1.5, wordBreak: 'break-word',
+                      }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 2, opacity: 0.8 }}>
+                          {m.sender?.name || (isAdmin ? 'Admin' : 'User')}
+                        </div>
+                        <div>{m.message}</div>
+                        <div style={{
+                          fontSize: 10, marginTop: 4,
+                          color: isAdmin ? 'rgba(255,255,255,0.7)' : '#9ca3af',
+                        }}>
+                          {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={messagesEnd} />
+              </div>
+
+              {/* Input */}
+              <div style={{
+                padding: '12px 20px', borderTop: '1px solid var(--color-border)',
+                display: 'flex', gap: 8,
+              }}>
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type a reply..."
+                  className="form-input"
+                  style={{ flex: 1, fontSize: 13 }}
+                />
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSend}
+                  disabled={sending || !input.trim()}
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
