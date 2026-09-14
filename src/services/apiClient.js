@@ -154,6 +154,12 @@ export const processRoi = async (payload = {}) => {
   return data.data;
 };
 
+// Admin: manually process ROI for all active investments at a given percentage
+export const processRoiManual = async (payload = {}) => {
+  const { data } = await apiClient.post('/admin/roi/process-manual', payload);
+  return data.data;
+};
+
 // ==========================================
 // BANK ACCOUNTS
 // ==========================================

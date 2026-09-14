@@ -606,6 +606,49 @@ function UserInvestments({ toastSuccess, toastError }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-calculate wallet split: Main → E-Wallet → Fund
+  const autoAllocate = (total) => {
+    const amt = Number(total) || 0;
+    const maxMain = Math.min(amt, wallet?.mainBalance || 0);
+    const remaining = amt - maxMain;
+    const maxEwallet = Math.min(remaining, wallet?.ewalletBalance || 0);
+    const remaining2 = remaining - maxEwallet;
+    const maxFund = Math.min(remaining2, wallet?.fundBalance || 0);
+    setMainAmount(maxMain > 0 ? String(maxMain) : '');
+    setEwalletAmount(maxEwallet > 0 ? String(maxEwallet) : '');
+    setFundAmount(maxFund > 0 ? String(maxFund) : '');
+  };
+
+  const handleAmountChange = (e) => {
+    const val = e.target.value;
+    setAmount(val);
+    const num = Number(val);
+    if (num > 0 && wallet) {
+      autoAllocate(num);
+    } else {
+      setMainAmount('');
+      setEwalletAmount('');
+      setFundAmount('');
+    }
+  };
+
+  const handleWalletChange = (field, value) => {
+    if (field === 'main') setMainAmount(value);
+    else if (field === 'ewallet') setEwalletAmount(value);
+    else if (field === 'fund') setFundAmount(value);
+  };
+
+  const totalWalletSplit = (Number(mainAmount) || 0) + (Number(ewalletAmount) || 0) + (Number(fundAmount) || 0);
+  const investAmount = Number(amount) || 0;
+  const splitDifference = investAmount - totalWalletSplit;
+  const splitValid = investAmount > 0 && Math.abs(splitDifference) < 0.01;
+  const splitExceeds = investAmount > 0 && splitDifference < -0.01;
+  const insufficientBalance = investAmount > 0 && (
+    (Number(mainAmount) || 0) > (wallet?.mainBalance || 0) ||
+    (Number(ewalletAmount) || 0) > (wallet?.ewalletBalance || 0) ||
+    (Number(fundAmount) || 0) > (wallet?.fundBalance || 0)
+  );
+
   const submitInvest = async () => {
     setBusy(true);
     setFormError('');
@@ -658,7 +701,7 @@ function UserInvestments({ toastSuccess, toastError }) {
           <h1>Investments</h1>
           <p className="subtitle">Invest any amount and track your portfolio</p>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => { setShowModal(true); setAmount(''); }}>
+        <button className="btn btn-primary btn-sm" onClick={() => { setShowModal(true); setAmount(''); setMainAmount(''); setEwalletAmount(''); setFundAmount(''); setFormError(''); }}>
           <TrendingUp size={14} /> Invest Now
         </button>
         {downlines.length > 0 && downlineSettings?.ewalletDownlineOfferEnabled && (
@@ -761,7 +804,7 @@ function UserInvestments({ toastSuccess, toastError }) {
           onClose={() => setShowModal(false)}>
           <div className="form-group">
             <label className="form-label">Total Investment Amount ($)</label>
-            <input className="form-input" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="1" placeholder="0.00" />
+            <input className="form-input" type="number" value={amount} onChange={handleAmountChange} min="1" placeholder="0.00" />
           </div>
           <div style={{ margin: 'var(--space-3) 0', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-3)' }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', marginBottom: 'var(--space-3)' }}>
@@ -772,27 +815,33 @@ function UserInvestments({ toastSuccess, toastError }) {
                 <span>Main Wallet</span>
                 <span style={{ fontWeight: 400, color: 'var(--gray-500)', fontSize: 12 }}>Available: {fmt(wallet?.mainBalance)}</span>
               </label>
-              <input className="form-input" type="number" value={mainAmount} onChange={(e) => setMainAmount(e.target.value)} min="0" max={wallet?.mainBalance || 0} placeholder="0.00" />
+              <input className="form-input" type="number" value={mainAmount} onChange={(e) => handleWalletChange('main', e.target.value)} min="0" max={wallet?.mainBalance || 0} placeholder="0.00" />
             </div>
             <div className="form-group">
               <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>E-Wallet</span>
                 <span style={{ fontWeight: 400, color: 'var(--gray-500)', fontSize: 12 }}>Available: {fmt(wallet?.ewalletBalance)}</span>
               </label>
-              <input className="form-input" type="number" value={ewalletAmount} onChange={(e) => setEwalletAmount(e.target.value)} min="0" max={wallet?.ewalletBalance || 0} placeholder="0.00" />
+              <input className="form-input" type="number" value={ewalletAmount} onChange={(e) => handleWalletChange('ewallet', e.target.value)} min="0" max={wallet?.ewalletBalance || 0} placeholder="0.00" />
             </div>
             <div className="form-group">
               <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Fund Wallet</span>
                 <span style={{ fontWeight: 400, color: 'var(--gray-500)', fontSize: 12 }}>Available: {fmt(wallet?.fundBalance)}</span>
               </label>
-              <input className="form-input" type="number" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} min="0" max={wallet?.fundBalance || 0} placeholder="0.00" />
+              <input className="form-input" type="number" value={fundAmount} onChange={(e) => handleWalletChange('fund', e.target.value)} min="0" max={wallet?.fundBalance || 0} placeholder="0.00" />
             </div>
-            {amount && (
+            {investAmount > 0 && (
               <div style={{ fontSize: 13, color: 'var(--gray-500)', marginTop: 'var(--space-2)' }}>
-                Split: {fmt(Number(mainAmount) || 0)} + {fmt(Number(ewalletAmount) || 0)} + {fmt(Number(fundAmount) || 0)} = <strong>{fmt((Number(mainAmount) || 0) + (Number(ewalletAmount) || 0) + (Number(fundAmount) || 0))}</strong>
-                {Math.abs(((Number(mainAmount) || 0) + (Number(ewalletAmount) || 0) + (Number(fundAmount) || 0)) - Number(amount)) > 0.01 && (
-                  <span style={{ color: 'var(--color-danger)', marginLeft: 8 }}>(must equal {fmt(amount)})</span>
+                Split: {fmt(Number(mainAmount) || 0)} + {fmt(Number(ewalletAmount) || 0)} + {fmt(Number(fundAmount) || 0)} = <strong>{fmt(totalWalletSplit)}</strong>
+                {splitExceeds && (
+                  <span style={{ color: 'var(--color-danger)', marginLeft: 8 }}>(exceeds investment amount by {fmt(-splitDifference)})</span>
+                )}
+                {!splitExceeds && !splitValid && (
+                  <span style={{ color: 'var(--color-danger)', marginLeft: 8 }}>(must equal {fmt(investAmount)})</span>
+                )}
+                {splitValid && insufficientBalance && (
+                  <span style={{ color: 'var(--color-warning, #f59e0b)', marginLeft: 8 }}>(one or more wallets exceed available balance)</span>
                 )}
               </div>
             )}

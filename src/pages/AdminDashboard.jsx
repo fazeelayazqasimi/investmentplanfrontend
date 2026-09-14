@@ -11,7 +11,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import apiClient, {
   getAdminUsers, getAdminStats, getAdminUserDetail, getAdminInvestments,
-  getAdminTransactions, getAdminSettings, updateAdminSettings, processRoi,
+  getAdminTransactions, getAdminSettings, updateAdminSettings, processRoi, processRoiManual,
   getPendingDeposits, approveDeposit, rejectDeposit,
   distributeProfitShare, triggerRoiTransfer, triggerProfitShareTransfer,
   getAdminReferralStats, searchAdminReferralMembers, getAdminReferralTree,
@@ -559,7 +559,15 @@ function AdminDeposits({ toastSuccess, toastError }) {
 
   const load = async () => {
     setLoading(true);
-    try { const data = await getAdminTransactions({ type: 'DEPOSIT', status }); setRows(data.transactions || []); }
+    try {
+      if (status === 'PENDING') {
+        const data = await getPendingDeposits();
+        setRows(data.deposits || []);
+      } else {
+        const data = await getAdminTransactions({ type: 'DEPOSIT', status });
+        setRows(data.transactions || []);
+      }
+    }
     catch (e) { setError(e.response?.data?.message || 'Failed to load deposits'); }
     finally { setLoading(false); }
   };
@@ -652,120 +660,572 @@ function AdminWithdrawals() {
 function AdminTransactions() {
   const location = useLocation();
   const q = new URLSearchParams(location.search);
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const type = q.get('type') || '';
+  const [totalPages, setTotalPages] = useState(0);
+  const [total, setTotal] = useState(0);
+
+  // Filters
+  const [search, setSearch] = useState(q.get('search') || '');
+  const [typeFilter, setTypeFilter] = useState(q.get('type') || '');
+  const [statusFilter, setStatusFilter] = useState(q.get('status') || '');
+  const [dateFrom, setDateFrom] = useState(q.get('dateFrom') || '');
+  const [dateTo, setDateTo] = useState(q.get('dateTo') || '');
+  const [page, setPage] = useState(1);
+
+  const TX_TYPES = [
+    'DEPOSIT', 'INVESTMENT', 'ROI', 'COMMISSION', 'DIRECT_INCOME', 'LEVEL_INCOME',
+    'PROFIT_SHARE', 'SIGNUP_BONUS', 'UPLINE_SIGNUP_BONUS', 'WITHDRAWAL', 'ADJUSTMENT',
+    'E_WALLET_DOWNLINE_INVESTMENT', 'ROI_TRANSFER', 'PROFIT_SHARE_TRANSFER',
+    'FUND_TRANSFER_SENT', 'FUND_TRANSFER_RECEIVED', 'MAIN_TO_FUND_TRANSFER',
+    'PENDING_ROI', 'PENDING_NETWORK_COMMISSION',
+  ];
+
+  const fetchTransactions = async (p = page) => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = { page: p, limit: 20 };
+      if (search.trim()) params.search = search.trim();
+      if (typeFilter) params.type = typeFilter;
+      if (statusFilter) params.status = statusFilter;
+      if (dateFrom) params.dateFrom = dateFrom;
+      if (dateTo) params.dateTo = dateTo;
+      const data = await getAdminTransactions(params);
+      setRows(data.transactions || []);
+      setTotalPages(data.pagination?.totalPages || 0);
+      setTotal(data.pagination?.total || 0);
+    } catch (e) { setError(e.response?.data?.message || 'Failed to load transactions'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchTransactions(1); setPage(1); }, [typeFilter, statusFilter, dateFrom, dateTo]);
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try { const data = await getAdminTransactions(type ? { type } : {}); setRows(data.transactions || []); }
-      catch (e) { setError(e.response?.data?.message || 'Failed to load transactions'); }
-      finally { setLoading(false); }
-    })();
-  }, [type]);
+    const t = setTimeout(() => { fetchTransactions(1); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const resetFilters = () => {
+    setSearch('');
+    setTypeFilter('');
+    setStatusFilter('');
+    setDateFrom('');
+    setDateTo('');
+    setPage(1);
+  };
+
+  const hasFilters = search || typeFilter || statusFilter || dateFrom || dateTo;
 
   return (
     <div>
-      {loading ? <Spinner label="Loading transactions..." /> : error ? <ErrorBox message={error} /> : (
-        <div className="table-card">
-          <table className="data-table">
-            <thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-            <tbody>
-              {rows.length === 0 && <tr><td colSpan={5} className="table-empty">No transactions found</td></tr>}
-              {rows.map((r) => (
-                <tr key={r._id}>
-                  <td data-label="User" className="cell-strong">{r.user?.name}</td>
-                  <td data-label="Type">{r.type}</td>
-                  <td data-label="Amount">{fmt(r.amount)}</td>
-                  <td data-label="Status"><StatusBadge status={r.status} /></td>
-                  <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Filter Bar */}
+      <div className="panel" style={{ marginBottom: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div className="form-group" style={{ marginBottom: 0, flex: '1 1 180px' }}>
+            <label className="form-label" style={{ fontSize: 12 }}>Search User</label>
+            <input
+              className="form-input"
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Name or email..."
+              style={{ fontSize: 13 }}
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0, flex: '0 0 140px' }}>
+            <label className="form-label" style={{ fontSize: 12 }}>Type</label>
+            <select className="select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="">All Types</option>
+              {TX_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="form-group" style={{ marginBottom: 0, flex: '0 0 120px' }}>
+            <label className="form-label" style={{ fontSize: 12 }}>Status</label>
+            <select className="select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="">All</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="PENDING">Pending</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ marginBottom: 0, flex: '0 0 140px' }}>
+            <label className="form-label" style={{ fontSize: 12 }}>From Date</label>
+            <input
+              className="form-input"
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              style={{ fontSize: 13 }}
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0, flex: '0 0 140px' }}>
+            <label className="form-label" style={{ fontSize: 12 }}>To Date</label>
+            <input
+              className="form-input"
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              style={{ fontSize: 13 }}
+            />
+          </div>
+          {hasFilters && (
+            <button className="btn btn-secondary btn-sm" onClick={resetFilters} style={{ marginBottom: 0 }}>
+              Reset
+            </button>
+          )}
         </div>
+        {total > 0 && (
+          <div className="text-muted" style={{ fontSize: 12, marginTop: 'var(--space-2)' }}>
+            {total} transaction{total !== 1 ? 's' : ''} found
+          </div>
+        )}
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <Spinner label="Loading transactions..." />
+      ) : error ? (
+        <ErrorBox message={error} />
+      ) : (
+        <>
+          <div className="table-card">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Email</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 && (
+                  <tr><td colSpan={6} className="table-empty">No transactions found</td></tr>
+                )}
+                {rows.map((r) => (
+                  <tr key={r._id}>
+                    <td data-label="User" className="cell-strong">{r.user?.name}</td>
+                    <td data-label="Email">{r.user?.email}</td>
+                    <td data-label="Type">{r.type}</td>
+                    <td data-label="Amount">{fmt(r.amount)}</td>
+                    <td data-label="Status"><StatusBadge status={r.status} /></td>
+                    <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                disabled={page <= 1}
+                onClick={() => { const p = page - 1; setPage(p); fetchTransactions(p); }}
+              >
+                Previous
+              </button>
+              <span style={{ fontSize: 13 }}>Page {page} of {totalPages}</span>
+              <button
+                className="btn btn-secondary btn-sm"
+                disabled={page >= totalPages}
+                onClick={() => { const p = page + 1; setPage(p); fetchTransactions(p); }}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
 
 /* =========================================================
-   ROI MANAGEMENT
+   ROI MANAGEMENT — Compact Card + Modals + History
    ========================================================= */
 function AdminRoi({ toastSuccess, toastError }) {
-  const q = new URLSearchParams(useLocation().search);
-  const tab = q.get('tab') || 'overview';
   const [stats, setStats] = useState(null);
-  const [rows, setRows] = useState([]);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const s = await getAdminStats(); setStats(s);
-        if (tab === 'history') { const t = await getAdminTransactions({ type: 'ROI' }); setRows(t.transactions || []); }
-      } catch (e) { setError(e.response?.data?.message || 'Failed to load ROI'); }
-      finally { setLoading(false); }
-    })();
-  }, [tab]);
+  // AUTO config modal
+  const [autoModalOpen, setAutoModalOpen] = useState(false);
+  const [roiDays, setRoiDays] = useState(0);
+  const [daySchedule, setDaySchedule] = useState([]);
+
+  // Trigger AUTO modal
+  const [triggerModalOpen, setTriggerModalOpen] = useState(false);
+  const [triggerBusy, setTriggerBusy] = useState(false);
+  const [triggerResult, setTriggerResult] = useState(null);
+
+  // MANUAL modal
+  const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [manualPercentage, setManualPercentage] = useState('');
+  const [manualBusy, setManualBusy] = useState(false);
+  const [manualResult, setManualResult] = useState(null);
+  const [manualConfirmStep, setManualConfirmStep] = useState(false);
+
+  // History
+  const [historyRows, setHistoryRows] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [s, st] = await Promise.all([getAdminStats(), getAdminSettings()]);
+      setStats(s);
+      setSettings(st.settings);
+      setRoiDays(st.settings.roiDays || 0);
+      setDaySchedule(st.settings.dayWiseRoiSchedule || []);
+    } catch (e) { setError(e.response?.data?.message || 'Failed to load ROI data'); }
+    finally { setLoading(false); }
+  };
+
+  const fetchHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const t = await getAdminTransactions({ type: 'ROI' });
+      setHistoryRows(t.transactions || []);
+    } catch (_) { /* ignore */ }
+    finally { setHistoryLoading(false); }
+  };
+
+  useEffect(() => { fetchData(); fetchHistory(); }, []);
+
+  const toggleRoiProcessing = async (enabled) => {
+    setBusy(true);
+    try {
+      await updateAdminSettings({ roiProcessingEnabled: enabled });
+      setSettings(prev => ({ ...prev, roiProcessingEnabled: enabled }));
+      toastSuccess('Success', `ROI processing ${enabled ? 'enabled' : 'disabled'}`);
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Failed to toggle ROI'); }
+    finally { setBusy(false); }
+  };
+
+  const saveAutoSchedule = async () => {
+    setBusy(true);
+    try {
+      const schedule = [];
+      for (let i = 0; i < roiDays; i++) {
+        schedule.push({ day: i + 1, percentage: daySchedule[i]?.percentage || 0 });
+      }
+      await updateAdminSettings({ roiDays: Number(roiDays), dayWiseRoiSchedule: schedule });
+      setDaySchedule(schedule);
+      setAutoModalOpen(false);
+      toastSuccess('Success', 'AUTO ROI schedule saved');
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Failed to save schedule'); }
+    finally { setBusy(false); }
+  };
+
+  const runAutoTrigger = async () => {
+    setTriggerBusy(true);
+    try {
+      const result = await processRoi({});
+      setTriggerResult(result);
+    } catch (e) { toastError('Error', e.response?.data?.message || 'AUTO trigger failed'); }
+    finally { setTriggerBusy(false); }
+  };
+
+  const openTriggerModal = () => {
+    setTriggerResult(null);
+    setTriggerModalOpen(true);
+  };
+
+  const runManualRoi = async () => {
+    const pct = Number(manualPercentage);
+    if (!pct || pct <= 0) { toastError('Error', 'Enter a valid percentage'); return; }
+    setManualBusy(true);
+    try {
+      const result = await processRoiManual({ percentage: pct });
+      setManualResult(result);
+      setManualConfirmStep(false);
+      fetchHistory();
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Manual ROI failed'); }
+    finally { setManualBusy(false); }
+  };
+
+  const openManualModal = () => {
+    setManualPercentage('');
+    setManualResult(null);
+    setManualConfirmStep(false);
+    setManualModalOpen(true);
+  };
+
+  const updateDaySchedule = (index, value) => {
+    const newSchedule = [...daySchedule];
+    while (newSchedule.length <= index) {
+      newSchedule.push({ day: newSchedule.length + 1, percentage: 0 });
+    }
+    newSchedule[index] = { day: index + 1, percentage: Number(value) || 0 };
+    setDaySchedule(newSchedule);
+  };
 
   if (loading) return <Spinner label="Loading ROI..." />;
   if (error) return <ErrorBox message={error} />;
 
-  if (tab === 'history') {
-    return (
-      <div className="table-card">
-        <table className="data-table">
-          <thead><tr><th>User</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-          <tbody>
-            {rows.length === 0 && <tr><td colSpan={4} className="table-empty">No ROI distributions yet</td></tr>}
-            {rows.map((r) => (
-              <tr key={r._id}>
-                <td data-label="User" className="cell-strong">{r.user?.name}</td>
-                <td data-label="Amount">{fmt(r.amount)}</td>
-                <td data-label="Status"><StatusBadge status={r.status} /></td>
-                <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
+  const roiEnabled = settings?.roiProcessingEnabled || false;
 
   return (
     <div>
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-value">{fmt(stats.totalRoiDistributed)}</div>
-          <div className="stat-label">Total ROI Distributed</div>
+      {/* Main ROI Card */}
+      <div className="panel" style={{ marginBottom: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+              <h3 style={{ margin: 0 }}>ROI Processing</h3>
+              <label className="filter-group" style={{ margin: 0, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={roiEnabled}
+                  onChange={(e) => toggleRoiProcessing(e.target.checked)}
+                  disabled={busy}
+                />
+                <span style={{ fontSize: 13, fontWeight: 500 }}>{roiEnabled ? 'ON' : 'OFF'}</span>
+              </label>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              Status: <strong>{roiEnabled ? 'Active' : 'Disabled'}</strong>
+              {' \u00b7 '}
+              Mode: <strong>AUTO</strong>
+            </div>
+          </div>
+          <div className="stats-grid" style={{ flex: 1, minWidth: 300 }}>
+            <div className="stat-card">
+              <div className="stat-value">{fmt(stats?.totalRoiDistributed)}</div>
+              <div className="stat-label">Total Distributed</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{stats?.activeInvestments || 0}</div>
+              <div className="stat-label">Active Investments</div>
+            </div>
+          </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-value">{stats.activeInvestments}</div>
-          <div className="stat-label">Active Investments</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{fmt(stats.totalInvested)}</div>
-          <div className="stat-label">Total Invested</div>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-3)', flexWrap: 'wrap' }}>
+          <button className="btn btn-primary btn-sm" onClick={openTriggerModal} disabled={busy || !roiEnabled}>
+            Trigger AUTO ROI
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setAutoModalOpen(true)} disabled={busy}>
+            Configure AUTO
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={openManualModal} disabled={busy || !roiEnabled}>
+            Process Manual
+          </button>
         </div>
       </div>
-      <div className="chart-card">
-        <div className="chart-card-header"><h3>ROI Distribution (6 months)</h3></div>
-        <ResponsiveContainerWrap height={240}>
-          <BarChart data={stats.roiDistribution}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-            <XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip />
-            <Bar dataKey="roi" fill="var(--chart-roi)" radius={[3, 3, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainerWrap>
+
+      {/* Trigger AUTO Modal */}
+      {triggerModalOpen && (
+        <Modal title="Trigger AUTO ROI" onClose={() => setTriggerModalOpen(false)}>
+          {!triggerResult ? (
+            <>
+              <p style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+                Process ROI for <strong>all active investments today</strong> using the configured AUTO schedule?
+              </p>
+              <p className="text-muted" style={{ fontSize: 12, marginBottom: 'var(--space-3)' }}>
+                You can trigger this as many times as you want per day.
+                Investments that already received ROI today will be skipped automatically — no duplicate credits.
+              </p>
+              <div className="modal-footer" style={{ padding: 0, paddingTop: 'var(--space-3)' }}>
+                <button className="btn btn-secondary btn-sm" onClick={() => setTriggerModalOpen(false)} disabled={triggerBusy}>Cancel</button>
+                <button className="btn btn-primary btn-sm" onClick={runAutoTrigger} disabled={triggerBusy}>
+                  {triggerBusy ? 'Processing...' : 'Trigger AUTO ROI'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', fontSize: 13 }}>
+                  <div>Processed: <strong>{triggerResult.processed}</strong></div>
+                  <div>Skipped: <strong>{triggerResult.skipped}</strong></div>
+                  <div>Errors: <strong>{triggerResult.errors?.length || 0}</strong></div>
+                  {triggerResult.message && (
+                    <div style={{ gridColumn: '1 / -1' }} className="text-muted">{triggerResult.message}</div>
+                  )}
+                </div>
+                {triggerResult.skipped > 0 && triggerResult.processed === 0 && (
+                  <p className="text-muted" style={{ fontSize: 12, marginTop: 'var(--space-2)', marginBottom: 0 }}>
+                    Skipped = investments that already received ROI today. This is normal — no action needed.
+                  </p>
+                )}
+                {triggerResult.skipped > 0 && triggerResult.processed > 0 && (
+                  <p className="text-muted" style={{ fontSize: 12, marginTop: 'var(--space-2)', marginBottom: 0 }}>
+                    {triggerResult.skipped} investments were skipped because they already received ROI today.
+                  </p>
+                )}
+              </div>
+              <div className="modal-footer" style={{ padding: 0, paddingTop: 'var(--space-3)' }}>
+                <button className="btn btn-primary btn-sm" onClick={() => { setTriggerModalOpen(false); fetchHistory(); }}>Done</button>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
+
+      {/* AUTO Config Modal */}
+      {autoModalOpen && (
+        <Modal title="Configure AUTO ROI Schedule" onClose={() => setAutoModalOpen(false)}>
+          <div className="form-group">
+            <label className="form-label">ROI Days</label>
+            <input
+              className="form-input"
+              type="number"
+              value={roiDays}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setRoiDays(val);
+                const newSchedule = [];
+                for (let i = 0; i < val; i++) {
+                  newSchedule.push(daySchedule[i] || { day: i + 1, percentage: 0 });
+                }
+                setDaySchedule(newSchedule);
+              }}
+              min="1"
+              max="365"
+            />
+            <p className="form-hint">Number of days in the ROI cycle</p>
+          </div>
+          {roiDays > 0 && (
+            <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 8, padding: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+              {Array.from({ length: roiDays }, (_, i) => (
+                <div key={i} className="filter-group" style={{ marginBottom: 8 }}>
+                  <label style={{ minWidth: 60, fontSize: 13, fontWeight: 500 }}>Day {i + 1}:</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    value={daySchedule[i]?.percentage || 0}
+                    onChange={(e) => updateDaySchedule(i, e.target.value)}
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    style={{ width: 100 }}
+                  />
+                  <span style={{ fontSize: 13 }}>%</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-muted" style={{ fontSize: 12, marginBottom: 'var(--space-3)' }}>
+            Schedule repeats from Day 1 after Day {roiDays} until the investment reaches its 2X ROI cap.
+          </p>
+          <div className="modal-footer" style={{ padding: 0, paddingTop: 'var(--space-3)' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => setAutoModalOpen(false)}>Cancel</button>
+            <button className="btn btn-primary btn-sm" onClick={saveAutoSchedule} disabled={busy}>
+              {busy ? 'Saving...' : 'Save AUTO Schedule'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* MANUAL Modal */}
+      {manualModalOpen && (
+        <Modal title="Manual ROI Processing" onClose={() => setManualModalOpen(false)}>
+          {!manualResult ? (
+            <>
+              <div className="form-group">
+                <label className="form-label">Today's ROI %</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  value={manualPercentage}
+                  onChange={(e) => { setManualPercentage(e.target.value); setManualConfirmStep(false); }}
+                  min="0.01"
+                  max="100"
+                  step="0.01"
+                  placeholder="e.g. 1.5"
+                  disabled={manualBusy}
+                />
+                <p className="form-hint">This percentage will be applied to all eligible active investments.</p>
+              </div>
+              {manualPercentage && Number(manualPercentage) > 0 && !manualConfirmStep && (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setManualConfirmStep(true)}
+                  disabled={manualBusy}
+                  style={{ marginBottom: 'var(--space-3)' }}
+                >
+                  Review &amp; Confirm
+                </button>
+              )}
+              {manualConfirmStep && (
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                  <p style={{ margin: 0, fontSize: 13 }}>
+                    Process <strong>{manualPercentage}%</strong> ROI for all active investments today?
+                  </p>
+                  <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
+                    This is a one-time action. The AUTO schedule is not affected.
+                  </p>
+                </div>
+              )}
+              <div className="modal-footer" style={{ padding: 0, paddingTop: 'var(--space-3)' }}>
+                <button className="btn btn-secondary btn-sm" onClick={() => setManualModalOpen(false)} disabled={manualBusy}>Cancel</button>
+                {manualConfirmStep && (
+                  <button className="btn btn-primary btn-sm" onClick={runManualRoi} disabled={manualBusy || !manualPercentage}>
+                    {manualBusy ? 'Processing...' : 'Process Today\'s ROI'}
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', fontSize: 13 }}>
+                  <div>Processed: <strong>{manualResult.processed}</strong></div>
+                  <div>Skipped: <strong>{manualResult.skipped}</strong></div>
+                  <div>Failed: <strong>{manualResult.failed}</strong></div>
+                  <div>Total Credited: <strong>{fmt(manualResult.totalCredited)}</strong></div>
+                </div>
+              </div>
+              <div className="modal-footer" style={{ padding: 0, paddingTop: 'var(--space-3)' }}>
+                <button className="btn btn-primary btn-sm" onClick={() => { setManualModalOpen(false); fetchHistory(); }}>Done</button>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
+
+      {/* ROI History — always visible */}
+      <div className="panel">
+        <h3 style={{ marginBottom: 'var(--space-3)' }}>ROI History</h3>
+        {historyLoading ? (
+          <Spinner label="Loading history..." />
+        ) : historyRows.length === 0 ? (
+          <p className="text-muted" style={{ fontSize: 13 }}>No ROI distributions yet.</p>
+        ) : (
+          <div className="table-card" style={{ border: 'none', padding: 0 }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>User</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyRows.map((r) => (
+                  <tr key={r._id}>
+                    <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
+                    <td data-label="User" className="cell-strong">{r.user?.name}</td>
+                    <td data-label="Amount">{fmt(r.amount)}</td>
+                    <td data-label="Status"><StatusBadge status={r.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-      <p className="text-muted" style={{ marginTop: 16, fontSize: 13 }}>
-        Configure ROI in <Link to="/admin/settings?tab=roi">ROI Settings</Link>. Use the "Process ROI" action there to credit ROI for today.
-      </p>
     </div>
   );
 }
@@ -1809,66 +2269,10 @@ function AdminSettings({ toastSuccess, toastError }) {
       {tab === 'roi' && (
         <div className="panel">
           <h3>ROI Settings</h3>
-          <div className="form-group">
-            <label className="form-label">ROI Mode</label>
-            <select className="select" value={roiMode} onChange={(e) => setRoiMode(e.target.value)}>
-              <option value="OVERALL">Overall</option><option value="DAY_WISE">Day-wise</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Overall ROI % (per cycle)</label>
-            <input className="form-input" type="number" value={overallRoi} onChange={(e) => setOverallRoi(e.target.value)} />
-          </div>
-          <label className="form-group filter-group">
-            <input type="checkbox" checked={roiEnabled} onChange={(e) => setRoiEnabled(e.target.checked)} />
-            Enable ROI processing
-          </label>
-          {roiMode === 'DAY_WISE' && (
-            <>
-              <div className="form-group">
-                <label className="form-label">ROI Days</label>
-                <input className="form-input" type="number" value={roiDays} onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setRoiDays(val);
-                  const newSchedule = [];
-                  for (let i = 0; i < val; i++) {
-                    newSchedule.push(daySchedule[i] || { day: i + 1, percentage: 0 });
-                  }
-                  setDaySchedule(newSchedule);
-                }} min="0" max="365" />
-                <p className="form-hint">Number of days in the ROI cycle</p>
-              </div>
-              {roiDays > 0 && (
-                <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: 8, padding: 'var(--space-3)' }}>
-                  {Array.from({ length: roiDays }, (_, i) => (
-                    <div key={i} className="filter-group" style={{ marginBottom: 8 }}>
-                      <label style={{ minWidth: 60, fontSize: 13, fontWeight: 500 }}>Day {i + 1}:</label>
-                      <input
-                        className="form-input"
-                        type="number"
-                        value={daySchedule[i]?.percentage || 0}
-                        onChange={(e) => updateDaySchedule(i, e.target.value)}
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        style={{ width: 100 }}
-                      />
-                      <span style={{ fontSize: 13 }}>%</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          <div className="filter-group" style={{ marginTop: 'var(--space-3)' }}>
-            <button className="btn btn-primary btn-sm" onClick={() => save({ roiMode, overallRoiPercentage: Number(overallRoi), roiProcessingEnabled: roiEnabled, roiDays: Number(roiDays), dayWiseRoiSchedule: daySchedule })} disabled={busy}>Save ROI Settings</button>
-            <div className="filter-group" style={{ marginLeft: 'var(--space-2)' }}>
-              <input className="form-input" type="date" value={roiDate} onChange={(e) => setRoiDate(e.target.value)} style={{ width: 160, padding: '6px 8px', fontSize: 12 }} title="Leave empty for today" />
-              <button className="btn btn-secondary btn-sm" onClick={runRoi} disabled={busy}>Process ROI</button>
-            </div>
-          </div>
-          {proc && <div className="text-muted" style={{ marginTop: 12, fontSize: 13 }}>Processed: {proc.processed}, Skipped: {proc.skipped}</div>}
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            ROI configuration has been moved to the dedicated <Link to="/admin/roi">ROI Management</Link> page.
+          </p>
+          <Link to="/admin/roi" className="btn btn-primary btn-sm">Go to ROI Management</Link>
         </div>
       )}
 
