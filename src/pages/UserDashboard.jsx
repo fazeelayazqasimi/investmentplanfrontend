@@ -25,6 +25,7 @@ import StatusBadge from '../components/StatusBadge';
 import useToast from '../components/useToast';
 import UserReferrals from './UserReferrals';
 import ChatWidget from '../components/ChatWidget';
+import logoHeader from '../images/black-logo.png';
 
 const CHART_COLORS = ['var(--chart-color-1)', 'var(--chart-color-2)', 'var(--chart-color-3)', 'var(--chart-color-4)', 'var(--chart-color-5)', 'var(--chart-color-6)'];
 const fmt = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -90,7 +91,7 @@ export default function UserDashboard() {
     <div className="dashboard-layout">
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-logo"><WalletIcon size={20} /></div>
+          <div className="sidebar-logo"><img src={logoHeader} alt="Fin Rise Global" style={{ width: 28, height: 28, borderRadius: 6 }} /></div>
           <div>
             <div className="sidebar-title">My Account</div>
             <div className="sidebar-subtitle">Investment Platform</div>

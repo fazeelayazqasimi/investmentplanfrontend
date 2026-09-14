@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronRight, ChevronLeft, ZoomIn, ZoomOut,
   Maximize2, Minimize2, RotateCcw, X, UserCheck, UserX,
   Filter, Download, RefreshCw, ArrowUpDown, Network,
-  DollarSign, Activity, TrendingUp, Megaphone, MessageSquare, Send,
+  DollarSign, Activity, TrendingUp, Megaphone, MessageSquare, Send, Layers,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import apiClient, {
@@ -25,6 +25,7 @@ import {
   CartesianGrid, XAxis, YAxis, Tooltip,
 } from 'recharts';
 import Spinner from '../components/Spinner';
+import logoHeader from '../images/black-logo.png';
 import ErrorBox from '../components/ErrorBox';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
@@ -58,6 +59,8 @@ function ResponsiveContainerWrap({ height, children }) {
     { key: 'transactions', label: 'Transactions', icon: Receipt, to: '/admin/transactions' },
     { key: 'roi', label: 'ROI Management', icon: Percent, to: '/admin/roi' },
     { key: 'referrals', label: 'Network Center', icon: Share2, to: '/admin/referrals' },
+    { key: 'levels', label: 'Levels', icon: Layers, to: '/admin/levels' },
+    { key: 'profit-share-levels', label: 'Profit Share Levels', icon: Percent, to: '/admin/profit-share-levels' },
     { key: 'announcements', label: 'Announcements', icon: Megaphone, to: '/admin/announcements' },
     { key: 'support', label: 'Support Chat', icon: MessageSquare, to: '/admin/support' },
     { key: 'reports', label: 'Reports', icon: FileBarChart, to: '/admin/reports' },
@@ -86,7 +89,7 @@ export default function AdminDashboard() {
     <div className="dashboard-layout">
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-logo"><LayoutDashboard size={20} /></div>
+          <div className="sidebar-logo"><img src={logoHeader} alt="Fin Rise Global" style={{ width: 28, height: 28, borderRadius: 6 }} /></div>
           <div>
             <div className="sidebar-title">Admin Panel</div>
             <div className="sidebar-subtitle">Platform Management</div>
@@ -148,6 +151,8 @@ export default function AdminDashboard() {
           {page === 'transactions' && <AdminTransactions />}
           {page === 'roi' && <AdminRoi toastSuccess={success} toastError={toastError} />}
           {page === 'referrals' && <AdminReferrals />}
+          {page === 'levels' && <AdminLevels toastSuccess={success} toastError={toastError} />}
+          {page === 'profit-share-levels' && <AdminProfitShareLevels toastSuccess={success} toastError={toastError} />}
           {page === 'announcements' && <AdminAnnouncements toastSuccess={success} toastError={toastError} />}
           {page === 'support' && <AdminSupportChat toastSuccess={success} toastError={toastError} />}
           {page === 'reports' && <AdminReports />}
@@ -2095,6 +2100,196 @@ function AdminReports() {
 }
 
 /* =========================================================
+   LEVELS MANAGEMENT
+   ========================================================= */
+function AdminLevels({ toastSuccess, toastError }) {
+  const [levels, setLevels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const d = await getAdminSettings();
+        setLevels(d.settings.levels || []);
+      } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  const addLevel = () => {
+    const nextNum = levels.length > 0 ? Math.max(...levels.map(l => l.level)) + 1 : 1;
+    setLevels([...levels, { level: nextNum, percentage: 0 }]);
+  };
+
+  const removeLevel = (idx) => {
+    const updated = levels.filter((_, i) => i !== idx).map((l, i) => ({ ...l, level: i + 1 }));
+    setLevels(updated);
+  };
+
+  const updatePercentage = (idx, value) => {
+    const updated = [...levels];
+    updated[idx] = { ...updated[idx], percentage: Number(value) || 0 };
+    setLevels(updated);
+  };
+
+  const handleSave = async () => {
+    setBusy(true);
+    try {
+      await updateAdminSettings({ levels });
+      toastSuccess('Success', 'Level income settings saved');
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Save failed';
+      setError(msg);
+      toastError('Error', msg);
+    } finally { setBusy(false); }
+  };
+
+  if (loading) return <Spinner label="Loading levels..." />;
+  if (error) return <ErrorBox message={error} />;
+
+  return (
+    <div>
+      <div className="panel">
+        <h3>Level Income Configuration</h3>
+        <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+          Configure income percentages for each level. Level 1 = direct upline, Level 2 = upline's upline, etc.
+          Percentages are applied to the actual investment amount. Income is credited only when investment is approved.
+        </p>
+        {levels.length === 0 ? (
+          <EmptyState message="No levels configured. Add a level to get started." />
+        ) : (
+          <div style={{ marginBottom: 'var(--space-3)' }}>
+            {levels.map((lvl, idx) => (
+              <div key={idx} className="filter-group" style={{ marginBottom: 8, alignItems: 'center' }}>
+                <span style={{ minWidth: 90, fontWeight: 600, fontSize: 14 }}>Level {lvl.level}</span>
+                <input
+                  className="form-input"
+                  type="number"
+                  value={lvl.percentage}
+                  onChange={(e) => updatePercentage(idx, e.target.value)}
+                  min="0"
+                  max="100"
+                  style={{ width: 100 }}
+                />
+                <span className="text-muted" style={{ fontSize: 13 }}>%</span>
+                <button className="btn btn-sm" onClick={() => removeLevel(idx)} style={{ color: 'var(--color-danger)', padding: '4px 8px' }}>
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="filter-group">
+          <button className="btn btn-secondary btn-sm" onClick={addLevel}>
+            + Add Level
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={busy}>
+            {busy ? 'Saving...' : 'Save Levels'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   PROFIT SHARE LEVELS MANAGEMENT
+   ========================================================= */
+function AdminProfitShareLevels({ toastSuccess, toastError }) {
+  const [psLevels, setPsLevels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const d = await getAdminSettings();
+        setPsLevels(d.settings.profitShareLevels || []);
+      } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  const addLevel = () => {
+    const nextNum = psLevels.length > 0 ? Math.max(...psLevels.map(l => l.level)) + 1 : 1;
+    setPsLevels([...psLevels, { level: nextNum, percentage: 0 }]);
+  };
+
+  const removeLevel = (idx) => {
+    const updated = psLevels.filter((_, i) => i !== idx).map((l, i) => ({ ...l, level: i + 1 }));
+    setPsLevels(updated);
+  };
+
+  const updatePercentage = (idx, value) => {
+    const updated = [...psLevels];
+    updated[idx] = { ...updated[idx], percentage: Number(value) || 0 };
+    setPsLevels(updated);
+  };
+
+  const handleSave = async () => {
+    setBusy(true);
+    try {
+      await updateAdminSettings({ profitShareLevels: psLevels });
+      toastSuccess('Success', 'Profit Share level settings saved');
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Save failed';
+      setError(msg);
+      toastError('Error', msg);
+    } finally { setBusy(false); }
+  };
+
+  if (loading) return <Spinner label="Loading profit share levels..." />;
+  if (error) return <ErrorBox message={error} />;
+
+  return (
+    <div>
+      <div className="panel">
+        <h3>Profit Share Levels Configuration</h3>
+        <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+          Configure upline-based profit share percentages. When profit share is distributed,
+          each investor's upline chain receives the configured percentage at each level.
+        </p>
+        {psLevels.length === 0 ? (
+          <EmptyState message="No profit share levels configured. Add a level to get started." />
+        ) : (
+          <div style={{ marginBottom: 'var(--space-3)' }}>
+            {psLevels.map((lvl, idx) => (
+              <div key={idx} className="filter-group" style={{ marginBottom: 8, alignItems: 'center' }}>
+                <span style={{ minWidth: 90, fontWeight: 600, fontSize: 14 }}>Level {lvl.level}</span>
+                <input
+                  className="form-input"
+                  type="number"
+                  value={lvl.percentage}
+                  onChange={(e) => updatePercentage(idx, e.target.value)}
+                  min="0"
+                  max="100"
+                  style={{ width: 100 }}
+                />
+                <span className="text-muted" style={{ fontSize: 13 }}>%</span>
+                <button className="btn btn-sm" onClick={() => removeLevel(idx)} style={{ color: 'var(--color-danger)', padding: '4px 8px' }}>
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="filter-group">
+          <button className="btn btn-secondary btn-sm" onClick={addLevel}>
+            + Add Profit Share Level
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={busy}>
+            {busy ? 'Saving...' : 'Save Profit Share Levels'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
    SETTINGS
    ========================================================= */
 function AdminSettings({ toastSuccess, toastError }) {
@@ -2351,19 +2546,10 @@ function AdminSettings({ toastSuccess, toastError }) {
         <div className="panel">
           <h3>Income Settings</h3>
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
-            Percentages are calculated on the actual investment amount (after activation fee deduction). Income is credited only when investment is approved.
+            Income percentages are now managed in the dedicated <Link to="/admin/levels">Levels</Link> page.
+            Configure Level 1 (direct), Level 2 (indirect), and any additional levels there.
           </p>
-          <div className="form-group">
-            <label className="form-label">Direct Income (Level 1) %</label>
-            <input className="form-input" type="number" value={directIncome} onChange={(e) => setDirectIncome(Number(e.target.value))} min="0" max="100" />
-            <p className="form-hint">Paid to the investor's direct upline</p>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Level Income (Level 2) %</label>
-            <input className="form-input" type="number" value={levelIncome} onChange={(e) => setLevelIncome(Number(e.target.value))} min="0" max="100" />
-            <p className="form-hint">Paid to the investor's Level 2 upline (upline's upline)</p>
-          </div>
-          <button className="btn btn-primary btn-sm" onClick={() => save({ directIncomePercentage: Number(directIncome), levelIncomePercentage: Number(levelIncome) })} disabled={busy}>Save Income Settings</button>
+          <Link to="/admin/levels" className="btn btn-primary btn-sm">Go to Levels Management</Link>
         </div>
       )}
 

@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, TrendingUp, BarChart3, Shield, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
+import logoHeader from '../../images/black-logo.png';
 
 function Login() {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ function Login() {
       <div className="auth-branding">
         <div className="auth-branding-content">
           <div className="auth-logo">
-            <TrendingUp size={26} />
+            <img src={logoHeader} alt="Fin Rise Global" style={{ width: 40, height: 40, borderRadius: 8 }} />
           </div>
           <h1>Grow Your Wealth, Systematically</h1>
           <p>
