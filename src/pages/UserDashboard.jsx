@@ -814,6 +814,18 @@ function UserInvestments({ toastSuccess, toastError }) {
         </div>
       )}
 
+      <div className="wallet-card" style={{ marginBottom: 'var(--space-4)', background: '#111827', color: '#fff', border: 'none' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Total Investment</div>
+            <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#fff' }}>
+              {fmt(mine.reduce((sum, iv) => sum + iv.originalAmount, 0))}
+            </div>
+          </div>
+          <TrendingUp size={32} style={{ color: '#00C389' }} />
+        </div>
+      </div>
+
       <div className="page-header" style={{ marginTop: 'var(--space-4)' }}>
         <div>
           <h2>My Investments</h2>
@@ -1784,14 +1796,13 @@ function UserRoi() {
         <div className="table-wrap">
           <table className="data-table">
             <thead>
-              <tr><th>ROI %</th><th>Amount</th><th>Status</th><th>Date</th></tr>
+              <tr><th>Amount</th><th>Status</th><th>Date</th></tr>
             </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={4} className="table-empty">No ROI credited yet</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={3} className="table-empty">No ROI credited yet</td></tr>}
               {rows.map((r) => (
                 <tr key={r._id}>
-                  <td data-label="ROI" className="cell-strong">{r.roiPercentage}%</td>
-                  <td data-label="Amount">{fmt(r.roiAmount)}</td>
+                  <td data-label="Amount" className="cell-strong">{fmt(r.roiAmount)}</td>
                   <td data-label="Status"><StatusBadge status={r.status} /></td>
                   <td data-label="Date">{fmtDate(r.roiDate)}</td>
                 </tr>
