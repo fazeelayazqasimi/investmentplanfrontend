@@ -38,6 +38,8 @@ const NAV = [
   { key: 'wallet', label: 'Wallet', icon: WalletIcon, to: '/dashboard/wallet' },
   { key: 'transactions', label: 'Transactions', icon: Receipt, to: '/dashboard/transactions' },
   { key: 'income', label: 'Income', icon: DollarSign, to: '/dashboard/income' },
+  { key: 'direct-income', label: 'Direct Income', icon: DollarSign, to: '/dashboard/direct-income' },
+  { key: 'level-income', label: 'Level Income', icon: BarChart3, to: '/dashboard/level-income' },
   { key: 'roi', label: 'ROI', icon: Percent, to: '/dashboard/roi' },
   { key: 'referrals', label: 'Referrals', icon: Share2, to: '/dashboard/referrals' },
   { key: 'profile', label: 'Profile', icon: UserIcon, to: '/dashboard/profile' },
@@ -184,6 +186,8 @@ export default function UserDashboard() {
           {page === 'wallet' && <UserWallet toastSuccess={success} toastError={toastError} />}
           {page === 'transactions' && <UserTransactions />}
           {page === 'income' && <UserIncome />}
+          {page === 'direct-income' && <UserDirectIncome />}
+          {page === 'level-income' && <UserLevelIncome />}
           {page === 'roi' && <UserRoi />}
           {page === 'referrals' && <UserReferrals />}
           {page === 'profile' && <UserProfile toastSuccess={success} toastError={toastError} />}
@@ -231,6 +235,8 @@ function UserOverview({ toastSuccess, toastError }) {
   const [profile, setProfile] = useState(null);
   const [settings, setSettings] = useState(null);
   const [progress, setProgress] = useState(null);
+  const [directIncome, setDirectIncome] = useState(0);
+  const [levelIncome, setLevelIncome] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activating, setActivating] = useState(false);
@@ -250,10 +256,12 @@ function UserOverview({ toastSuccess, toastError }) {
   useEffect(() => {
     (async () => {
       try {
-        const [w, i, p] = await Promise.all([getMyWallet(), getMyInvestments({ status: 'ACTIVE' }), getMyProfile()]);
+        const [w, i, p, directTxn, levelTxn] = await Promise.all([getMyWallet(), getMyInvestments({ status: 'ACTIVE' }), getMyProfile(), getMyTransactions({ type: 'DIRECT_INCOME' }), getMyTransactions({ type: 'LEVEL_INCOME' })]);
         setWallet(w.wallet);
         setInvestments(i.investments || []);
         setProfile(p);
+        setDirectIncome((directTxn.transactions || []).reduce((s, t) => s + (t.amount || 0), 0));
+        setLevelIncome((levelTxn.transactions || []).reduce((s, t) => s + (t.amount || 0), 0));
         try { const s = await getUserConfig(); setSettings(s); } catch (_) {}
         try { const pr = await getProgressData(); setProgress(pr); } catch (_) {}
       } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
@@ -290,6 +298,8 @@ function UserOverview({ toastSuccess, toastError }) {
     { label: 'Fund Wallet', value: fmt(wallet?.fundBalance), accent: 'stat-teal', icon: Users },
     { label: 'Pending Commissions', value: fmt(wallet?.pendingCommissions), accent: 'stat-danger', icon: AlertCircle },
     { label: 'Total Earnings', value: fmt(wallet?.totalEarnings), accent: 'stat-orange', icon: TrendingUp },
+    { label: 'Direct Income', value: fmt(directIncome), accent: 'stat-success', icon: DollarSign },
+    { label: 'Level Income', value: fmt(levelIncome), accent: 'stat-info', icon: BarChart3 },
   ];
 
   const pie = [
@@ -1431,6 +1441,202 @@ function UserIncome() {
                   <td data-label="Amount" className="text-blue cell-strong">{fmt(t.amount)}</td>
                   <td data-label="Status"><StatusBadge status={t.status} /></td>
                   <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   DIRECT INCOME
+   ========================================================= */
+function UserDirectIncome() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getMyTransactions({ type: 'DIRECT_INCOME' });
+        setRows(res.transactions || []);
+      } catch (e) { setError(e.response?.data?.message || 'Failed to load direct income data'); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  if (loading) return <Spinner label="Loading direct income..." />;
+  if (error) return <ErrorBox message={error} />;
+
+  const totalDirect = rows.reduce((s, t) => s + (t.amount || 0), 0);
+  const now = new Date();
+  const thisMonthRows = rows.filter((t) => {
+    const d = new Date(t.createdAt);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const thisMonthDirect = thisMonthRows.reduce((s, t) => s + (t.amount || 0), 0);
+
+  return (
+    <div className="animate-slide-up">
+      <div className="page-header">
+        <div>
+          <h1>Direct Income</h1>
+          <p className="subtitle">Track your direct referral income earnings</p>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card stat-success">
+          <div className="stat-icon"><DollarSign size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Total Direct Income</div>
+            <div className="stat-value">{fmt(totalDirect)}</div>
+          </div>
+        </div>
+        <div className="stat-card stat-info">
+          <div className="stat-icon"><TrendingUp size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Total Transactions</div>
+            <div className="stat-value">{rows.length}</div>
+          </div>
+        </div>
+        <div className="stat-card stat-amber">
+          <div className="stat-icon"><Receipt size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">This Month</div>
+            <div className="stat-value">{fmt(thisMonthDirect)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="table-card" style={{ marginTop: 'var(--space-4)' }}>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>From</th>
+                <th>Investment Amount</th>
+                <th>Income %</th>
+                <th>Income Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr><td colSpan={6} className="table-empty">No direct income earned yet</td></tr>
+              )}
+              {rows.map((t) => (
+                <tr key={t._id}>
+                  <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
+                  <td data-label="From" className="cell-strong">{t.description || 'Referral'}</td>
+                  <td data-label="Investment">{fmt(t.metadata?.investmentAmount)}</td>
+                  <td data-label="Income %">{t.metadata?.percentage ? `${t.metadata.percentage}%` : '—'}</td>
+                  <td data-label="Amount" className="text-success cell-strong">{fmt(t.amount)}</td>
+                  <td data-label="Status"><StatusBadge status={t.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   LEVEL INCOME
+   ========================================================= */
+function UserLevelIncome() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getMyTransactions({ type: 'LEVEL_INCOME' });
+        setRows(res.transactions || []);
+      } catch (e) { setError(e.response?.data?.message || 'Failed to load level income data'); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  if (loading) return <Spinner label="Loading level income..." />;
+  if (error) return <ErrorBox message={error} />;
+
+  const totalLevel = rows.reduce((s, t) => s + (t.amount || 0), 0);
+  const now = new Date();
+  const thisMonthRows = rows.filter((t) => {
+    const d = new Date(t.createdAt);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const thisMonthLevel = thisMonthRows.reduce((s, t) => s + (t.amount || 0), 0);
+
+  return (
+    <div className="animate-slide-up">
+      <div className="page-header">
+        <div>
+          <h1>Level Income</h1>
+          <p className="subtitle">Track your level/network income earnings</p>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card stat-info">
+          <div className="stat-icon"><BarChart3 size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Total Level Income</div>
+            <div className="stat-value">{fmt(totalLevel)}</div>
+          </div>
+        </div>
+        <div className="stat-card stat-success">
+          <div className="stat-icon"><TrendingUp size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Total Transactions</div>
+            <div className="stat-value">{rows.length}</div>
+          </div>
+        </div>
+        <div className="stat-card stat-amber">
+          <div className="stat-icon"><Receipt size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">This Month</div>
+            <div className="stat-value">{fmt(thisMonthLevel)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="table-card" style={{ marginTop: 'var(--space-4)' }}>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Level</th>
+                <th>From</th>
+                <th>Investment Amount</th>
+                <th>Income %</th>
+                <th>Income Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr><td colSpan={7} className="table-empty">No level income earned yet</td></tr>
+              )}
+              {rows.map((t) => (
+                <tr key={t._id}>
+                  <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
+                  <td data-label="Level" className="cell-strong">{t.metadata?.level ? `Level ${t.metadata.level}` : '—'}</td>
+                  <td data-label="From" className="cell-strong">{t.description || 'Referral'}</td>
+                  <td data-label="Investment">{fmt(t.metadata?.investmentAmount)}</td>
+                  <td data-label="Income %">{t.metadata?.percentage ? `${t.metadata.percentage}%` : '—'}</td>
+                  <td data-label="Amount" className="text-blue cell-strong">{fmt(t.amount)}</td>
+                  <td data-label="Status"><StatusBadge status={t.status} /></td>
                 </tr>
               ))}
             </tbody>
