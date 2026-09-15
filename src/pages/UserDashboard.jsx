@@ -1714,6 +1714,8 @@ function UserRoi() {
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -1726,6 +1728,14 @@ function UserRoi() {
     })();
   }, []);
 
+  const filteredRows = rows.filter((r) => {
+    if (dateFrom && new Date(r.roiDate) < new Date(dateFrom)) return false;
+    if (dateTo && new Date(r.roiDate) > new Date(dateTo + 'T23:59:59')) return false;
+    return true;
+  });
+
+  const totalRoi = filteredRows.reduce((sum, r) => sum + (r.roiAmount || 0), 0);
+
   if (loading) return <Spinner label="Loading ROI history..." />;
   if (error) return <ErrorBox message={error} />;
 
@@ -1735,6 +1745,19 @@ function UserRoi() {
         <div>
           <h1>ROI History</h1>
           <p className="subtitle">Track your return on investment earnings</p>
+        </div>
+      </div>
+
+      {/* Total ROI Card */}
+      <div className="wallet-card" style={{ marginBottom: 'var(--space-4)', background: '#111827', color: '#fff', border: 'none' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Total ROI Earned</div>
+            <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#fff' }}>
+              {fmt(totalRoi)}
+            </div>
+          </div>
+          <Percent size={32} style={{ color: '#00C389' }} />
         </div>
       </div>
 
@@ -1792,6 +1815,40 @@ function UserRoi() {
           </div>
         </div>
       )}
+
+      {/* Date Filter */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 'var(--space-4)', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>From:</label>
+          <input
+            type="date"
+            className="form-input"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            style={{ width: 160, padding: '6px 10px', fontSize: 13 }}
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>To:</label>
+          <input
+            type="date"
+            className="form-input"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            style={{ width: 160, padding: '6px 10px', fontSize: 13 }}
+          />
+        </div>
+        {(dateFrom || dateTo) && (
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => { setDateFrom(''); setDateTo(''); }}
+            style={{ padding: '6px 12px', fontSize: 13 }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
       <div className="table-card">
         <div className="table-wrap">
           <table className="data-table">
@@ -1799,8 +1856,8 @@ function UserRoi() {
               <tr><th>Amount</th><th>Status</th><th>Date</th></tr>
             </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={3} className="table-empty">No ROI credited yet</td></tr>}
-              {rows.map((r) => (
+              {filteredRows.length === 0 && <tr><td colSpan={3} className="table-empty">No ROI credited yet</td></tr>}
+              {filteredRows.map((r) => (
                 <tr key={r._id}>
                   <td data-label="Amount" className="cell-strong">{fmt(r.roiAmount)}</td>
                   <td data-label="Status"><StatusBadge status={r.status} /></td>
