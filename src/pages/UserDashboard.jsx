@@ -6,6 +6,7 @@ import {
   BarChart3, CreditCard, Users, ArrowRightLeft, DollarSign, Copy,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import apiClient, {
   getMyInvestments, getMyWallet, getMyTransactions, requestDeposit,
   getMyRoiHistory, getMyProfile, updateMyProfile,
@@ -25,7 +26,7 @@ import StatusBadge from '../components/StatusBadge';
 import useToast from '../components/useToast';
 import UserReferrals from './UserReferrals';
 import ChatWidget from '../components/ChatWidget';
-import logoHeader from '../images/black-logo.png';
+import logoHeader from '../images/favicon.png';
 
 const CHART_COLORS = ['var(--chart-color-1)', 'var(--chart-color-2)', 'var(--chart-color-3)', 'var(--chart-color-4)', 'var(--chart-color-5)', 'var(--chart-color-6)'];
 const fmt = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -47,6 +48,7 @@ const NAV = [
 
 export default function UserDashboard() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const page = location.pathname.split('/')[2] || 'dashboard';
@@ -144,28 +146,51 @@ export default function UserDashboard() {
               <div className="topbar-subtitle">Welcome back, {user?.name}</div>
             </div>
           </div>
+          <button
+            onClick={toggleTheme}
+            style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-lg)',
+              width: 40, height: 40,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: 'var(--color-text-secondary)',
+              transition: 'all var(--transition-base)',
+            }}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}
+          </button>
         </header>
 
         <div className="page-content">
           {announcements.filter((a) => a.showBanner && !dismissedAnnouncements.has(a._id)).length > 0 && (
             <div style={{ marginBottom: 'var(--space-4)' }}>
               {announcements.filter((a) => a.showBanner && !dismissedAnnouncements.has(a._id)).map((a) => {
-                const colors = { INFO: '#eef2ff', PROMOTION: '#ecfdf5', WARNING: '#fef9c3', UPDATE: '#f0f9ff', EVENT: '#fdf2f8' };
-                const borders = { INFO: '#c7d2fe', PROMOTION: '#6ee7b7', WARNING: '#fde047', UPDATE: '#7dd3fc', EVENT: '#f9a8d4' };
+                const colors = { INFO: 'var(--color-primary-soft)', PROMOTION: 'var(--color-primary-soft)', WARNING: 'var(--color-warning-soft)', UPDATE: 'var(--color-primary-soft)', EVENT: 'var(--color-primary-soft)' };
+                const borders = { INFO: 'var(--color-primary-border)', PROMOTION: 'var(--color-primary-border)', WARNING: 'var(--color-warning-border)', UPDATE: 'var(--color-primary-border)', EVENT: 'var(--color-primary-border)' };
                 const icons = { INFO: 'ℹ️', PROMOTION: '🎉', WARNING: '⚠️', UPDATE: '🔄', EVENT: '📅' };
+                const hasImages = a.images && a.images.length > 0;
                 return (
                   <div key={a._id} style={{
-                    background: colors[a.type] || '#eef2ff',
-                    border: `1px solid ${borders[a.type] || '#c7d2fe'}`,
+                    background: colors[a.type] || 'var(--color-primary-soft)',
+                    border: `1px solid ${borders[a.type] || 'var(--color-primary-border)'}`,
                     borderRadius: 'var(--radius-xl)',
                     padding: '14px 20px',
                     marginBottom: 8,
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: hasImages ? 'stretch' : 'center',
                     justifyContent: 'space-between',
                     gap: 12,
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    {hasImages && (
+                      <img
+                        src={a.images[0].url}
+                        alt={a.title}
+                        style={{ width: 80, height: 60, borderRadius: 'var(--radius-md)', objectFit: 'cover', flexShrink: 0, alignSelf: 'center' }}
+                      />
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                       <span style={{ fontSize: 18, flexShrink: 0 }}>{icons[a.type] || 'ℹ️'}</span>
                       <div style={{ minWidth: 0 }}>
                         <strong style={{ fontSize: 14 }}>{a.title}</strong>
@@ -198,15 +223,37 @@ export default function UserDashboard() {
 
       {modalAnnouncement && (
         <div className="modal-overlay" onClick={() => { dismissAnnouncement(modalAnnouncement._id); setModalAnnouncement(null); }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
             <div className="modal-header">
               <h3>{modalAnnouncement.title}</h3>
               <button className="modal-close" onClick={() => { dismissAnnouncement(modalAnnouncement._id); setModalAnnouncement(null); }}><X size={20} /></button>
             </div>
             <div className="modal-body">
+              {modalAnnouncement.images && modalAnnouncement.images.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  {modalAnnouncement.images.length === 1 ? (
+                    <img
+                      src={modalAnnouncement.images[0].url}
+                      alt={modalAnnouncement.title}
+                      style={{ width: '100%', maxHeight: 300, objectFit: 'cover', borderRadius: 'var(--radius-lg)' }}
+                    />
+                  ) : (
+                    <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                      {modalAnnouncement.images.map((img, i) => (
+                        <img
+                          key={i}
+                          src={img.url}
+                          alt={`${modalAnnouncement.title} ${i + 1}`}
+                          style={{ minWidth: 200, maxWidth: 280, height: 180, objectFit: 'cover', borderRadius: 'var(--radius-lg)' }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div style={{
                 padding: '16px 20px',
-                background: 'var(--color-bg-secondary)',
+                background: 'var(--color-bg-alt)',
                 borderRadius: 'var(--radius-lg)',
                 fontSize: 14,
                 lineHeight: 1.7,
@@ -315,8 +362,8 @@ function UserOverview({ toastSuccess, toastError }) {
     <div className="animate-slide-up">
       {/* Referral Link Banner */}
       <div style={{
-        background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)',
-        border: '1px solid #c7d2fe',
+        background: 'linear-gradient(135deg, #e8f5ec, #d1ebd9)',
+        border: '1px solid #b8dfc4',
         borderRadius: 'var(--radius-xl)',
         padding: '20px 24px',
         marginBottom: 'var(--space-5)',
@@ -344,8 +391,8 @@ function UserOverview({ toastSuccess, toastError }) {
             readOnly
             value={referralLink}
             style={{
-              flex: 1, padding: '8px 12px', border: '1px solid #c7d2fe', borderRadius: 8,
-              fontSize: 13, background: '#fff', color: 'var(--color-text)', fontFamily: 'monospace',
+              flex: 1, padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: 8,
+              fontSize: 13, background: 'var(--color-surface)', color: 'var(--color-text)', fontFamily: 'monospace',
             }}
           />
           <button className="btn btn-primary btn-sm" onClick={copyReferral} style={{ flexShrink: 0 }}>
@@ -433,7 +480,7 @@ function UserOverview({ toastSuccess, toastError }) {
             <div className="progress-header">
               <div className="progress-label">
                 <BarChart3 size={18} />
-                <span>Total Earnings 3X Cap</span>
+                <span>Income 3X Cap</span>
               </div>
               <span className="badge badge-purple">{progress.percentage3x}%</span>
             </div>
@@ -451,7 +498,7 @@ function UserOverview({ toastSuccess, toastError }) {
             )}
             {progress.remaining3x <= 0 && (
               <div className="progress-complete">
-                3X Cap reached — overflow goes to pending commissions.
+                3X Cap reached — invest more to resume earning.
               </div>
             )}
           </div>
@@ -550,7 +597,7 @@ function UserOverview({ toastSuccess, toastError }) {
                         <td data-label="Remaining">{fmt(remaining)}</td>
                         <td data-label="Progress">
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ flex: 1, height: 6, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{ flex: 1, height: 6, background: '#E6E8E8', borderRadius: 3, overflow: 'hidden' }}>
                               <div style={{ width: `${progressPct}%`, height: '100%', background: progressPct >= 100 ? 'var(--color-success)' : 'var(--color-primary)', borderRadius: 3 }} />
                             </div>
                             <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', minWidth: 36 }}>{Math.round(progressPct)}%</span>
@@ -749,7 +796,7 @@ function UserInvestments({ toastSuccess, toastError }) {
             <div className="progress-header">
               <div className="progress-title">
                 <BarChart3 size={18} />
-                <span>Total Earnings 3X Cap</span>
+                <span>Income 3X Cap</span>
               </div>
               <span className="progress-badge purple">{progress.percentage3x}%</span>
             </div>
@@ -1711,7 +1758,7 @@ function UserRoi() {
             <div className="progress-header">
               <div className="progress-title">
                 <BarChart3 size={18} />
-                <span>Total Earnings 3X Cap</span>
+                <span>Income 3X Cap</span>
               </div>
               <span className="progress-badge purple">{progress.percentage3x}%</span>
             </div>

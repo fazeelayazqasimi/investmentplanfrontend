@@ -12,6 +12,7 @@ import logoBlack from '../images/black-logo.png';
 import logoWhite from '../images/white-logo.png';
 import companyLogo from '../images/company-logo.png';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   getUserConversations,
   getUserMessages,
@@ -293,29 +294,11 @@ export default function LandingPage() {
   const heroRef = useRef(null);
   const navRef = useRef(null);
 
-  /* Theme */
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('landing-theme') || 'light'; }
-    catch { return 'light'; }
-  });
+  /* Theme — shared across all pages */
+  const { theme, toggleTheme } = useTheme();
 
   /* Chat */
   const [chatOpen, setChatOpen] = useState(false);
-
-  /* Apply theme */
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.setAttribute('data-theme', 'dark');
-    } else {
-      root.removeAttribute('data-theme');
-    }
-    try { localStorage.setItem('landing-theme', theme); } catch {}
-  }, [theme]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => t === 'light' ? 'dark' : 'light');
-  }, []);
 
   /* Sticky nav */
   useEffect(() => {

@@ -118,8 +118,8 @@ export default function ChatWidget() {
         style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
           width: 56, height: 56, borderRadius: '50%',
-          background: 'var(--color-primary, #5B4BFF)', color: '#fff',
-          border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(91,75,255,0.4)',
+          background: 'var(--color-primary, #008C3A)', color: '#fff',
+          border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,140,58,0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'transform 0.2s',
         }}
@@ -140,7 +140,7 @@ export default function ChatWidget() {
           {/* Header */}
           <div style={{
             padding: '16px 20px', borderBottom: '1px solid var(--color-border, #e5e7eb)',
-            background: 'var(--color-primary, #5B4BFF)', color: '#fff',
+            background: 'var(--color-primary, #008C3A)', color: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <div style={{ fontWeight: 600, fontSize: 15 }}>Support Chat</div>
@@ -161,7 +161,7 @@ export default function ChatWidget() {
                   style={{
                     width: '100%', padding: '12px', marginBottom: 8,
                     background: 'var(--color-bg-secondary, #f9fafb)', border: '1px dashed var(--color-border, #d1d5db)',
-                    borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 500, color: 'var(--color-primary, #5B4BFF)',
+                    borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 500, color: 'var(--color-primary, #008C3A)',
                   }}
                 >
                   + New Conversation
@@ -203,7 +203,7 @@ export default function ChatWidget() {
                       {new Date(c.lastMessageAt).toLocaleDateString()}
                       {c.unreadByUser > 0 && (
                         <span style={{
-                          marginLeft: 8, background: 'var(--color-primary, #5B4BFF)', color: '#fff',
+                          marginLeft: 8, background: 'var(--color-primary, #008C3A)', color: '#fff',
                           padding: '1px 6px', borderRadius: 8, fontSize: 10, fontWeight: 600,
                         }}>
                           {c.unreadByUser} new
@@ -248,7 +248,7 @@ export default function ChatWidget() {
                   <button onClick={handleNewConversation} disabled={sending || !newMessage.trim()}
                     style={{
                       flex: 1, padding: '10px', border: 'none',
-                      borderRadius: 8, background: 'var(--color-primary, #5B4BFF)', color: '#fff',
+                      borderRadius: 8, background: 'var(--color-primary, #008C3A)', color: '#fff',
                       cursor: 'pointer', fontSize: 14, fontWeight: 500, opacity: sending || !newMessage.trim() ? 0.6 : 1,
                     }}>
                     {sending ? 'Sending...' : 'Send'}
@@ -271,8 +271,8 @@ export default function ChatWidget() {
                       }}>
                         <div style={{
                           maxWidth: '80%', padding: '10px 14px', borderRadius: 12,
-                          background: isUser ? 'var(--color-primary, #5B4BFF)' : '#f3f4f6',
-                          color: isUser ? '#fff' : 'var(--color-text, #1a1a2e)',
+                          background: isUser ? 'var(--color-primary, #008C3A)' : '#f3f4f6',
+                          color: isUser ? '#fff' : 'var(--color-text, #25333B)',
                           fontSize: 13, lineHeight: 1.5, wordBreak: 'break-word',
                         }}>
                           <div>{m.message}</div>
@@ -312,7 +312,7 @@ export default function ChatWidget() {
                     disabled={sending || !input.trim()}
                     style={{
                       width: 40, height: 40, borderRadius: 8, border: 'none',
-                      background: 'var(--color-primary, #5B4BFF)', color: '#fff',
+                      background: 'var(--color-primary, #008C3A)', color: '#fff',
                       cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       opacity: sending || !input.trim() ? 0.5 : 1,
                     }}

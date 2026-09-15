@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, TrendingUp, User, Phone, BarChart3, Shield, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
-import logoHeader from '../../images/black-logo.png';
+import logoHeader from '../../images/favicon.png';
 
 function Register() {
   const navigate = useNavigate();

@@ -6,9 +6,10 @@ import {
   ChevronDown, ChevronRight, ChevronLeft, ZoomIn, ZoomOut,
   Maximize2, Minimize2, RotateCcw, X, UserCheck, UserX,
   Filter, Download, RefreshCw, ArrowUpDown, Network,
-  DollarSign, Activity, TrendingUp, Megaphone, MessageSquare, Send, Layers,
+  DollarSign, Activity, TrendingUp, Megaphone, MessageSquare, Send, Layers, Upload,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import apiClient, {
   getAdminUsers, getAdminStats, getAdminUserDetail, getAdminInvestments,
   getAdminTransactions, getAdminSettings, updateAdminSettings, processRoi, processRoiManual,
@@ -25,7 +26,7 @@ import {
   CartesianGrid, XAxis, YAxis, Tooltip,
 } from 'recharts';
 import Spinner from '../components/Spinner';
-import logoHeader from '../images/black-logo.png';
+import logoHeader from '../images/favicon.png';
 import ErrorBox from '../components/ErrorBox';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
@@ -72,6 +73,7 @@ function ResponsiveContainerWrap({ height, children }) {
    ========================================================= */
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const page = location.pathname.split('/')[2] || 'overview';
@@ -140,6 +142,21 @@ export default function AdminDashboard() {
               <div className="topbar-subtitle">Platform management &amp; controls</div>
             </div>
           </div>
+          <button
+            onClick={toggleTheme}
+            style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-lg)',
+              width: 40, height: 40,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: 'var(--color-text-secondary)',
+              transition: 'all var(--transition-base)',
+            }}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}
+          </button>
         </header>
 
         <div className="page-content animate-slide-up">
@@ -2819,6 +2836,45 @@ function AdminAnnouncements({ toastSuccess, toastError }) {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ title: '', message: '', type: 'INFO', priority: 'MEDIUM', showBanner: true, showModal: false });
   const [confirm, setConfirm] = useState(null);
+  const [newFiles, setNewFiles] = useState([]);
+  const [newPreviews, setNewPreviews] = useState([]);
+  const [removedExisting, setRemovedExisting] = useState([]);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  const MAX_SIZE = 5 * 1024 * 1024;
+
+  const addFiles = (files) => {
+    const valid = [];
+    for (const f of files) {
+      if (!ALLOWED_TYPES.includes(f.type)) { toastError('Invalid file', f.name + ' is not an image'); continue; }
+      if (f.size > MAX_SIZE) { toastError('Too large', f.name + ' exceeds 5MB'); continue; }
+      valid.push(f);
+    }
+    if (valid.length === 0) return;
+    setNewFiles((prev) => [...prev, ...valid]);
+    const newPreviewUrls = valid.map((f) => URL.createObjectURL(f));
+    setNewPreviews((prev) => [...prev, ...newPreviewUrls]);
+  };
+
+  const removeNewFile = (idx) => {
+    URL.revokeObjectURL(newPreviews[idx]);
+    setNewFiles((prev) => prev.filter((_, i) => i !== idx));
+    setNewPreviews((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const removeExistingImage = (publicId) => {
+    setRemovedExisting((prev) => [...prev, publicId]);
+  };
+
+  const resetForm = () => {
+    newPreviews.forEach((u) => URL.revokeObjectURL(u));
+    setNewFiles([]);
+    setNewPreviews([]);
+    setRemovedExisting([]);
+    setForm({ title: '', message: '', type: 'INFO', priority: 'MEDIUM', showBanner: true, showModal: false });
+  };
 
   const load = async () => {
     try {
@@ -2833,13 +2889,16 @@ function AdminAnnouncements({ toastSuccess, toastError }) {
 
   const startCreate = () => {
     setEditItem(null);
-    setForm({ title: '', message: '', type: 'INFO', priority: 'MEDIUM', showBanner: true, showModal: false });
+    resetForm();
     setShowForm(true);
   };
 
   const startEdit = (item) => {
     setEditItem(item);
     setForm({ title: item.title, message: item.message, type: item.type, priority: item.priority, showBanner: item.showBanner, showModal: item.showModal });
+    setNewFiles([]);
+    setNewPreviews([]);
+    setRemovedExisting([]);
     setShowForm(true);
   };
 
@@ -2847,11 +2906,21 @@ function AdminAnnouncements({ toastSuccess, toastError }) {
     if (!form.title || !form.message) { toastError('Error', 'Title and message required'); return; }
     setBusy(true);
     try {
+      const fd = new FormData();
+      fd.append('title', form.title);
+      fd.append('message', form.message);
+      fd.append('type', form.type);
+      fd.append('priority', form.priority);
+      fd.append('showBanner', form.showBanner);
+      fd.append('showModal', form.showModal);
+      for (const f of newFiles) fd.append('images', f);
+      if (removedExisting.length > 0) fd.append('removedImages', JSON.stringify(removedExisting));
+
       if (editItem) {
-        await updateAnnouncement(editItem._id, form);
+        await updateAnnouncement(editItem._id, fd);
         toastSuccess('Updated', 'Announcement updated');
       } else {
-        await createAnnouncement(form);
+        await createAnnouncement(fd);
         toastSuccess('Created', 'Announcement created');
       }
       setShowForm(false);
@@ -2884,6 +2953,9 @@ function AdminAnnouncements({ toastSuccess, toastError }) {
 
   if (loading) return <Spinner label="Loading announcements..." />;
 
+  const existingImages = editItem?.images || [];
+  const visibleExisting = existingImages.filter((img) => !removedExisting.includes(img.publicId));
+
   return (
     <div>
       <div className="page-header">
@@ -2905,6 +2977,7 @@ function AdminAnnouncements({ toastSuccess, toastError }) {
                   <th>Title</th>
                   <th>Type</th>
                   <th>Priority</th>
+                  <th>Images</th>
                   <th>Banner</th>
                   <th>Modal</th>
                   <th>Status</th>
@@ -2918,6 +2991,16 @@ function AdminAnnouncements({ toastSuccess, toastError }) {
                     <td data-label="Title" className="cell-strong">{a.title}</td>
                     <td data-label="Type"><span className={`badge badge-${TYPE_COLORS[a.type] || 'blue'}`}>{a.type}</span></td>
                     <td data-label="Priority"><span className={`badge badge-${PRIORITY_COLORS[a.priority] || 'gray'}`}>{a.priority}</span></td>
+                    <td data-label="Images">
+                      {a.images && a.images.length > 0 ? (
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {a.images.slice(0, 3).map((img, i) => (
+                            <img key={i} src={img.url} alt="" style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover' }} />
+                          ))}
+                          {a.images.length > 3 && <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>+{a.images.length - 3}</span>}
+                        </div>
+                      ) : <span style={{ color: 'var(--color-text-muted)' }}>—</span>}
+                    </td>
                     <td data-label="Banner">{a.showBanner ? '✓' : '—'}</td>
                     <td data-label="Modal">{a.showModal ? '✓' : '—'}</td>
                     <td data-label="Status">
@@ -2944,13 +3027,13 @@ function AdminAnnouncements({ toastSuccess, toastError }) {
       )}
 
       {showForm && (
-        <div className="modal-overlay" onClick={() => setShowForm(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+        <div className="modal-overlay" onClick={() => { resetForm(); setShowForm(false); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620 }}>
             <div className="modal-header">
               <h3>{editItem ? 'Edit Announcement' : 'New Announcement'}</h3>
-              <button className="modal-close" onClick={() => setShowForm(false)}><X size={20} /></button>
+              <button className="modal-close" onClick={() => { resetForm(); setShowForm(false); }}><X size={20} /></button>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
               <div className="form-group">
                 <label className="form-label">Title *</label>
                 <input className="form-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Announcement title" />
@@ -2990,9 +3073,68 @@ function AdminAnnouncements({ toastSuccess, toastError }) {
                   Show Modal Popup
                 </label>
               </div>
+
+              <div className="form-group" style={{ marginTop: 16 }}>
+                <label className="form-label">Images (optional, max 5MB each)</label>
+                <div
+                  className={`upload-zone ${dragOver ? 'dragover' : ''}`}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
+                  style={{
+                    border: '2px dashed var(--color-border)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '24px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    background: dragOver ? 'var(--color-primary-soft)' : 'var(--color-bg-alt)',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <Upload size={28} style={{ color: 'var(--color-text-muted)', margin: '0 auto 8px' }} />
+                  <p style={{ margin: 0, fontSize: 14, color: 'var(--color-text-secondary)' }}>
+                    Click or drag images here
+                  </p>
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--color-text-muted)' }}>
+                    JPG, PNG, GIF, WebP — Max 5MB each
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
+                  />
+                </div>
+
+                {(visibleExisting.length > 0 || newPreviews.length > 0) && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                    {visibleExisting.map((img) => (
+                      <div key={img.publicId} style={{ position: 'relative', width: 80, height: 80, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                        <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button
+                          onClick={() => removeExistingImage(img.publicId)}
+                          style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}
+                        ><X size={12} /></button>
+                      </div>
+                    ))}
+                    {newPreviews.map((url, idx) => (
+                      <div key={`new-${idx}`} style={{ position: 'relative', width: 80, height: 80, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                        <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button
+                          onClick={() => removeNewFile(idx)}
+                          style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}
+                        ><X size={12} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
+              <button className="btn btn-secondary" onClick={() => { resetForm(); setShowForm(false); }}>Cancel</button>
               <button className="btn btn-primary" onClick={handleSave} disabled={busy}>
                 {busy ? 'Saving...' : editItem ? 'Update' : 'Create'}
               </button>
@@ -3098,7 +3240,7 @@ function AdminSupportChat({ toastSuccess, toastError }) {
       <div style={{ display: 'flex', gap: 16, height: 'calc(100vh - 200px)', minHeight: 500 }}>
         {/* Conversations List */}
         <div style={{
-          width: 340, flexShrink: 0, background: '#fff', borderRadius: 'var(--radius-xl)',
+          width: 340, flexShrink: 0, background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)',
           border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}>
           <div style={{ padding: 12, borderBottom: '1px solid var(--color-border)' }}>
@@ -3128,12 +3270,12 @@ function AdminSupportChat({ toastSuccess, toastError }) {
                 onClick={() => loadMessages(c._id)}
                 style={{
                   padding: '12px 14px', cursor: 'pointer',
-                  background: activeConvo?._id === c._id ? 'var(--color-bg-secondary, #f3f4f6)' : 'transparent',
-                  borderBottom: '1px solid var(--color-border, #f3f4f6)',
+                  background: activeConvo?._id === c._id ? 'var(--color-bg-secondary, #E6E8E8)' : 'transparent',
+                  borderBottom: '1px solid var(--color-border, #E6E8E8)',
                   transition: 'background 0.15s',
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                onMouseLeave={(e) => e.currentTarget.style.background = activeConvo?._id === c._id ? '#f3f4f6' : 'transparent'}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#E6E8E8'}
+                onMouseLeave={(e) => e.currentTarget.style.background = activeConvo?._id === c._id ? '#E6E8E8' : 'transparent'}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                   <span style={{ fontWeight: 600, fontSize: 13 }}>{c.user?.name || 'User'}</span>
@@ -3146,7 +3288,7 @@ function AdminSupportChat({ toastSuccess, toastError }) {
                   <span>{new Date(c.lastMessageAt).toLocaleDateString()}</span>
                   {c.unreadByAdmin > 0 && (
                     <span style={{
-                      background: '#ef4444', color: '#fff', padding: '1px 6px',
+                      background: '#e04848', color: '#fff', padding: '1px 6px',
                       borderRadius: 8, fontSize: 10,
                     }}>{c.unreadByAdmin}</span>
                   )}
@@ -3158,7 +3300,7 @@ function AdminSupportChat({ toastSuccess, toastError }) {
 
         {/* Chat Area */}
         <div style={{
-          flex: 1, background: '#fff', borderRadius: 'var(--radius-xl)',
+          flex: 1, background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)',
           border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}>
           {!activeConvo ? (
@@ -3205,8 +3347,8 @@ function AdminSupportChat({ toastSuccess, toastError }) {
                     }}>
                       <div style={{
                         maxWidth: '70%', padding: '10px 14px', borderRadius: 12,
-                        background: isAdmin ? 'var(--color-primary, #5B4BFF)' : '#f3f4f6',
-                        color: isAdmin ? '#fff' : 'var(--color-text, #1a1a2e)',
+                        background: isAdmin ? 'var(--color-primary, #008C3A)' : '#E6E8E8',
+                        color: isAdmin ? '#fff' : 'var(--color-text, #25333B)',
                         fontSize: 13, lineHeight: 1.5, wordBreak: 'break-word',
                       }}>
                         <div style={{ fontSize: 10, fontWeight: 600, marginBottom: 2, opacity: 0.8 }}>

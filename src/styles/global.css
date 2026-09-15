@@ -24,6 +24,9 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   scroll-behavior: smooth;
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: background 0.2s, color 0.2s;
 }
 
 body {
@@ -34,6 +37,16 @@ body {
   background: var(--color-bg);
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background 0.2s, color 0.2s;
+}
+
+html[data-theme="dark"] body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+html[data-theme="dark"] #root {
+  background: var(--color-bg);
 }
 
 img, svg { display: block; max-width: 100%; }

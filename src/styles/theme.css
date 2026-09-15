@@ -1,5 +1,5 @@
 /* ==========================================
-   DESIGN SYSTEM — PREMIUM FINTECH DASHBOARD
+   DESIGN SYSTEM — FINRISE GREEN BRAND
    ==========================================
    Centralized design token system.
    All visual decisions flow from here.
@@ -7,266 +7,266 @@
 
 :root {
   /* ==========================================
-     BRAND PALETTE (Deep Indigo/Violet)
+     BRAND PALETTE (FinRise Green)
      ========================================== */
-  --brand-50: #eef2ff;
-  --brand-100: #e0e7ff;
-  --brand-200: #c7d2fe;
-  --brand-300: #a5b4fc;
-  --brand-400: #818cf8;
-  --brand-500: #6366f1;
-  --brand-600: #4f46e5;
-  --brand-700: #4338ca;
-  --brand-800: #3730a3;
-  --brand-900: #312e81;
-  --brand-950: #1e1b4b;
+  --brand-50: #e8f5ec;
+  --brand-100: #d1ebd9;
+  --brand-200: #a3d7b3;
+  --brand-300: #75c38d;
+  --brand-400: #47af67;
+  --brand-500: #008C3A;
+  --brand-600: #007a33;
+  --brand-700: #25613F;
+  --brand-800: #25333B;
+  --brand-900: #1a2429;
+  --brand-950: #0f1518;
 
   /* ==========================================
-     PRIMARY (Deep Indigo/Violet)
+     PRIMARY (FinRise Green)
      ========================================== */
-  --color-primary: #6366f1;
-  --color-primary-hover: #5558e6;
-  --color-primary-dark: #4f46e5;
-  --color-primary-darker: #4338ca;
-  --color-primary-light: #818cf8;
-  --color-primary-lighter: #a5b4fc;
-  --color-primary-soft: #eef2ff;
-  --color-primary-border: #c7d2fe;
-  --color-primary-bg: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --color-primary-shadow: rgba(99, 102, 241, 0.25);
-  --color-primary-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+  --color-primary: #008C3A;
+  --color-primary-hover: #007a33;
+  --color-primary-dark: #25613F;
+  --color-primary-darker: #1a2429;
+  --color-primary-light: #448754;
+  --color-primary-lighter: #6aab7d;
+  --color-primary-soft: #e8f5ec;
+  --color-primary-border: #b8dfc4;
+  --color-primary-bg: linear-gradient(135deg, #008C3A 0%, #448754 100%);
+  --color-primary-shadow: rgba(0, 140, 58, 0.25);
+  --color-primary-glow: 0 0 20px rgba(0, 140, 58, 0.15);
 
   /* ==========================================
-     SUCCESS (Emerald Green)
+     SUCCESS (FinRise Green)
      ========================================== */
-  --color-success: #059669;
-  --color-success-hover: #047857;
-  --color-success-light: #10b981;
-  --color-success-lighter: #34d399;
-  --color-success-soft: #ecfdf5;
-  --color-success-border: #a7f3d0;
-  --color-success-shadow: rgba(5, 150, 105, 0.2);
+  --color-success: #008C3A;
+  --color-success-hover: #25613F;
+  --color-success-light: #448754;
+  --color-success-lighter: #6aab7d;
+  --color-success-soft: #e8f5ec;
+  --color-success-border: #b8dfc4;
+  --color-success-shadow: rgba(0, 140, 58, 0.2);
 
   /* ==========================================
-     WARNING (Amber)
+     WARNING (Amber/Gold)
      ========================================== */
-  --color-warning: #d97706;
-  --color-warning-hover: #b45309;
-  --color-warning-light: #f59e0b;
-  --color-warning-lighter: #fbbf24;
-  --color-warning-soft: #fffbeb;
-  --color-warning-border: #fde68a;
-  --color-warning-shadow: rgba(217, 119, 6, 0.2);
+  --color-warning: #b8860b;
+  --color-warning-hover: #996f09;
+  --color-warning-light: #d4a017;
+  --color-warning-lighter: #e6b82a;
+  --color-warning-soft: #fdf8e8;
+  --color-warning-border: #f0dfa0;
+  --color-warning-shadow: rgba(184, 134, 11, 0.2);
 
   /* ==========================================
      DANGER (Red)
      ========================================== */
-  --color-danger: #dc2626;
-  --color-danger-hover: #b91c1c;
-  --color-danger-light: #ef4444;
-  --color-danger-lighter: #f87171;
+  --color-danger: #c53030;
+  --color-danger-hover: #a02828;
+  --color-danger-light: #e04848;
+  --color-danger-lighter: #f07070;
   --color-danger-soft: #fef2f2;
   --color-danger-border: #fecaca;
-  --color-danger-shadow: rgba(220, 38, 38, 0.2);
+  --color-danger-shadow: rgba(197, 48, 48, 0.2);
 
   /* ==========================================
-     INFO (Cyan)
+     INFO (Medium Green)
      ========================================== */
-  --color-info: #0891b2;
-  --color-info-hover: #0e7490;
-  --color-info-light: #06b6d4;
-  --color-info-lighter: #22d3ee;
-  --color-info-soft: #ecfeff;
-  --color-info-border: #a5f3fc;
-  --color-info-shadow: rgba(8, 145, 178, 0.2);
+  --color-info: #448754;
+  --color-info-hover: #3a7548;
+  --color-info-light: #5a9d6a;
+  --color-info-lighter: #7ab888;
+  --color-info-soft: #e8f5ec;
+  --color-info-border: #b8dfc4;
+  --color-info-shadow: rgba(68, 135, 84, 0.2);
 
   /* ==========================================
      SEMANTIC WALLET COLORS
      ========================================== */
-  --wallet-main: #059669;
-  --wallet-main-light: #10b981;
-  --wallet-main-soft: #ecfdf5;
-  --wallet-main-border: #a7f3d0;
-  --wallet-main-bg: linear-gradient(135deg, #059669 0%, #10b981 100%);
-  --wallet-main-shadow: rgba(5, 150, 105, 0.25);
+  --wallet-main: #008C3A;
+  --wallet-main-light: #448754;
+  --wallet-main-soft: #e8f5ec;
+  --wallet-main-border: #b8dfc4;
+  --wallet-main-bg: linear-gradient(135deg, #008C3A 0%, #448754 100%);
+  --wallet-main-shadow: rgba(0, 140, 58, 0.25);
 
-  --wallet-roi: #2563eb;
-  --wallet-roi-light: #3b82f6;
-  --wallet-roi-soft: #eff6ff;
-  --wallet-roi-border: #bfdbfe;
-  --wallet-roi-bg: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-  --wallet-roi-shadow: rgba(37, 99, 235, 0.25);
+  --wallet-roi: #25613F;
+  --wallet-roi-light: #2f7a50;
+  --wallet-roi-soft: #e8f5ec;
+  --wallet-roi-border: #b8dfc4;
+  --wallet-roi-bg: linear-gradient(135deg, #25613F 0%, #448754 100%);
+  --wallet-roi-shadow: rgba(37, 97, 63, 0.25);
 
-  --wallet-ewallet: #d97706;
-  --wallet-ewallet-light: #f59e0b;
-  --wallet-ewallet-soft: #fffbeb;
-  --wallet-ewallet-border: #fde68a;
-  --wallet-ewallet-bg: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-  --wallet-ewallet-shadow: rgba(217, 119, 6, 0.25);
+  --wallet-ewallet: #b8860b;
+  --wallet-ewallet-light: #d4a017;
+  --wallet-ewallet-soft: #fdf8e8;
+  --wallet-ewallet-border: #f0dfa0;
+  --wallet-ewallet-bg: linear-gradient(135deg, #b8860b 0%, #d4a017 100%);
+  --wallet-ewallet-shadow: rgba(184, 134, 11, 0.25);
 
-  --wallet-profit: #7c3aed;
-  --wallet-profit-light: #8b5cf6;
-  --wallet-profit-soft: #f5f3ff;
-  --wallet-profit-border: #ddd6fe;
-  --wallet-profit-bg: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
-  --wallet-profit-shadow: rgba(124, 58, 237, 0.25);
+  --wallet-profit: #448754;
+  --wallet-profit-light: #5a9d6a;
+  --wallet-profit-soft: #e8f5ec;
+  --wallet-profit-border: #b8dfc4;
+  --wallet-profit-bg: linear-gradient(135deg, #448754 0%, #6aab7d 100%);
+  --wallet-profit-shadow: rgba(68, 135, 84, 0.25);
 
-  --wallet-pending: #e11d48;
-  --wallet-pending-light: #f43f5e;
-  --wallet-pending-soft: #fff1f2;
-  --wallet-pending-border: #fecdd3;
-  --wallet-pending-bg: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%);
-  --wallet-pending-shadow: rgba(225, 29, 72, 0.25);
+  --wallet-pending: #c53030;
+  --wallet-pending-light: #e04848;
+  --wallet-pending-soft: #fef2f2;
+  --wallet-pending-border: #fecaca;
+  --wallet-pending-bg: linear-gradient(135deg, #c53030 0%, #e04848 100%);
+  --wallet-pending-shadow: rgba(197, 48, 48, 0.25);
 
-  --wallet-fund: #0d9488;
-  --wallet-fund-light: #14b8a6;
-  --wallet-fund-soft: #f0fdfa;
-  --wallet-fund-border: #99f6e4;
-  --wallet-fund-bg: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
-  --wallet-fund-shadow: rgba(13, 148, 136, 0.25);
+  --wallet-fund: #25333B;
+  --wallet-fund-light: #384449;
+  --wallet-fund-soft: #eef1f0;
+  --wallet-fund-border: #c8cdcb;
+  --wallet-fund-bg: linear-gradient(135deg, #25333B 0%, #384449 100%);
+  --wallet-fund-shadow: rgba(37, 51, 59, 0.25);
 
   /* ==========================================
      SEMANTIC INCOME COLORS
      ========================================== */
-  --income-direct: #059669;
-  --income-direct-soft: #ecfdf5;
-  --income-direct-light: #10b981;
-  --income-level: #2563eb;
-  --income-level-soft: #eff6ff;
-  --income-level-light: #3b82f6;
+  --income-direct: #008C3A;
+  --income-direct-soft: #e8f5ec;
+  --income-direct-light: #448754;
+  --income-level: #25613F;
+  --income-level-soft: #e8f5ec;
+  --income-level-light: #448754;
 
   /* ==========================================
      SEMANTIC STATUS COLORS
      ========================================== */
-  --status-active: #059669;
-  --status-active-soft: #ecfdf5;
-  --status-active-border: #a7f3d0;
+  --status-active: #008C3A;
+  --status-active-soft: #e8f5ec;
+  --status-active-border: #b8dfc4;
 
-  --status-inactive: #6b7280;
-  --status-inactive-soft: #f9fafb;
-  --status-inactive-border: #e5e7eb;
+  --status-inactive: #6b7d73;
+  --status-inactive-soft: #eef1f0;
+  --status-inactive-border: #c8cdcb;
 
-  --status-pending: #d97706;
-  --status-pending-soft: #fffbeb;
-  --status-pending-border: #fde68a;
+  --status-pending: #b8860b;
+  --status-pending-soft: #fdf8e8;
+  --status-pending-border: #f0dfa0;
 
-  --status-approved: #059669;
-  --status-approved-soft: #ecfdf5;
-  --status-approved-border: #a7f3d0;
+  --status-approved: #008C3A;
+  --status-approved-soft: #e8f5ec;
+  --status-approved-border: #b8dfc4;
 
-  --status-rejected: #dc2626;
+  --status-rejected: #c53030;
   --status-rejected-soft: #fef2f2;
   --status-rejected-border: #fecaca;
 
-  --status-completed: #059669;
-  --status-completed-soft: #ecfdf5;
-  --status-completed-border: #a7f3d0;
+  --status-completed: #008C3A;
+  --status-completed-soft: #e8f5ec;
+  --status-completed-border: #b8dfc4;
 
-  --status-processing: #2563eb;
-  --status-processing-soft: #eff6ff;
-  --status-processing-border: #bfdbfe;
+  --status-processing: #25613F;
+  --status-processing-soft: #e8f5ec;
+  --status-processing-border: #b8dfc4;
 
-  --status-suspended: #d97706;
-  --status-suspended-soft: #fffbeb;
-  --status-suspended-border: #fde68a;
+  --status-suspended: #b8860b;
+  --status-suspended-soft: #fdf8e8;
+  --status-suspended-border: #f0dfa0;
 
-  --status-failed: #dc2626;
+  --status-failed: #c53030;
   --status-failed-soft: #fef2f2;
   --status-failed-border: #fecaca;
 
-  --status-cancelled: #6b7280;
-  --status-cancelled-soft: #f9fafb;
-  --status-cancelled-border: #e5e7eb;
+  --status-cancelled: #6b7d73;
+  --status-cancelled-soft: #eef1f0;
+  --status-cancelled-border: #c8cdcb;
 
-  --status-reversed: #6b7280;
-  --status-reversed-soft: #f9fafb;
-  --status-reversed-border: #e5e7eb;
+  --status-reversed: #6b7d73;
+  --status-reversed-soft: #eef1f0;
+  --status-reversed-border: #c8cdcb;
 
   /* ==========================================
      EXTENDED ACCENT COLORS
      ========================================== */
-  --purple: #7c3aed;
-  --purple-light: #8b5cf6;
-  --purple-soft: #f5f3ff;
-  --purple-border: #ddd6fe;
+  --purple: #448754;
+  --purple-light: #5a9d6a;
+  --purple-soft: #e8f5ec;
+  --purple-border: #b8dfc4;
 
-  --orange: #ea580c;
-  --orange-light: #f97316;
-  --orange-soft: #fff7ed;
-  --orange-border: #fed7aa;
+  --orange: #b8860b;
+  --orange-light: #d4a017;
+  --orange-soft: #fdf8e8;
+  --orange-border: #f0dfa0;
 
-  --teal: #0d9488;
-  --teal-light: #14b8a6;
-  --teal-soft: #f0fdfa;
-  --teal-border: #99f6e4;
+  --teal: #25613F;
+  --teal-light: #2f7a50;
+  --teal-soft: #e8f5ec;
+  --teal-border: #b8dfc4;
 
-  --cyan: #0891b2;
-  --cyan-light: #06b6d4;
-  --cyan-soft: #ecfeff;
-  --cyan-border: #a5f3fc;
+  --cyan: #448754;
+  --cyan-light: #5a9d6a;
+  --cyan-soft: #e8f5ec;
+  --cyan-border: #b8dfc4;
 
-  --violet: #7c3aed;
-  --violet-light: #8b5cf6;
-  --violet-soft: #f5f3ff;
-  --violet-border: #ddd6fe;
+  --violet: #25333B;
+  --violet-light: #384449;
+  --violet-soft: #eef1f0;
+  --violet-border: #c8cdcb;
 
-  --amber: #d97706;
-  --amber-light: #f59e0b;
-  --amber-soft: #fffbeb;
-  --amber-border: #fde68a;
+  --amber: #b8860b;
+  --amber-light: #d4a017;
+  --amber-soft: #fdf8e8;
+  --amber-border: #f0dfa0;
 
-  --rose: #e11d48;
-  --rose-light: #f43f5e;
-  --rose-soft: #fff1f2;
-  --rose-border: #fecdd3;
+  --rose: #c53030;
+  --rose-light: #e04848;
+  --rose-soft: #fef2f2;
+  --rose-border: #fecaca;
 
-  --lime: #65a30d;
-  --lime-light: #84cc16;
-  --lime-soft: #f7fee7;
-  --lime-border: #d9f99d;
+  --lime: #008C3A;
+  --lime-light: #448754;
+  --lime-soft: #e8f5ec;
+  --lime-border: #b8dfc4;
 
-  --indigo: #4f46e5;
-  --indigo-light: #6366f1;
-  --indigo-soft: #eef2ff;
-  --indigo-border: #c7d2fe;
+  --indigo: #25613F;
+  --indigo-light: #448754;
+  --indigo-soft: #e8f5ec;
+  --indigo-border: #b8dfc4;
 
   /* ==========================================
-     NEUTRAL PALETTE (Slate)
+     NEUTRAL PALETTE (Green-Tinted Gray)
      ========================================== */
-  --gray-25: #fcfcfd;
-  --gray-50: #f8fafc;
-  --gray-100: #f1f5f9;
-  --gray-200: #e2e8f0;
-  --gray-300: #cbd5e1;
-  --gray-400: #94a3b8;
-  --gray-500: #64748b;
-  --gray-600: #475569;
-  --gray-700: #334155;
-  --gray-800: #1e293b;
-  --gray-900: #0f172a;
-  --gray-950: #020617;
+  --gray-25: #fafcfb;
+  --gray-50: #F5F7F6;
+  --gray-100: #eef1f0;
+  --gray-200: #E6E8E8;
+  --gray-300: #c8cdcb;
+  --gray-400: #9EB2A7;
+  --gray-500: #6b7d73;
+  --gray-600: #4A555C;
+  --gray-700: #384449;
+  --gray-800: #25333B;
+  --gray-900: #1a2429;
+  --gray-950: #0f1518;
 
   /* ==========================================
      SURFACE & BACKGROUND COLORS
      ========================================== */
-  --color-bg: #f0f4f8;
-  --color-bg-alt: #f8fafc;
+  --color-bg: #F5F7F6;
+  --color-bg-alt: #fafcfb;
   --color-bg-elevated: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-hover: #f8fafc;
-  --color-surface-active: #f1f5f9;
+  --color-surface-hover: #f5f7f6;
+  --color-surface-active: #eef1f0;
   --color-surface-raised: #ffffff;
-  --color-surface-overlay: rgba(15, 23, 42, 0.6);
+  --color-surface-overlay: rgba(26, 36, 41, 0.6);
 
   /* ==========================================
      SIDEBAR
      ========================================== */
-  --sidebar-bg: #0f172a;
+  --sidebar-bg: #25333B;
   --sidebar-bg-hover: rgba(255, 255, 255, 0.08);
-  --sidebar-bg-active: rgba(99, 102, 241, 0.2);
-  --sidebar-text: #94a3b8;
+  --sidebar-bg-active: rgba(0, 140, 58, 0.2);
+  --sidebar-text: #9EB2A7;
   --sidebar-text-active: #ffffff;
-  --sidebar-text-hover: #e2e8f0;
+  --sidebar-text-hover: #E6E8E8;
   --sidebar-border: rgba(255, 255, 255, 0.06);
   --sidebar-width: 260px;
   --sidebar-width-collapsed: 72px;
@@ -276,33 +276,33 @@
      TOPBAR
      ========================================== */
   --topbar-bg: rgba(255, 255, 255, 0.85);
-  --topbar-border: #e2e8f0;
+  --topbar-border: #E6E8E8;
   --topbar-height: 64px;
 
   /* ==========================================
      TEXT COLORS
      ========================================== */
-  --color-text: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #64748b;
-  --color-text-faint: #94a3b8;
-  --color-text-light: #94a3b8;
+  --color-text: #25333B;
+  --color-text-secondary: #4A555C;
+  --color-text-muted: #6b7d73;
+  --color-text-faint: #9EB2A7;
+  --color-text-light: #9EB2A7;
   --color-text-inverse: #ffffff;
-  --color-text-link: #6366f1;
-  --color-text-link-hover: #4f46e5;
+  --color-text-link: #008C3A;
+  --color-text-link-hover: #25613F;
 
   /* ==========================================
      BORDER COLORS
      ========================================== */
-  --color-border: #e2e8f0;
-  --color-border-light: #f1f5f9;
-  --color-border-strong: #cbd5e1;
-  --color-border-focus: #6366f1;
+  --color-border: #E6E8E8;
+  --color-border-light: #eef1f0;
+  --color-border-strong: #c8cdcb;
+  --color-border-focus: #008C3A;
 
   /* ==========================================
      OVERLAY
      ========================================== */
-  --overlay-bg: rgba(15, 23, 42, 0.6);
+  --overlay-bg: rgba(26, 36, 41, 0.6);
 
   /* ==========================================
      SHADOWS
@@ -311,7 +311,7 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.004);
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
   --shadow-card-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
@@ -405,35 +405,186 @@
   /* ==========================================
      CHART PALETTE
      ========================================== */
-  --chart-1: #6366f1;
-  --chart-2: #06b6d4;
-  --chart-3: #10b981;
-  --chart-4: #f59e0b;
-  --chart-5: #8b5cf6;
-  --chart-6: #ec4899;
-  --chart-7: #f43f5e;
+  --chart-1: #008C3A;
+  --chart-2: #25613F;
+  --chart-3: #448754;
+  --chart-4: #b8860b;
+  --chart-5: #25333B;
+  --chart-6: #6aab7d;
+  --chart-7: #c53030;
 
   /* ==========================================
      PROGRESS BAR
      ========================================== */
   --progress-height: 8px;
-  --progress-bg: #e2e8f0;
+  --progress-bg: #E6E8E8;
   --progress-radius: var(--radius-full);
 
   /* ==========================================
      TABLE
      ========================================== */
-  --table-header-bg: #f8fafc;
-  --table-header-text: #475569;
-  --table-row-hover: #f8fafc;
-  --table-border: #e2e8f0;
-  --table-stripe: #fafbfc;
+  --table-header-bg: #f5f7f6;
+  --table-header-text: #4A555C;
+  --table-row-hover: #f5f7f6;
+  --table-border: #E6E8E8;
+  --table-stripe: #fafcfb;
 
   /* ==========================================
      SCROLLBAR
      ========================================== */
   --scrollbar-width: 6px;
-  --scrollbar-thumb: #cbd5e1;
-  --scrollbar-thumb-hover: #94a3b8;
+  --scrollbar-thumb: #c8cdcb;
+  --scrollbar-thumb-hover: #9EB2A7;
   --scrollbar-track: transparent;
+}
+
+/* ==========================================
+   DARK MODE
+   ========================================== */
+[data-theme="dark"] {
+  /* Backgrounds */
+  --color-bg: #0f1518;
+  --color-bg-alt: #151d21;
+  --color-bg-elevated: #1a2429;
+  --color-surface: #1a2429;
+  --color-surface-hover: #212f35;
+  --color-surface-active: #25333B;
+  --color-surface-raised: #1a2429;
+  --color-surface-overlay: rgba(0, 0, 0, 0.7);
+
+  /* Text */
+  --color-text: #e8f0eb;
+  --color-text-secondary: #9EB2A7;
+  --color-text-muted: #7a9488;
+  --color-text-faint: #5a7568;
+  --color-text-light: #5a7568;
+  --color-text-inverse: #25333B;
+  --color-text-link: #4dbd6e;
+  --color-text-link-hover: #6aab7d;
+
+  /* Borders */
+  --color-border: #25333B;
+  --color-border-light: #1f2d33;
+  --color-border-strong: #3a4e56;
+  --color-border-focus: #008C3A;
+
+  /* Topbar */
+  --topbar-bg: rgba(15, 21, 24, 0.9);
+  --topbar-border: #25333B;
+
+  /* Primary variants */
+  --color-primary-soft: #0d2a16;
+  --color-primary-border: #1a4028;
+  --color-success-soft: #0d2a16;
+  --color-success-border: #1a4028;
+  --color-warning-soft: #2a2008;
+  --color-warning-border: #4a3a10;
+  --color-danger-soft: #2a0f0f;
+  --color-danger-border: #4a1a1a;
+  --color-info-soft: #0d2a16;
+  --color-info-border: #1a4028;
+
+  /* Status */
+  --status-active-soft: #0d2a16;
+  --status-active-border: #1a4028;
+  --status-inactive-soft: #1a2429;
+  --status-inactive-border: #25333B;
+  --status-pending-soft: #2a2008;
+  --status-pending-border: #4a3a10;
+  --status-approved-soft: #0d2a16;
+  --status-approved-border: #1a4028;
+  --status-rejected-soft: #2a0f0f;
+  --status-rejected-border: #4a1a1a;
+  --status-completed-soft: #0d2a16;
+  --status-completed-border: #1a4028;
+  --status-processing-soft: #0d2a16;
+  --status-processing-border: #1a4028;
+  --status-suspended-soft: #2a2008;
+  --status-suspended-border: #4a3a10;
+  --status-failed-soft: #2a0f0f;
+  --status-failed-border: #4a1a1a;
+  --status-cancelled-soft: #1a2429;
+  --status-cancelled-border: #25333B;
+  --status-reversed-soft: #1a2429;
+  --status-reversed-border: #25333B;
+
+  /* Wallet */
+  --wallet-main-soft: #0d2a16;
+  --wallet-main-border: #1a4028;
+  --wallet-roi-soft: #0d2a16;
+  --wallet-roi-border: #1a4028;
+  --wallet-ewallet-soft: #2a2008;
+  --wallet-ewallet-border: #4a3a10;
+  --wallet-profit-soft: #0d2a16;
+  --wallet-profit-border: #1a4028;
+  --wallet-pending-soft: #2a0f0f;
+  --wallet-pending-border: #4a1a1a;
+  --wallet-fund-soft: #1a2429;
+  --wallet-fund-border: #25333B;
+
+  /* Income */
+  --income-direct-soft: #0d2a16;
+  --income-level-soft: #0d2a16;
+
+  /* Extended accents */
+  --purple-soft: #0d2a16;
+  --purple-border: #1a4028;
+  --orange-soft: #2a2008;
+  --orange-border: #4a3a10;
+  --teal-soft: #0d2a16;
+  --teal-border: #1a4028;
+  --cyan-soft: #0d2a16;
+  --cyan-border: #1a4028;
+  --violet-soft: #1a2429;
+  --violet-border: #25333B;
+  --amber-soft: #2a2008;
+  --amber-border: #4a3a10;
+  --rose-soft: #2a0f0f;
+  --rose-border: #4a1a1a;
+  --lime-soft: #0d2a16;
+  --lime-border: #1a4028;
+  --indigo-soft: #0d2a16;
+  --indigo-border: #1a4028;
+
+  /* Neutral */
+  --gray-50: #151d21;
+  --gray-100: #1a2429;
+  --gray-200: #25333B;
+  --gray-300: #3a4e56;
+  --gray-400: #5a7568;
+  --gray-500: #7a9488;
+  --gray-600: #9EB2A7;
+  --gray-700: #b8cfbf;
+  --gray-800: #d4e5d8;
+  --gray-900: #e8f0eb;
+
+  /* Table */
+  --table-header-bg: #1a2429;
+  --table-header-text: #9EB2A7;
+  --table-row-hover: #1f2d33;
+  --table-border: #25333B;
+  --table-stripe: #162026;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.35), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-card-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.25);
+  --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  --shadow-dropdown: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  --shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+
+  /* Progress */
+  --progress-bg: #25333B;
+
+  /* Scrollbar */
+  --scrollbar-thumb: #3a4e56;
+  --scrollbar-thumb-hover: #4a6068;
+
+  /* Overlay */
+  --overlay-bg: rgba(0, 0, 0, 0.7);
 }

@@ -372,13 +372,17 @@ export const getActiveAnnouncements = async () => {
   return data;
 };
 
-export const createAnnouncement = async (payload) => {
-  const { data } = await apiClient.post('/announcements', payload);
+export const createAnnouncement = async (formData) => {
+  const { data } = await apiClient.post('/announcements', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data;
 };
 
-export const updateAnnouncement = async (id, payload) => {
-  const { data } = await apiClient.put(`/announcements/${id}`, payload);
+export const updateAnnouncement = async (id, formData) => {
+  const { data } = await apiClient.put(`/announcements/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return data;
 };
 
