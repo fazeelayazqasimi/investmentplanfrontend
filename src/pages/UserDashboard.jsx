@@ -294,12 +294,12 @@ function UserOverview({ toastSuccess, toastError }) {
     { label: 'Main Wallet', value: fmt(wallet?.mainBalance), accent: 'stat-success', icon: CreditCard },
     { label: 'E-Wallet', value: fmt(wallet?.ewalletBalance), accent: 'stat-amber', icon: WalletIcon },
     { label: 'ROI Wallet', value: fmt(wallet?.roiBalance), accent: 'stat-info', icon: TrendingUp },
-    { label: 'Profit Share', value: fmt(wallet?.profitShareBalance), accent: 'stat-purple', icon: BarChart3 },
-    { label: 'Fund Wallet', value: fmt(wallet?.fundBalance), accent: 'stat-teal', icon: Users },
-    { label: 'Pending Commissions', value: fmt(wallet?.pendingCommissions), accent: 'stat-danger', icon: AlertCircle },
-    { label: 'Total Earnings', value: fmt(wallet?.totalEarnings), accent: 'stat-orange', icon: TrendingUp },
     { label: 'Direct Income', value: fmt(directIncome), accent: 'stat-success', icon: DollarSign },
     { label: 'Level Income', value: fmt(levelIncome), accent: 'stat-info', icon: BarChart3 },
+    { label: 'Profit Share', value: fmt(wallet?.profitShareBalance), accent: 'stat-purple', icon: BarChart3 },
+    { label: 'Fund Wallet', value: fmt(wallet?.fundBalance), accent: 'stat-teal', icon: Users },
+    { label: 'Pending Commission', value: fmt(wallet?.pendingCommissions), accent: 'stat-danger', icon: AlertCircle },
+    { label: 'Total Earning', value: fmt(wallet?.totalEarnings), accent: 'stat-orange', icon: TrendingUp },
   ];
 
   const pie = [
