@@ -229,6 +229,12 @@ export const getMyDownlines = async () => {
   return data.data;
 };
 
+// User: search downlines by email/name (for fund transfer)
+export const searchMyDownlines = async (query) => {
+  const { data } = await apiClient.get('/users/downlines/search', { params: { q: query } });
+  return data.data;
+};
+
 // User: referral upline
 export const getMyUpline = async () => {
   const { data } = await apiClient.get('/users/upline');

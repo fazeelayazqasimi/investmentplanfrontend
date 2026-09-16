@@ -13,7 +13,7 @@ import apiClient, {
   transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
   transferFundToUser, getTransferSettings, getProgressData,
   transferMainToFund, activateAccountWithSource, investForDownline, getMyDownlines,
-  getBankAccounts, getActiveAnnouncements,
+  getBankAccounts, getActiveAnnouncements, searchMyDownlines,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -839,20 +839,16 @@ function UserInvestments({ toastSuccess, toastError }) {
             <thead>
               <tr>
                 <th>Amount</th>
-                <th>ROI %</th>
-                <th>Start</th>
-                <th>End</th>
+                <th>Invest Date</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {mine.length === 0 && <tr><td colSpan={5} className="table-empty">No investments found</td></tr>}
+              {mine.length === 0 && <tr><td colSpan={3} className="table-empty">No investments found</td></tr>}
               {mine.map((iv) => (
                 <tr key={iv._id}>
                   <td data-label="Amount" className="cell-strong">{fmt(iv.originalAmount)}</td>
-                  <td data-label="ROI">{iv.roiPercentage}%</td>
-                  <td data-label="Start">{fmtDate(iv.startDate)}</td>
-                  <td data-label="End">{fmtDate(iv.endDate)}</td>
+                  <td data-label="Invest Date">{fmtDate(iv.startDate)}</td>
                   <td data-label="Status"><StatusBadge status={iv.status} /></td>
                 </tr>
               ))}
@@ -990,6 +986,10 @@ function UserWallet({ toastSuccess, toastError }) {
   const [fundAmount, setFundAmount] = useState('');
   const [fundBusy, setFundBusy] = useState(false);
   const [fundError, setFundError] = useState('');
+  const [fundReceiverSearch, setFundReceiverSearch] = useState('');
+  const [downlineSuggestions, setDownlineSuggestions] = useState([]);
+  const [selectedDownline, setSelectedDownline] = useState(null);
+  const [searchBusy, setSearchBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1077,16 +1077,50 @@ function UserWallet({ toastSuccess, toastError }) {
     setFundBusy(true);
     setFundError('');
     const amt = Number(fundAmount);
-    if (!fundReceiver || !amt || amt <= 0) { setFundError('Enter valid receiver ID and amount'); setFundBusy(false); return; }
+    if (!fundReceiver || !amt || amt <= 0) { setFundError('Enter valid receiver and amount'); setFundBusy(false); return; }
     try {
       await transferFundToUser({ receiverId: fundReceiver, amount: amt });
       toastSuccess('Fund Transfer Complete', `${fmt(amt)} transferred successfully.`);
       setFundReceiver('');
       setFundAmount('');
+      setFundReceiverSearch('');
+      setSelectedDownline(null);
+      setDownlineSuggestions([]);
       setShowFundForm(false);
       await load();
     } catch (er) { setFundError(er.response?.data?.message || 'Transfer failed'); toastError('Transfer Failed', er.response?.data?.message); }
     finally { setFundBusy(false); }
+  };
+
+  let searchDebounceRef = null;
+  const handleDownlineSearch = async (e) => {
+    const val = e.target.value;
+    setFundReceiverSearch(val);
+    setSelectedDownline(null);
+    setFundReceiver('');
+    if (searchDebounceRef) clearTimeout(searchDebounceRef);
+    if (!val || val.trim().length < 1) {
+      setDownlineSuggestions([]);
+      return;
+    }
+    searchDebounceRef = setTimeout(async () => {
+      setSearchBusy(true);
+      try {
+        const result = await searchMyDownlines(val.trim());
+        setDownlineSuggestions(result.users || []);
+      } catch (_) {
+        setDownlineSuggestions([]);
+      } finally {
+        setSearchBusy(false);
+      }
+    }, 300);
+  };
+
+  const selectDownlineUser = (user) => {
+    setSelectedDownline(user);
+    setFundReceiver(user._id);
+    setFundReceiverSearch(user.email);
+    setDownlineSuggestions([]);
   };
 
   if (loading) return <Spinner label="Loading wallet..." />;
@@ -1273,12 +1307,65 @@ function UserWallet({ toastSuccess, toastError }) {
         <div className="deposit-form">
           <h3>Fund Wallet Transfer</h3>
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
-            Transfer funds from your Fund Wallet to another user. Available balance: <strong>{fmt(wallet?.fundBalance)}</strong>
+            Transfer funds from your Fund Wallet to another user in your downline. Available balance: <strong>{fmt(wallet?.fundBalance)}</strong>
           </p>
-          <div className="form-group">
-            <label className="form-label">Receiver User ID</label>
-            <input className="form-input" value={fundReceiver} onChange={(e) => setFundReceiver(e.target.value)} placeholder="Enter receiver's user ID" />
+          <div className="form-group" style={{ position: 'relative' }}>
+            <label className="form-label">Search Downline Member (email or name)</label>
+            <input
+              className="form-input"
+              value={fundReceiverSearch}
+              onChange={handleDownlineSearch}
+              placeholder="Type email or name..."
+              autoComplete="off"
+            />
+            {searchBusy && <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Searching...</span>}
+            {downlineSuggestions.length > 0 && !selectedDownline && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-lg)', maxHeight: 240, overflowY: 'auto',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              }}>
+                {downlineSuggestions.map((u) => (
+                  <div
+                    key={u._id}
+                    onClick={() => selectDownlineUser(u)}
+                    style={{
+                      padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--color-border)',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-alt)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{u.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{u.email}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-success)' }}>{fmt(u.totalBalance)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>balance</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+          {selectedDownline && (
+            <div style={{
+              padding: '12px 16px', marginBottom: 'var(--space-3)',
+              background: 'var(--color-primary-soft)', border: '1px solid var(--color-primary-border)',
+              borderRadius: 'var(--radius-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{selectedDownline.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{selectedDownline.email}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--color-success)' }}>{fmt(selectedDownline.totalBalance)}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>total balance</div>
+              </div>
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Amount</label>
             <input className="form-input" type="number" value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} placeholder="0.00" min="0.01" />
