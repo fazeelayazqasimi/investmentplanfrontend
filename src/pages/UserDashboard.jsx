@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, LineChart, Wallet as WalletIcon, Receipt, Percent, Share2, User as UserIcon,
   LogOut, Loader2, AlertCircle, TrendingUp, ArrowDownToLine, Menu, X, CheckCircle,
-  BarChart3, CreditCard, Users, ArrowRightLeft, DollarSign, Copy,
+  BarChart3, CreditCard, Users, ArrowRightLeft, DollarSign, Copy, ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -1417,6 +1417,7 @@ function UserTransactions() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -1429,29 +1430,146 @@ function UserTransactions() {
   if (loading) return <Spinner label="Loading transactions..." />;
   if (error) return <ErrorBox message={error} />;
 
+  const toggle = (id) => setExpandedId(expandedId === id ? null : id);
+
+  const getTypeBadgeClass = (type) => {
+    if (['DIRECT_INCOME', 'LEVEL_INCOME', 'PROFIT_SHARE', 'SIGNUP_BONUS', 'UPLINE_SIGNUP_BONUS'].includes(type)) return 'income';
+    if (['ROI'].includes(type)) return 'roi';
+    if (['PENDING_ROI', 'PENDING_NETWORK_COMMISSION', 'PENDING_PROFIT_SHARE', 'PENDING_RELEASE'].includes(type)) return 'pending';
+    if (['INVESTMENT', 'ACTIVATION_FEE', 'FUND_ACTIVATION', 'WITHDRAWAL', 'E_WALLET_USAGE'].includes(type)) return 'debit';
+    return 'neutral';
+  };
+
+  const getIncomeCategory = (type) => {
+    if (type === 'DIRECT_INCOME') return 'Direct Income';
+    if (type === 'LEVEL_INCOME') return 'Indirect Income';
+    if (type === 'PROFIT_SHARE') return 'Profit Share';
+    if (type === 'ROI') return 'ROI Earning';
+    if (type === 'PENDING_ROI') return 'Pending ROI';
+    if (type === 'PENDING_NETWORK_COMMISSION') return 'Pending Commission';
+    if (type === 'PENDING_PROFIT_SHARE') return 'Pending Profit Share';
+    return null;
+  };
+
+  const getWalletLabel = (type) => {
+    if (['DIRECT_INCOME', 'LEVEL_INCOME', 'INVESTMENT', 'ACTIVATION_FEE', 'FUND_ACTIVATION', 'FUND_TRANSFER_SENT', 'FUND_TRANSFER_RECEIVED', 'MAIN_TO_FUND_TRANSFER'].includes(type)) return 'Main Wallet';
+    if (['ROI', 'ROI_TRANSFER'].includes(type)) return 'ROI Wallet';
+    if (['PROFIT_SHARE', 'PROFIT_SHARE_TRANSFER'].includes(type)) return 'Profit Share Wallet';
+    if (['SIGNUP_BONUS', 'UPLINE_SIGNUP_BONUS', 'E_WALLET_USAGE', 'E_WALLET_DOWNLINE_INVESTMENT'].includes(type)) return 'E-Wallet';
+    if (['PENDING_ROI', 'PENDING_NETWORK_COMMISSION', 'PENDING_PROFIT_SHARE', 'PENDING_RELEASE'].includes(type)) return 'Pending Holdings';
+    return '—';
+  };
+
   return (
     <div className="animate-slide-up">
       <div className="page-header">
         <div>
           <h1>Transactions</h1>
-          <p className="subtitle">View all your transaction history</p>
+          <p className="subtitle">Click any row to view complete details</p>
         </div>
       </div>
       <div className="table-card">
         <div className="table-wrap">
           <table className="data-table">
             <thead>
-              <tr><th>Type</th><th>Amount</th><th>Status</th><th>Date</th></tr>
+              <tr>
+                <th style={{ width: 30 }}></th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={4} className="table-empty">No transactions found</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={5} className="table-empty">No transactions found</td></tr>}
               {rows.map((t) => (
-                <tr key={t._id}>
-                  <td data-label="Type" className="cell-strong">{t.type}</td>
-                  <td data-label="Amount">{fmt(t.amount)}</td>
-                  <td data-label="Status"><StatusBadge status={t.status} /></td>
-                  <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
-                </tr>
+                <>
+                  <tr key={t._id} className="txn-row-clickable" onClick={() => toggle(t._id)}>
+                    <td data-label="">
+                      <span className={`txn-expand-icon ${expandedId === t._id ? 'open' : ''}`}>
+                        <ChevronDown size={16} />
+                      </span>
+                    </td>
+                    <td data-label="Type">
+                      <span className={`txn-type-badge ${getTypeBadgeClass(t.type)}`}>{t.type.replace(/_/g, ' ')}</span>
+                    </td>
+                    <td data-label="Amount" className="cell-strong">{fmt(t.amount)}</td>
+                    <td data-label="Status"><StatusBadge status={t.status} /></td>
+                    <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
+                  </tr>
+                  {expandedId === t._id && (
+                    <tr className="txn-detail-row" key={`${t._id}-detail`}>
+                      <td colSpan={5}>
+                        <div className="txn-detail-panel">
+                          <div className="txn-detail-grid">
+                            <div className="txn-detail-item">
+                              <span className="txn-detail-label">Transaction Type</span>
+                              <span className="txn-detail-value">{getIncomeCategory(t.type) || t.type.replace(/_/g, ' ')}</span>
+                            </div>
+                            <div className="txn-detail-item">
+                              <span className="txn-detail-label">Amount</span>
+                              <span className="txn-detail-value">{fmt(t.amount)}</span>
+                            </div>
+                            <div className="txn-detail-item">
+                              <span className="txn-detail-label">Status</span>
+                              <span className="txn-detail-value"><StatusBadge status={t.status} /></span>
+                            </div>
+                            <div className="txn-detail-item">
+                              <span className="txn-detail-label">Wallet</span>
+                              <span className="txn-detail-value">{getWalletLabel(t.type)}</span>
+                            </div>
+                            {t.metadata?.investmentAmount != null && (
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">Downline Investment Amount</span>
+                                <span className="txn-detail-value">{fmt(t.metadata.investmentAmount)}</span>
+                              </div>
+                            )}
+                            {t.metadata?.percentage != null && (
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">Income Percentage</span>
+                                <span className="txn-detail-value">{t.metadata.percentage}%</span>
+                              </div>
+                            )}
+                            {t.metadata?.level != null && (
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">Level</span>
+                                <span className="txn-detail-value">Level {t.metadata.level}</span>
+                              </div>
+                            )}
+                            {t.investment?.user && (
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">Downline Member</span>
+                                <span className="txn-detail-value">{t.investment.user.name} ({t.investment.user.email})</span>
+                              </div>
+                            )}
+                            {t.investment?.originalAmount != null && (
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">Investment Amount</span>
+                                <span className="txn-detail-value">{fmt(t.investment.originalAmount)}</span>
+                              </div>
+                            )}
+                            {t.description && (
+                              <div className="txn-detail-item" style={{ gridColumn: '1 / -1' }}>
+                                <span className="txn-detail-label">Description</span>
+                                <span className="txn-detail-value">{t.description}</span>
+                              </div>
+                            )}
+                            {t.reference && (
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">Reference ID</span>
+                                <span className="txn-detail-value" style={{ fontFamily: 'monospace', fontSize: 12 }}>{t.reference}</span>
+                              </div>
+                            )}
+                            <div className="txn-detail-item">
+                              <span className="txn-detail-label">Created</span>
+                              <span className="txn-detail-value">{fmtDateTime(t.createdAt)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>

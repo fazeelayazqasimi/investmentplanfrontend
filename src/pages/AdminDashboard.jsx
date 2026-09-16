@@ -756,6 +756,7 @@ function AdminTransactions() {
   const [error, setError] = useState('');
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
+  const [expandedId, setExpandedId] = useState(null);
 
   // Filters
   const [search, setSearch] = useState(q.get('search') || '');
@@ -807,7 +808,37 @@ function AdminTransactions() {
     setPage(1);
   };
 
+  const toggle = (id) => setExpandedId(expandedId === id ? null : id);
+
   const hasFilters = search || typeFilter || statusFilter || dateFrom || dateTo;
+
+  const getTypeBadgeClass = (type) => {
+    if (['DIRECT_INCOME', 'LEVEL_INCOME', 'PROFIT_SHARE', 'SIGNUP_BONUS', 'UPLINE_SIGNUP_BONUS'].includes(type)) return 'income';
+    if (['ROI'].includes(type)) return 'roi';
+    if (['PENDING_ROI', 'PENDING_NETWORK_COMMISSION', 'PENDING_PROFIT_SHARE', 'PENDING_RELEASE'].includes(type)) return 'pending';
+    if (['INVESTMENT', 'ACTIVATION_FEE', 'FUND_ACTIVATION', 'WITHDRAWAL', 'E_WALLET_USAGE'].includes(type)) return 'debit';
+    return 'neutral';
+  };
+
+  const getIncomeCategory = (type) => {
+    if (type === 'DIRECT_INCOME') return 'Direct Income';
+    if (type === 'LEVEL_INCOME') return 'Indirect Income';
+    if (type === 'PROFIT_SHARE') return 'Profit Share';
+    if (type === 'ROI') return 'ROI Earning';
+    if (type === 'PENDING_ROI') return 'Pending ROI';
+    if (type === 'PENDING_NETWORK_COMMISSION') return 'Pending Commission';
+    if (type === 'PENDING_PROFIT_SHARE') return 'Pending Profit Share';
+    return null;
+  };
+
+  const getWalletLabel = (type) => {
+    if (['DIRECT_INCOME', 'LEVEL_INCOME', 'INVESTMENT', 'ACTIVATION_FEE', 'FUND_ACTIVATION', 'FUND_TRANSFER_SENT', 'FUND_TRANSFER_RECEIVED', 'MAIN_TO_FUND_TRANSFER'].includes(type)) return 'Main Wallet';
+    if (['ROI', 'ROI_TRANSFER'].includes(type)) return 'ROI Wallet';
+    if (['PROFIT_SHARE', 'PROFIT_SHARE_TRANSFER'].includes(type)) return 'Profit Share Wallet';
+    if (['SIGNUP_BONUS', 'UPLINE_SIGNUP_BONUS', 'E_WALLET_USAGE', 'E_WALLET_DOWNLINE_INVESTMENT'].includes(type)) return 'E-Wallet';
+    if (['PENDING_ROI', 'PENDING_NETWORK_COMMISSION', 'PENDING_PROFIT_SHARE', 'PENDING_RELEASE'].includes(type)) return 'Pending Holdings';
+    return '—';
+  };
 
   return (
     <div>
@@ -885,8 +916,8 @@ function AdminTransactions() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th style={{ width: 30 }}></th>
                   <th>User</th>
-                  <th>Email</th>
                   <th>Type</th>
                   <th>Amount</th>
                   <th>Status</th>
@@ -898,14 +929,98 @@ function AdminTransactions() {
                   <tr><td colSpan={6} className="table-empty">No transactions found</td></tr>
                 )}
                 {rows.map((r) => (
-                  <tr key={r._id}>
-                    <td data-label="User" className="cell-strong">{r.user?.name}</td>
-                    <td data-label="Email">{r.user?.email}</td>
-                    <td data-label="Type">{r.type}</td>
-                    <td data-label="Amount">{fmt(r.amount)}</td>
-                    <td data-label="Status"><StatusBadge status={r.status} /></td>
-                    <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
-                  </tr>
+                  <>
+                    <tr key={r._id} className="txn-row-clickable" onClick={() => toggle(r._id)}>
+                      <td data-label="">
+                        <span className={`txn-expand-icon ${expandedId === r._id ? 'open' : ''}`}>
+                          <ChevronDown size={16} />
+                        </span>
+                      </td>
+                      <td data-label="User" className="cell-strong">{r.user?.name}</td>
+                      <td data-label="Type">
+                        <span className={`txn-type-badge ${getTypeBadgeClass(r.type)}`}>{r.type.replace(/_/g, ' ')}</span>
+                      </td>
+                      <td data-label="Amount">{fmt(r.amount)}</td>
+                      <td data-label="Status"><StatusBadge status={r.status} /></td>
+                      <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
+                    </tr>
+                    {expandedId === r._id && (
+                      <tr className="txn-detail-row" key={`${r._id}-detail`}>
+                        <td colSpan={6}>
+                          <div className="txn-detail-panel">
+                            <div className="txn-detail-grid">
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">Transaction Type</span>
+                                <span className="txn-detail-value">{getIncomeCategory(r.type) || r.type.replace(/_/g, ' ')}</span>
+                              </div>
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">User</span>
+                                <span className="txn-detail-value">{r.user?.name} ({r.user?.email})</span>
+                              </div>
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">Amount</span>
+                                <span className="txn-detail-value">{fmt(r.amount)}</span>
+                              </div>
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">Status</span>
+                                <span className="txn-detail-value"><StatusBadge status={r.status} /></span>
+                              </div>
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">Wallet</span>
+                                <span className="txn-detail-value">{getWalletLabel(r.type)}</span>
+                              </div>
+                              {r.metadata?.investmentAmount != null && (
+                                <div className="txn-detail-item">
+                                  <span className="txn-detail-label">Downline Investment Amount</span>
+                                  <span className="txn-detail-value">{fmt(r.metadata.investmentAmount)}</span>
+                                </div>
+                              )}
+                              {r.metadata?.percentage != null && (
+                                <div className="txn-detail-item">
+                                  <span className="txn-detail-label">Income Percentage</span>
+                                  <span className="txn-detail-value">{r.metadata.percentage}%</span>
+                                </div>
+                              )}
+                              {r.metadata?.level != null && (
+                                <div className="txn-detail-item">
+                                  <span className="txn-detail-label">Level</span>
+                                  <span className="txn-detail-value">Level {r.metadata.level}</span>
+                                </div>
+                              )}
+                              {r.investmentUser && (
+                                <div className="txn-detail-item">
+                                  <span className="txn-detail-label">Downline Member</span>
+                                  <span className="txn-detail-value">{r.investmentUser.name} ({r.investmentUser.email})</span>
+                                </div>
+                              )}
+                              {r.investment?.originalAmount != null && (
+                                <div className="txn-detail-item">
+                                  <span className="txn-detail-label">Investment Amount</span>
+                                  <span className="txn-detail-value">{fmt(r.investment.originalAmount)}</span>
+                                </div>
+                              )}
+                              {r.description && (
+                                <div className="txn-detail-item" style={{ gridColumn: '1 / -1' }}>
+                                  <span className="txn-detail-label">Description</span>
+                                  <span className="txn-detail-value">{r.description}</span>
+                                </div>
+                              )}
+                              {r.reference && (
+                                <div className="txn-detail-item">
+                                  <span className="txn-detail-label">Reference ID</span>
+                                  <span className="txn-detail-value" style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.reference}</span>
+                                </div>
+                              )}
+                              <div className="txn-detail-item">
+                                <span className="txn-detail-label">Created</span>
+                                <span className="txn-detail-value">{fmtDateTime(r.createdAt)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
               </tbody>
             </table>
