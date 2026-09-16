@@ -7,6 +7,7 @@ const STATUS_MAP = {
   REJECTED: 'badge-danger',
   CANCELLED: 'badge-danger',
   SUSPENDED: 'badge-danger',
+  DELETED: 'badge-danger',
   FAILED: 'badge-danger',
   INACTIVE: 'badge-muted',
   REVERSED: 'badge-muted',

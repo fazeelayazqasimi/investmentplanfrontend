@@ -20,6 +20,7 @@ import apiClient, {
   getAdminBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
   getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement, toggleAnnouncement,
   getAdminConversations, getAdminChatMessages, sendAdminMessage, updateConversationStatus,
+  activateUser, deactivateUser, suspendUser, deleteUser,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -378,7 +379,7 @@ function AdminUsers() {
             <option value="">All Roles</option><option value="USER">User</option><option value="ADMIN">Admin</option>
           </select>
           <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All Status</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="SUSPENDED">Suspended</option>
+            <option value="">All Status</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="SUSPENDED">Suspended</option><option value="DELETED">Deleted</option>
           </select>
           <button className="btn btn-secondary btn-sm" onClick={() => load()}>Search</button>
         </div>
@@ -412,18 +413,85 @@ function AdminUsers() {
       )}
 
       {detail && (
-        <UserDetailModal detail={detail} loading={detailLoading} onClose={() => setDetail(null)} />
+        <UserDetailModal detail={detail} loading={detailLoading} onClose={() => setDetail(null)} onAction={() => load()} />
       )}
     </div>
   );
 }
 
-function UserDetailModal({ detail, loading, onClose }) {
+function UserDetailModal({ detail, loading, onClose, onAction }) {
   const [tab, setTab] = useState('info');
+  const [actionLoading, setActionLoading] = useState('');
+  const [suspendDate, setSuspendDate] = useState('');
+  const [showSuspendInput, setShowSuspendInput] = useState(false);
   const d = detail;
+
+  const handleAction = async (action) => {
+    if (!d || !d.user) return;
+    if (action === 'delete' && !window.confirm('Are you sure you want to delete this account?')) return;
+    if (action === 'deactivate' && !window.confirm('Deactivate this user?')) return;
+
+    setActionLoading(action);
+    try {
+      if (action === 'activate') await activateUser(d.user._id);
+      else if (action === 'deactivate') await deactivateUser(d.user._id);
+      else if (action === 'suspend') await suspendUser(d.user._id, suspendDate || null);
+      else if (action === 'delete') await deleteUser(d.user._id);
+      if (onAction) onAction();
+      onClose();
+    } catch (err) {
+      alert(err?.response?.data?.message || 'Action failed');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
   return (
     <Modal title={loading ? 'Loading...' : `${d.user.name} — Detail`} onClose={onClose}
-      footer={<button className="btn btn-secondary btn-sm" onClick={onClose}>Close</button>}>
+      footer={
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {d && d.user.accountStatus !== 'ACTIVE' && (
+            <button className="btn btn-success btn-sm" onClick={() => handleAction('activate')} disabled={!!actionLoading}>
+              {actionLoading === 'activate' ? 'Activating...' : 'Activate'}
+            </button>
+          )}
+          {d && d.user.accountStatus === 'ACTIVE' && (
+            <>
+              <button className="btn btn-warning btn-sm" onClick={() => handleAction('deactivate')} disabled={!!actionLoading}>
+                {actionLoading === 'deactivate' ? 'Deactivating...' : 'Deactivate'}
+              </button>
+              {!showSuspendInput && (
+                <button className="btn btn-warning btn-sm" onClick={() => setShowSuspendInput(true)}>
+                  Suspend
+                </button>
+              )}
+              {showSuspendInput && (
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <input type="datetime-local" className="form-input" style={{ width: 200, fontSize: 12 }}
+                    value={suspendDate} onChange={(e) => setSuspendDate(e.target.value)} />
+                  <button className="btn btn-warning btn-sm" onClick={() => handleAction('suspend')} disabled={!!actionLoading}>
+                    {actionLoading === 'suspend' ? 'Suspending...' : 'Confirm'}
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => { setShowSuspendInput(false); setSuspendDate(''); }}>
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+          {d && d.user.accountStatus === 'SUSPENDED' && (
+            <button className="btn btn-warning btn-sm" onClick={() => handleAction('suspend')} disabled={!!actionLoading}>
+              {actionLoading === 'suspend' ? 'Updating...' : 'Update Suspension'}
+            </button>
+          )}
+          {d && d.user.accountStatus !== 'DELETED' && (
+            <button className="btn btn-danger btn-sm" onClick={() => handleAction('delete')} disabled={!!actionLoading}>
+              {actionLoading === 'delete' ? 'Deleting...' : 'Delete'}
+            </button>
+          )}
+          <button className="btn btn-secondary btn-sm" onClick={onClose}>Close</button>
+        </div>
+      }>
       {loading ? <Spinner label="Loading..." /> : (
         <div>
           <div className="tabs" style={{ marginBottom: 16 }}>

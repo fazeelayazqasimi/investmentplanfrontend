@@ -124,6 +124,30 @@ export const getAdminUserDetail = async (id) => {
   return data.data;
 };
 
+// Admin: activate user
+export const activateUser = async (id) => {
+  const { data } = await apiClient.patch(`/admin/users/${id}/activate`);
+  return data;
+};
+
+// Admin: deactivate user
+export const deactivateUser = async (id) => {
+  const { data } = await apiClient.patch(`/admin/users/${id}/deactivate`);
+  return data;
+};
+
+// Admin: suspend user (optional suspendedUntil date)
+export const suspendUser = async (id, suspendedUntil = null) => {
+  const { data } = await apiClient.patch(`/admin/users/${id}/suspend`, { suspendedUntil });
+  return data;
+};
+
+// Admin: delete user (soft delete)
+export const deleteUser = async (id) => {
+  const { data } = await apiClient.delete(`/admin/users/${id}`);
+  return data;
+};
+
 // Admin: all investments (platform-wide)
 export const getAdminInvestments = async (params = {}) => {
   const { data } = await apiClient.get('/admin/investments', { params });
