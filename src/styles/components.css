@@ -2118,3 +2118,155 @@
   color: var(--color-primary-dark);
   border: 1px solid var(--color-primary-border);
 }
+
+/* ==========================================
+   LEVEL GROUP ACCORDION
+   ========================================== */
+.level-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  margin-bottom: var(--space-2);
+}
+.level-group-header:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+.level-group-header .txn-expand-icon {
+  transition: transform 0.2s ease;
+}
+.level-group-header .txn-expand-icon.open {
+  transform: rotate(180deg);
+}
+.level-group-name {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  min-width: 80px;
+}
+.level-group-pct {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-primary-soft);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+.level-group-stats {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.level-group-stats .stat-total {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+.level-group-children {
+  padding: 0 0 var(--space-3) var(--space-8);
+}
+.level-group-child {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-light);
+}
+.level-group-child:last-child {
+  border-bottom: none;
+}
+.level-group-child-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+.level-group-child-field {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.level-group-child-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.level-group-child-value {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  word-break: break-word;
+}
+
+/* ==========================================
+   PER-INVESTMENT PROGRESS CARDS
+   ========================================== */
+.invest-progress-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.invest-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+.invest-progress-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+.invest-progress-badge {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+.invest-progress-badge.active {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+.invest-progress-badge.paused {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+.invest-progress-badge.completed {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+}
+.invest-progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+.invest-progress-remaining {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+.invest-progress-complete {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+  margin-top: var(--space-2);
+}
+.invest-progress-paused {
+  font-size: var(--font-size-xs);
+  color: #d97706;
+  font-weight: var(--font-weight-semibold);
+  margin-top: var(--space-2);
+}

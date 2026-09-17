@@ -448,59 +448,68 @@ function UserOverview({ toastSuccess, toastError }) {
 
       {/* Progress Bars for 2X and 3X Milestones */}
       {progress && (
-        <div className="progress-section">
-          <div className="progress-card">
-            <div className="progress-header">
-              <div className="progress-label">
-                <TrendingUp size={18} />
-                <span>ROI 2X Milestone</span>
-              </div>
-              <span className="badge badge-success">{progress.percentage2x}%</span>
+        <div>
+          {/* Per-Investment 2X Progress Cards */}
+          {progress.investments && progress.investments.length > 0 && (
+            <div style={{ marginBottom: 'var(--space-4)' }}>
+              {progress.investments.map((inv) => (
+                <div className="invest-progress-card" key={inv._id}>
+                  <div className="invest-progress-header">
+                    <div className="invest-progress-title">
+                      <TrendingUp size={16} />
+                      <span>Investment {fmt(inv.originalAmount)} — 2X Target: {fmt(inv.maxReturnAmount)}</span>
+                    </div>
+                    <span className={`invest-progress-badge ${inv.status.toLowerCase()}`}>{inv.status}</span>
+                  </div>
+                  <div className="progress-bar-track">
+                    <div className="progress-bar-fill green" style={{ width: `${Math.min(inv.percentage2x, 100)}%` }} />
+                  </div>
+                  <div className="invest-progress-info">
+                    <span>Returned: {fmt(inv.totalReturned)}</span>
+                    <span>{inv.percentage2x}%</span>
+                  </div>
+                  {inv.status === 'ACTIVE' && inv.remaining2x > 0 && (
+                    <div className="invest-progress-remaining">{fmt(inv.remaining2x)} remaining to reach 2X</div>
+                  )}
+                  {inv.status === 'COMPLETED' && (
+                    <div className="invest-progress-complete">2X Milestone Reached!</div>
+                  )}
+                  {inv.status === 'PAUSED' && (
+                    <div className="invest-progress-paused">Paused — will resume after current cycle</div>
+                  )}
+                </div>
+              ))}
             </div>
-            <div className="progress-bar-track">
-              <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
-            </div>
-            <div className="progress-details">
-              <span>Earned: {fmt(progress.progress2x)}</span>
-              <span>Target: {fmt(progress.milestone2x)}</span>
-            </div>
-            {progress.remaining2x > 0 && (
-              <div className="progress-remaining">
-                {fmt(progress.remaining2x)} remaining to reach 2X
-              </div>
-            )}
-            {progress.remaining2x <= 0 && (
-              <div className="progress-complete">
-                2X Milestone Reached! Reinvest to continue earning.
-              </div>
-            )}
-          </div>
+          )}
 
-          <div className="progress-card">
-            <div className="progress-header">
-              <div className="progress-label">
-                <BarChart3 size={18} />
-                <span>Income 3X Cap</span>
+          {/* Global 3X Cap */}
+          <div className="progress-section">
+            <div className="progress-card">
+              <div className="progress-header">
+                <div className="progress-label">
+                  <BarChart3 size={18} />
+                  <span>Income 3X Cap</span>
+                </div>
+                <span className="badge badge-purple">{progress.percentage3x}%</span>
               </div>
-              <span className="badge badge-purple">{progress.percentage3x}%</span>
-            </div>
-            <div className="progress-bar-track">
-              <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
-            </div>
-            <div className="progress-details">
-              <span>Earned: {fmt(progress.progress3x)}</span>
-              <span>Cap: {fmt(progress.milestone3x)}</span>
-            </div>
-            {progress.remaining3x > 0 && (
-              <div className="progress-remaining">
-                {fmt(progress.remaining3x)} remaining before 3X cap
+              <div className="progress-bar-track">
+                <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
               </div>
-            )}
-            {progress.remaining3x <= 0 && (
-              <div className="progress-complete">
-                3X Cap reached — invest more to resume earning.
+              <div className="progress-details">
+                <span>Earned: {fmt(progress.progress3x)}</span>
+                <span>Cap: {fmt(progress.milestone3x)}</span>
               </div>
-            )}
+              {progress.remaining3x > 0 && (
+                <div className="progress-remaining">
+                  {fmt(progress.remaining3x)} remaining before 3X cap
+                </div>
+              )}
+              {progress.remaining3x <= 0 && (
+                <div className="progress-complete">
+                  3X Cap reached — invest more to resume earning.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -771,45 +780,61 @@ function UserInvestments({ toastSuccess, toastError }) {
 
       {/* Progress Bars */}
       {progress && (
-        <div className="progress-section">
-          <div className="progress-card progress-2x">
-            <div className="progress-header">
-              <div className="progress-title">
-                <TrendingUp size={18} />
-                <span>ROI 2X Milestone</span>
-              </div>
-              <span className="progress-badge green">{progress.percentage2x}%</span>
+        <div>
+          {/* Per-Investment 2X Progress Cards */}
+          {progress.investments && progress.investments.length > 0 && (
+            <div style={{ marginBottom: 'var(--space-4)' }}>
+              {progress.investments.map((inv) => (
+                <div className="invest-progress-card" key={inv._id}>
+                  <div className="invest-progress-header">
+                    <div className="invest-progress-title">
+                      <TrendingUp size={16} />
+                      <span>Investment {fmt(inv.originalAmount)} — 2X Target: {fmt(inv.maxReturnAmount)}</span>
+                    </div>
+                    <span className={`invest-progress-badge ${inv.status.toLowerCase()}`}>{inv.status}</span>
+                  </div>
+                  <div className="progress-bar-track">
+                    <div className="progress-bar-fill green" style={{ width: `${Math.min(inv.percentage2x, 100)}%` }} />
+                  </div>
+                  <div className="invest-progress-info">
+                    <span>Returned: {fmt(inv.totalReturned)}</span>
+                    <span>{inv.percentage2x}%</span>
+                  </div>
+                  {inv.status === 'ACTIVE' && inv.remaining2x > 0 && (
+                    <div className="invest-progress-remaining">{fmt(inv.remaining2x)} remaining to reach 2X</div>
+                  )}
+                  {inv.status === 'COMPLETED' && (
+                    <div className="invest-progress-complete">2X Milestone Reached!</div>
+                  )}
+                  {inv.status === 'PAUSED' && (
+                    <div className="invest-progress-paused">Paused — will resume after current cycle</div>
+                  )}
+                </div>
+              ))}
             </div>
-            <div className="progress-bar-track">
-              <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
-            </div>
-            <div className="progress-info">
-              <span>Earned: {fmt(progress.progress2x)}</span>
-              <span>Target: {fmt(progress.milestone2x)}</span>
-            </div>
-            {progress.remaining2x <= 0 && (
-              <div className="progress-complete">2X Reached! Reinvest to continue.</div>
-            )}
-          </div>
+          )}
 
-          <div className="progress-card progress-3x">
-            <div className="progress-header">
-              <div className="progress-title">
-                <BarChart3 size={18} />
-                <span>Income 3X Cap</span>
+          {/* Global 3X Cap */}
+          <div className="progress-section">
+            <div className="progress-card progress-3x">
+              <div className="progress-header">
+                <div className="progress-title">
+                  <BarChart3 size={18} />
+                  <span>Income 3X Cap</span>
+                </div>
+                <span className="progress-badge purple">{progress.percentage3x}%</span>
               </div>
-              <span className="progress-badge purple">{progress.percentage3x}%</span>
+              <div className="progress-bar-track">
+                <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
+              </div>
+              <div className="progress-info">
+                <span>Earned: {fmt(progress.progress3x)}</span>
+                <span>Cap: {fmt(progress.milestone3x)}</span>
+              </div>
+              {progress.remaining3x <= 0 && (
+                <div className="progress-complete">3X Cap Reached! Reinvest to continue.</div>
+              )}
             </div>
-            <div className="progress-bar-track">
-              <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
-            </div>
-            <div className="progress-info">
-              <span>Earned: {fmt(progress.progress3x)}</span>
-              <span>Cap: {fmt(progress.milestone3x)}</span>
-            </div>
-            {progress.remaining3x <= 0 && (
-              <div className="progress-complete">3X Cap Reached! Reinvest to continue.</div>
-            )}
           </div>
         </div>
       )}
@@ -1968,55 +1993,66 @@ function UserRoi() {
 
       {/* Progress Bars */}
       {progress && (
-        <div className="progress-section">
-          <div className="progress-card progress-2x">
-            <div className="progress-header">
-              <div className="progress-title">
-                <TrendingUp size={18} />
-                <span>ROI 2X Milestone</span>
-              </div>
-              <span className="progress-badge green">{progress.percentage2x}%</span>
+        <div>
+          {/* Per-Investment 2X Progress Cards */}
+          {progress.investments && progress.investments.length > 0 && (
+            <div style={{ marginBottom: 'var(--space-4)' }}>
+              {progress.investments.map((inv) => (
+                <div className="invest-progress-card" key={inv._id}>
+                  <div className="invest-progress-header">
+                    <div className="invest-progress-title">
+                      <TrendingUp size={16} />
+                      <span>Investment {fmt(inv.originalAmount)} — 2X Target: {fmt(inv.maxReturnAmount)}</span>
+                    </div>
+                    <span className={`invest-progress-badge ${inv.status.toLowerCase()}`}>{inv.status}</span>
+                  </div>
+                  <div className="progress-bar-track">
+                    <div className="progress-bar-fill green" style={{ width: `${Math.min(inv.percentage2x, 100)}%` }} />
+                  </div>
+                  <div className="invest-progress-info">
+                    <span>Returned: {fmt(inv.totalReturned)}</span>
+                    <span>{inv.percentage2x}%</span>
+                  </div>
+                  {inv.status === 'ACTIVE' && inv.remaining2x > 0 && (
+                    <div className="invest-progress-remaining">{fmt(inv.remaining2x)} remaining to reach 2X</div>
+                  )}
+                  {inv.status === 'COMPLETED' && (
+                    <div className="invest-progress-complete">2X Milestone Reached!</div>
+                  )}
+                  {inv.status === 'PAUSED' && (
+                    <div className="invest-progress-paused">Paused — will resume after current cycle</div>
+                  )}
+                </div>
+              ))}
             </div>
-            <div className="progress-bar-track">
-              <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
-            </div>
-            <div className="progress-info">
-              <span>Returned: {fmt(progress.progress2x)}</span>
-              <span>Max Return: {fmt(progress.milestone2x)}</span>
-            </div>
-            {progress.remaining2x > 0 && (
-              <div className="progress-remaining">
-                {fmt(progress.remaining2x)} remaining to reach 2X
-              </div>
-            )}
-            {progress.remaining2x <= 0 && (
-              <div className="progress-complete">2X Milestone Reached! Reinvest to continue earning.</div>
-            )}
-          </div>
+          )}
 
-          <div className="progress-card progress-3x">
-            <div className="progress-header">
-              <div className="progress-title">
-                <BarChart3 size={18} />
-                <span>Income 3X Cap</span>
+          {/* Global 3X Cap */}
+          <div className="progress-section">
+            <div className="progress-card progress-3x">
+              <div className="progress-header">
+                <div className="progress-title">
+                  <BarChart3 size={18} />
+                  <span>Income 3X Cap</span>
+                </div>
+                <span className="progress-badge purple">{progress.percentage3x}%</span>
               </div>
-              <span className="progress-badge purple">{progress.percentage3x}%</span>
-            </div>
-            <div className="progress-bar-track">
-              <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
-            </div>
-            <div className="progress-info">
-              <span>Earned: {fmt(progress.progress3x)}</span>
-              <span>Cap: {fmt(progress.milestone3x)}</span>
-            </div>
-            {progress.remaining3x > 0 && (
-              <div className="progress-remaining">
-                {fmt(progress.remaining3x)} remaining before 3X cap
+              <div className="progress-bar-track">
+                <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
               </div>
-            )}
-            {progress.remaining3x <= 0 && (
-              <div className="progress-complete">3X Cap Reached! Reinvest to continue.</div>
-            )}
+              <div className="progress-info">
+                <span>Earned: {fmt(progress.progress3x)}</span>
+                <span>Cap: {fmt(progress.milestone3x)}</span>
+              </div>
+              {progress.remaining3x > 0 && (
+                <div className="progress-remaining">
+                  {fmt(progress.remaining3x)} remaining before 3X cap
+                </div>
+              )}
+              {progress.remaining3x <= 0 && (
+                <div className="progress-complete">3X Cap Reached! Reinvest to continue.</div>
+              )}
+            </div>
           </div>
         </div>
       )}

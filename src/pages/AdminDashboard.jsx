@@ -2307,6 +2307,9 @@ function AdminLevels({ toastSuccess, toastError }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [transactions, setTransactions] = useState([]);
+  const [expandedLevel, setExpandedLevel] = useState(null);
+  const [txnsLoading, setTxnsLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -2317,6 +2320,38 @@ function AdminLevels({ toastSuccess, toastError }) {
       finally { setLoading(false); }
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [directRes, levelRes] = await Promise.all([
+          getAdminTransactions({ type: 'DIRECT_INCOME', limit: 500 }),
+          getAdminTransactions({ type: 'LEVEL_INCOME', limit: 500 }),
+        ]);
+        const allTxns = [...(directRes.transactions || []), ...(levelRes.transactions || [])];
+        setTransactions(allTxns);
+      } catch (e) { /* silent */ }
+      finally { setTxnsLoading(false); }
+    })();
+  }, []);
+
+  const grouped = (() => {
+    const map = {};
+    const lvlConfig = {};
+    levels.forEach(l => { lvlConfig[l.level] = l.percentage; });
+
+    transactions.forEach(txn => {
+      const lvl = txn.metadata?.level || (txn.type === 'DIRECT_INCOME' ? 1 : null);
+      if (!lvl) return;
+      if (!map[lvl]) map[lvl] = { level: lvl, percentage: lvlConfig[lvl] || 0, txns: [], total: 0 };
+      map[lvl].txns.push(txn);
+      map[lvl].total += txn.amount || 0;
+    });
+
+    return Object.values(map).sort((a, b) => a.level - b.level);
+  })();
+
+  const toggleLevel = (lvl) => setExpandedLevel(expandedLevel === lvl ? null : lvl);
 
   const addLevel = () => {
     const nextNum = levels.length > 0 ? Math.max(...levels.map(l => l.level)) + 1 : 1;
@@ -2390,6 +2425,73 @@ function AdminLevels({ toastSuccess, toastError }) {
           </button>
         </div>
       </div>
+
+      {/* Level Income Records */}
+      <div className="panel" style={{ marginTop: 'var(--space-4)' }}>
+        <h3>Level Income Records</h3>
+        <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+          Detailed view of all level income transactions. Click a level to see who received income, at what percentage, and from which investment.
+        </p>
+        {txnsLoading ? (
+          <Spinner label="Loading records..." />
+        ) : grouped.length === 0 ? (
+          <EmptyState message="No level income records found." />
+        ) : (
+          grouped.map(group => (
+            <div key={group.level}>
+              <div className="level-group-header" onClick={() => toggleLevel(group.level)}>
+                <span className={`txn-expand-icon ${expandedLevel === group.level ? 'open' : ''}`}>
+                  <ChevronDown size={16} />
+                </span>
+                <span className="level-group-name">Level {group.level}</span>
+                <span className="level-group-pct">{group.percentage}%</span>
+                <span className="level-group-stats">
+                  <span>{group.txns.length} transaction{group.txns.length !== 1 ? 's' : ''}</span>
+                  <span className="stat-total">{fmt(group.total)}</span>
+                </span>
+              </div>
+              {expandedLevel === group.level && (
+                <div className="level-group-children">
+                  {group.txns.map(txn => (
+                    <div className="level-group-child" key={txn._id}>
+                      <div className="level-group-child-grid">
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Received By</span>
+                          <span className="level-group-child-value">{txn.user?.name} ({txn.user?.email})</span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">From Member</span>
+                          <span className="level-group-child-value">{txn.investmentUser?.name || '—'}</span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Investment Amount</span>
+                          <span className="level-group-child-value">{fmt(txn.metadata?.investmentAmount)}</span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Percentage</span>
+                          <span className="level-group-child-value">{txn.metadata?.percentage || group.percentage}%</span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Income Amount</span>
+                          <span className="level-group-child-value">{fmt(txn.amount)}</span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Status</span>
+                          <span className="level-group-child-value"><StatusBadge status={txn.status} /></span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Date</span>
+                          <span className="level-group-child-value">{fmtDate(txn.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -2402,6 +2504,9 @@ function AdminProfitShareLevels({ toastSuccess, toastError }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [transactions, setTransactions] = useState([]);
+  const [expandedLevel, setExpandedLevel] = useState(null);
+  const [txnsLoading, setTxnsLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -2412,6 +2517,33 @@ function AdminProfitShareLevels({ toastSuccess, toastError }) {
       finally { setLoading(false); }
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getAdminTransactions({ type: 'PROFIT_SHARE', limit: 500 });
+        setTransactions(res.transactions || []);
+      } catch (e) { /* silent */ }
+      finally { setTxnsLoading(false); }
+    })();
+  }, []);
+
+  const grouped = (() => {
+    const map = {};
+    const lvlConfig = {};
+    psLevels.forEach(l => { lvlConfig[l.level] = l.percentage; });
+
+    transactions.forEach(txn => {
+      const lvl = txn.metadata?.level || 1;
+      if (!map[lvl]) map[lvl] = { level: lvl, percentage: lvlConfig[lvl] || 0, txns: [], total: 0 };
+      map[lvl].txns.push(txn);
+      map[lvl].total += txn.amount || 0;
+    });
+
+    return Object.values(map).sort((a, b) => a.level - b.level);
+  })();
+
+  const toggleLevel = (lvl) => setExpandedLevel(expandedLevel === lvl ? null : lvl);
 
   const addLevel = () => {
     const nextNum = psLevels.length > 0 ? Math.max(...psLevels.map(l => l.level)) + 1 : 1;
@@ -2484,6 +2616,73 @@ function AdminProfitShareLevels({ toastSuccess, toastError }) {
             {busy ? 'Saving...' : 'Save Profit Share Levels'}
           </button>
         </div>
+      </div>
+
+      {/* Profit Share Records */}
+      <div className="panel" style={{ marginTop: 'var(--space-4)' }}>
+        <h3>Profit Share Records</h3>
+        <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+          Detailed view of all profit share transactions. Click a level to see who received income, at what percentage, and from which investment.
+        </p>
+        {txnsLoading ? (
+          <Spinner label="Loading records..." />
+        ) : grouped.length === 0 ? (
+          <EmptyState message="No profit share records found." />
+        ) : (
+          grouped.map(group => (
+            <div key={group.level}>
+              <div className="level-group-header" onClick={() => toggleLevel(group.level)}>
+                <span className={`txn-expand-icon ${expandedLevel === group.level ? 'open' : ''}`}>
+                  <ChevronDown size={16} />
+                </span>
+                <span className="level-group-name">Level {group.level}</span>
+                <span className="level-group-pct">{group.percentage}%</span>
+                <span className="level-group-stats">
+                  <span>{group.txns.length} transaction{group.txns.length !== 1 ? 's' : ''}</span>
+                  <span className="stat-total">{fmt(group.total)}</span>
+                </span>
+              </div>
+              {expandedLevel === group.level && (
+                <div className="level-group-children">
+                  {group.txns.map(txn => (
+                    <div className="level-group-child" key={txn._id}>
+                      <div className="level-group-child-grid">
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Received By</span>
+                          <span className="level-group-child-value">{txn.user?.name} ({txn.user?.email})</span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">From Member</span>
+                          <span className="level-group-child-value">{txn.investmentUser?.name || '—'}</span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Investment Amount</span>
+                          <span className="level-group-child-value">{fmt(txn.metadata?.investmentAmount)}</span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Percentage</span>
+                          <span className="level-group-child-value">{txn.metadata?.percentage || group.percentage}%</span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Income Amount</span>
+                          <span className="level-group-child-value">{fmt(txn.amount)}</span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Status</span>
+                          <span className="level-group-child-value"><StatusBadge status={txn.status} /></span>
+                        </div>
+                        <div className="level-group-child-field">
+                          <span className="level-group-child-label">Date</span>
+                          <span className="level-group-child-value">{fmtDate(txn.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
