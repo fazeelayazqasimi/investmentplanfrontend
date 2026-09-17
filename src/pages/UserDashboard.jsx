@@ -378,8 +378,8 @@ function UserOverview({ toastSuccess, toastError }) {
             <Share2 size={18} />
           </div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-text)' }}>
-              Hi, <span style={{ fontSize: 40, fontWeight: 800, color: 'var(--color-primary)' }}>{user?.name || 'there'}</span>!
+            <div style={{ fontWeight: 600, fontSize: 40, color: 'var(--color-text)' }}>
+              Hello, <span style={{ fontSize: 40, fontWeight: 800, color: 'var(--color-primary)' }}>{user?.name || 'there'}</span>!
             </div>
             <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Invite your friends and earn together</div>
           </div>
