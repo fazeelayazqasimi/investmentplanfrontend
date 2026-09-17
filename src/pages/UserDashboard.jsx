@@ -339,7 +339,6 @@ function UserOverview({ toastSuccess, toastError }) {
   if (error) return <ErrorBox message={error} />;
 
   const summary = [
-    { label: 'Total Investment', value: fmt(wallet?.totalInvestmentAmount), accent: 'stat-purple', icon: TrendingUp },
     { label: 'Main Wallet', value: fmt(wallet?.mainBalance), accent: 'stat-success', icon: CreditCard },
     { label: 'E-Wallet', value: fmt(wallet?.ewalletBalance), accent: 'stat-amber', icon: WalletIcon },
     { label: 'ROI Wallet', value: fmt(wallet?.roiBalance), accent: 'stat-info', icon: TrendingUp },
@@ -380,7 +379,7 @@ function UserOverview({ toastSuccess, toastError }) {
           </div>
           <div>
             <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-text)' }}>
-              Hi, {user?.name || 'there'}!
+              Hi, <span style={{ fontSize: 40, fontWeight: 800, color: 'var(--color-primary)' }}>{user?.name || 'there'}</span>!
             </div>
             <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Invite your friends and earn together</div>
           </div>
@@ -433,6 +432,19 @@ function UserOverview({ toastSuccess, toastError }) {
         </div>
       )}
 
+      {/* Total Investment - Full Width */}
+      <div className="wallet-card" style={{ marginBottom: 'var(--space-4)', background: '#111827', color: '#fff', border: 'none', width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Total Investment</div>
+            <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#fff' }}>
+              {fmt(wallet?.totalInvestmentAmount)}
+            </div>
+          </div>
+          <TrendingUp size={32} style={{ color: '#00C389' }} />
+        </div>
+      </div>
+
       {/* Wallet Stats */}
       <div className="stats-grid">
         {summary.map((s) => {
@@ -452,44 +464,44 @@ function UserOverview({ toastSuccess, toastError }) {
       {/* Progress Bars for 2X and 3X Milestones */}
       {progress && (
         <div>
-          {/* Per-Investment 2X Progress Cards */}
-          {progress.investments && progress.investments.length > 0 && (
-            <div style={{ marginBottom: 'var(--space-4)' }}>
-              {progress.investments.map((inv) => (
-                <div className="invest-progress-card" key={inv._id}>
-                  <div className="invest-progress-header">
-                    <div className="invest-progress-title">
-                      <TrendingUp size={16} />
-                      <span>Investment {fmt(inv.originalAmount)} — 2X Target: {fmt(inv.maxReturnAmount)}</span>
-                    </div>
-                    <span className={`invest-progress-badge ${inv.status.toLowerCase()}`}>{inv.status}</span>
-                  </div>
-                  <div className="progress-bar-track">
-                    <div className="progress-bar-fill green" style={{ width: `${Math.min(inv.percentage2x, 100)}%` }} />
-                  </div>
-                  <div className="invest-progress-info">
-                    <span>Returned: {fmt(inv.totalReturned)}</span>
-                    <span>{inv.percentage2x}%</span>
-                  </div>
-                  {inv.status === 'ACTIVE' && inv.remaining2x > 0 && (
-                    <div className="invest-progress-remaining">{fmt(inv.remaining2x)} remaining to reach 2X</div>
-                  )}
-                  {inv.status === 'COMPLETED' && (
-                    <div className="invest-progress-complete">2X Milestone Reached!</div>
-                  )}
-                  {inv.status === 'PAUSED' && (
-                    <div className="invest-progress-paused">Paused — will resume after current cycle</div>
-                  )}
+          {/* Combined 2X Progress */}
+          {progress.milestone2x > 0 && (
+            <div className="invest-progress-card" style={{ marginBottom: 'var(--space-4)' }}>
+              <div className="invest-progress-header">
+                <div className="invest-progress-title">
+                  <TrendingUp size={16} />
+                  <span>2X Return Target: {fmt(progress.milestone2x)}</span>
                 </div>
-              ))}
+                <span className={`invest-progress-badge ${progress.percentage2x >= 100 ? 'completed' : 'active'}`}>
+                  {progress.percentage2x >= 100 ? 'COMPLETED' : 'ACTIVE'}
+                </span>
+              </div>
+              <div className="progress-bar-track">
+                <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
+              </div>
+              <div className="invest-progress-info">
+                <span>Returned: {fmt(progress.progress2x)}</span>
+                <span>{progress.percentage2x}%</span>
+              </div>
+              {progress.remaining2x > 0 && (
+                <div className="invest-progress-remaining">{fmt(progress.remaining2x)} remaining to reach 2X</div>
+              )}
+              {progress.percentage2x >= 100 && (
+                <div className="invest-progress-complete">2X Milestone Reached!</div>
+              )}
+              {progress.cycle2xCompletions > 0 && (
+                <div style={{ marginTop: 6, fontSize: 'var(--font-size-xs)', color: 'var(--color-success)', fontWeight: 500 }}>
+                  ✅ 2X completed {progress.cycle2xCompletions} time{progress.cycle2xCompletions > 1 ? 's' : ''}
+                </div>
+              )}
             </div>
           )}
 
           {/* Global 3X Cap */}
           <div className="progress-section">
-            <div className="progress-card">
+            <div className="progress-card progress-3x">
               <div className="progress-header">
-                <div className="progress-label">
+                <div className="progress-title">
                   <BarChart3 size={18} />
                   <span>Income 3X Cap</span>
                 </div>
@@ -784,36 +796,36 @@ function UserInvestments({ toastSuccess, toastError }) {
       {/* Progress Bars */}
       {progress && (
         <div>
-          {/* Per-Investment 2X Progress Cards */}
-          {progress.investments && progress.investments.length > 0 && (
-            <div style={{ marginBottom: 'var(--space-4)' }}>
-              {progress.investments.map((inv) => (
-                <div className="invest-progress-card" key={inv._id}>
-                  <div className="invest-progress-header">
-                    <div className="invest-progress-title">
-                      <TrendingUp size={16} />
-                      <span>Investment {fmt(inv.originalAmount)} — 2X Target: {fmt(inv.maxReturnAmount)}</span>
-                    </div>
-                    <span className={`invest-progress-badge ${inv.status.toLowerCase()}`}>{inv.status}</span>
-                  </div>
-                  <div className="progress-bar-track">
-                    <div className="progress-bar-fill green" style={{ width: `${Math.min(inv.percentage2x, 100)}%` }} />
-                  </div>
-                  <div className="invest-progress-info">
-                    <span>Returned: {fmt(inv.totalReturned)}</span>
-                    <span>{inv.percentage2x}%</span>
-                  </div>
-                  {inv.status === 'ACTIVE' && inv.remaining2x > 0 && (
-                    <div className="invest-progress-remaining">{fmt(inv.remaining2x)} remaining to reach 2X</div>
-                  )}
-                  {inv.status === 'COMPLETED' && (
-                    <div className="invest-progress-complete">2X Milestone Reached!</div>
-                  )}
-                  {inv.status === 'PAUSED' && (
-                    <div className="invest-progress-paused">Paused — will resume after current cycle</div>
-                  )}
+          {/* Combined 2X Progress */}
+          {progress.milestone2x > 0 && (
+            <div className="invest-progress-card" style={{ marginBottom: 'var(--space-4)' }}>
+              <div className="invest-progress-header">
+                <div className="invest-progress-title">
+                  <TrendingUp size={16} />
+                  <span>2X Return Target: {fmt(progress.milestone2x)}</span>
                 </div>
-              ))}
+                <span className={`invest-progress-badge ${progress.percentage2x >= 100 ? 'completed' : 'active'}`}>
+                  {progress.percentage2x >= 100 ? 'COMPLETED' : 'ACTIVE'}
+                </span>
+              </div>
+              <div className="progress-bar-track">
+                <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
+              </div>
+              <div className="invest-progress-info">
+                <span>Returned: {fmt(progress.progress2x)}</span>
+                <span>{progress.percentage2x}%</span>
+              </div>
+              {progress.remaining2x > 0 && (
+                <div className="invest-progress-remaining">{fmt(progress.remaining2x)} remaining to reach 2X</div>
+              )}
+              {progress.percentage2x >= 100 && (
+                <div className="invest-progress-complete">2X Milestone Reached!</div>
+              )}
+              {progress.cycle2xCompletions > 0 && (
+                <div style={{ marginTop: 6, fontSize: 'var(--font-size-xs)', color: 'var(--color-success)', fontWeight: 500 }}>
+                  ✅ 2X completed {progress.cycle2xCompletions} time{progress.cycle2xCompletions > 1 ? 's' : ''}
+                </div>
+              )}
             </div>
           )}
 
@@ -2048,36 +2060,36 @@ function UserRoi() {
       {/* Progress Bars */}
       {progress && (
         <div>
-          {/* Per-Investment 2X Progress Cards */}
-          {progress.investments && progress.investments.length > 0 && (
-            <div style={{ marginBottom: 'var(--space-4)' }}>
-              {progress.investments.map((inv) => (
-                <div className="invest-progress-card" key={inv._id}>
-                  <div className="invest-progress-header">
-                    <div className="invest-progress-title">
-                      <TrendingUp size={16} />
-                      <span>Investment {fmt(inv.originalAmount)} — 2X Target: {fmt(inv.maxReturnAmount)}</span>
-                    </div>
-                    <span className={`invest-progress-badge ${inv.status.toLowerCase()}`}>{inv.status}</span>
-                  </div>
-                  <div className="progress-bar-track">
-                    <div className="progress-bar-fill green" style={{ width: `${Math.min(inv.percentage2x, 100)}%` }} />
-                  </div>
-                  <div className="invest-progress-info">
-                    <span>Returned: {fmt(inv.totalReturned)}</span>
-                    <span>{inv.percentage2x}%</span>
-                  </div>
-                  {inv.status === 'ACTIVE' && inv.remaining2x > 0 && (
-                    <div className="invest-progress-remaining">{fmt(inv.remaining2x)} remaining to reach 2X</div>
-                  )}
-                  {inv.status === 'COMPLETED' && (
-                    <div className="invest-progress-complete">2X Milestone Reached!</div>
-                  )}
-                  {inv.status === 'PAUSED' && (
-                    <div className="invest-progress-paused">Paused — will resume after current cycle</div>
-                  )}
+          {/* Combined 2X Progress */}
+          {progress.milestone2x > 0 && (
+            <div className="invest-progress-card" style={{ marginBottom: 'var(--space-4)' }}>
+              <div className="invest-progress-header">
+                <div className="invest-progress-title">
+                  <TrendingUp size={16} />
+                  <span>2X Return Target: {fmt(progress.milestone2x)}</span>
                 </div>
-              ))}
+                <span className={`invest-progress-badge ${progress.percentage2x >= 100 ? 'completed' : 'active'}`}>
+                  {progress.percentage2x >= 100 ? 'COMPLETED' : 'ACTIVE'}
+                </span>
+              </div>
+              <div className="progress-bar-track">
+                <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
+              </div>
+              <div className="invest-progress-info">
+                <span>Returned: {fmt(progress.progress2x)}</span>
+                <span>{progress.percentage2x}%</span>
+              </div>
+              {progress.remaining2x > 0 && (
+                <div className="invest-progress-remaining">{fmt(progress.remaining2x)} remaining to reach 2X</div>
+              )}
+              {progress.percentage2x >= 100 && (
+                <div className="invest-progress-complete">2X Milestone Reached!</div>
+              )}
+              {progress.cycle2xCompletions > 0 && (
+                <div style={{ marginTop: 6, fontSize: 'var(--font-size-xs)', color: 'var(--color-success)', fontWeight: 500 }}>
+                  ✅ 2X completed {progress.cycle2xCompletions} time{progress.cycle2xCompletions > 1 ? 's' : ''}
+                </div>
+              )}
             </div>
           )}
 
