@@ -21,6 +21,7 @@ import apiClient, {
   getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement, toggleAnnouncement,
   getAdminConversations, getAdminChatMessages, sendAdminMessage, updateConversationStatus,
   activateUser, deactivateUser, suspendUser, deleteUser,
+  updateAdminUserCredentials, adjustAdminUserWallet, getAdminWithdrawals,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -165,7 +166,7 @@ export default function AdminDashboard() {
           {page === 'users' && <AdminUsers toastSuccess={success} toastError={toastError} />}
           {page === 'investments' && <AdminInvestments />}
           {page === 'deposits' && <AdminDeposits toastSuccess={success} toastError={toastError} />}
-          {page === 'withdrawals' && <AdminWithdrawals />}
+          {page === 'withdrawals' && <AdminWithdrawals toastSuccess={success} toastError={toastError} />}
           {page === 'transactions' && <AdminTransactions />}
           {page === 'roi' && <AdminRoi toastSuccess={success} toastError={toastError} />}
           {page === 'referrals' && <AdminReferrals />}
@@ -424,6 +425,15 @@ function UserDetailModal({ detail, loading, onClose, onAction }) {
   const [actionLoading, setActionLoading] = useState('');
   const [suspendDate, setSuspendDate] = useState('');
   const [showSuspendInput, setShowSuspendInput] = useState(false);
+  const [credEmail, setCredEmail] = useState('');
+  const [credPassword, setCredPassword] = useState('');
+  const [credBusy, setCredBusy] = useState(false);
+  const [credMsg, setCredMsg] = useState('');
+  const [adjField, setAdjField] = useState('mainBalance');
+  const [adjAmount, setAdjAmount] = useState('');
+  const [adjDesc, setAdjDesc] = useState('');
+  const [adjBusy, setAdjBusy] = useState(false);
+  const [adjMsg, setAdjMsg] = useState('');
   const d = detail;
 
   const handleAction = async (action) => {
@@ -444,6 +454,40 @@ function UserDetailModal({ detail, loading, onClose, onAction }) {
     } finally {
       setActionLoading('');
     }
+  };
+
+  const handleUpdateCredentials = async () => {
+    if (!credEmail.trim() && !credPassword.trim()) { setCredMsg('Enter email or password to update'); return; }
+    setCredBusy(true);
+    setCredMsg('');
+    try {
+      const payload = {};
+      if (credEmail.trim()) payload.email = credEmail.trim();
+      if (credPassword.trim()) payload.password = credPassword.trim();
+      const res = await updateAdminUserCredentials(d.user._id, payload);
+      setCredMsg(res.message || 'Credentials updated');
+      setCredEmail('');
+      setCredPassword('');
+      if (onAction) onAction();
+    } catch (err) { setCredMsg(err.response?.data?.message || 'Update failed'); }
+    finally { setCredBusy(false); }
+  };
+
+  const handleAdjustWallet = async (sign) => {
+    const amt = Number(adjAmount);
+    if (!amt || amt === 0) { setAdjMsg('Enter a valid amount'); return; }
+    setAdjBusy(true);
+    setAdjMsg('');
+    try {
+      const payload = { balanceField: adjField, amount: sign === 'deduct' ? -Math.abs(amt) : Math.abs(amt) };
+      if (adjDesc.trim()) payload.description = adjDesc.trim();
+      const res = await adjustAdminUserWallet(d.user._id, payload);
+      setAdjMsg(res.message || 'Wallet adjusted');
+      setAdjAmount('');
+      setAdjDesc('');
+      if (onAction) onAction();
+    } catch (err) { setAdjMsg(err.response?.data?.message || 'Adjustment failed'); }
+    finally { setAdjBusy(false); }
   };
 
   return (
@@ -495,7 +539,7 @@ function UserDetailModal({ detail, loading, onClose, onAction }) {
       {loading ? <Spinner label="Loading..." /> : (
         <div>
           <div className="tabs" style={{ marginBottom: 16 }}>
-            {['info', 'wallet', 'deposits', 'transactions', 'investments', 'roi', 'referrals'].map((t) => (
+            {['info', 'wallet', 'deposits', 'transactions', 'investments', 'roi', 'referrals', 'manage'].map((t) => (
               <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>
             ))}
           </div>
@@ -541,6 +585,50 @@ function UserDetailModal({ detail, loading, onClose, onAction }) {
                 <div className="detail-item"><span className="k">Direct Referrals</span><span className="v">{d.referrals.downlines.length}</span></div>
               </div>
                <SimpleTable rows={d.referrals.downlines} cols={[['name', 'Name'], ['email', 'Email'], ['accountStatus', 'Status'], ['createdAt', 'Joined']]} />
+            </div>
+          )}
+
+          {tab === 'manage' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Update Credentials */}
+              <div>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: 14, fontWeight: 600 }}>Update Credentials</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360 }}>
+                  <input className="form-input" type="email" placeholder="New email" value={credEmail} onChange={(e) => setCredEmail(e.target.value)} />
+                  <input className="form-input" type="password" placeholder="New password (min 8 chars)" value={credPassword} onChange={(e) => setCredPassword(e.target.value)} />
+                  {credMsg && <div style={{ fontSize: 12, color: credMsg.includes('fail') || credMsg.includes('Invalid') ? '#dc2626' : '#16a34a' }}>{credMsg}</div>}
+                  <button className="btn btn-primary btn-sm" onClick={handleUpdateCredentials} disabled={credBusy || (!credEmail.trim() && !credPassword.trim())} style={{ alignSelf: 'flex-start' }}>
+                    {credBusy ? 'Saving...' : 'Save Credentials'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Adjust Wallet */}
+              <div>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: 14, fontWeight: 600 }}>Adjust Wallet Balance</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360 }}>
+                  <select className="form-input" value={adjField} onChange={(e) => setAdjField(e.target.value)}>
+                    <option value="mainBalance">Main Wallet</option>
+                    <option value="roiBalance">ROI Wallet</option>
+                    <option value="commissionBalance">Commission Wallet</option>
+                    <option value="ewalletBalance">E-Wallet</option>
+                    <option value="profitShareBalance">Profit Share Wallet</option>
+                    <option value="pendingCommissions">Pending Commissions</option>
+                    <option value="fundBalance">Fund Wallet</option>
+                  </select>
+                  <input className="form-input" type="number" placeholder="Amount (positive = add, negative = deduct)" value={adjAmount} onChange={(e) => setAdjAmount(e.target.value)} />
+                  <input className="form-input" type="text" placeholder="Reason (optional)" value={adjDesc} onChange={(e) => setAdjDesc(e.target.value)} />
+                  {adjMsg && <div style={{ fontSize: 12, color: adjMsg.includes('fail') || adjMsg.includes('Invalid') || adjMsg.includes('Insufficient') ? '#dc2626' : '#16a34a' }}>{adjMsg}</div>}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-success btn-sm" onClick={() => handleAdjustWallet('add')} disabled={adjBusy || !adjAmount}>
+                      {adjBusy ? 'Processing...' : 'Add Funds'}
+                    </button>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleAdjustWallet('deduct')} disabled={adjBusy || !adjAmount}>
+                      {adjBusy ? 'Processing...' : 'Deduct Funds'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -741,7 +829,60 @@ function AdminDeposits({ toastSuccess, toastError }) {
    WITHDRAWALS (not implemented backend)
    ========================================================= */
 function AdminWithdrawals() {
-  return <EmptyState title="Withdrawals not enabled" subtitle="The withdrawal feature is not available on this platform yet." />;
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await getAdminWithdrawals({ limit: 100 });
+      setRows(data.data?.transactions || []);
+    } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleApprove = async (id) => {
+    if (!window.confirm('Approve this withdrawal?')) return;
+    try {
+      await apiClient.post(`/admin/users/${id}/withdraw`);
+      toast('Withdrawal approved', 'success');
+      load();
+    } catch (e) { toast(e.response?.data?.message || 'Failed', 'error'); }
+  };
+
+  if (loading) return <Spinner label="Loading withdrawals..." />;
+  if (error) return <ErrorBox message={error} />;
+
+  return (
+    <div>
+      <div className="page-header">
+        <div><h2>Withdrawal Requests</h2></div>
+        <button className="btn btn-secondary btn-sm" onClick={load}><RefreshCw size={14} /> Refresh</button>
+      </div>
+      <div className="table-card">
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead><tr><th>User</th><th>Amount</th><th>Wallet</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody>
+              {rows.length === 0 && <tr><td colSpan={5} className="table-empty">No withdrawal requests</td></tr>}
+              {rows.map((r) => (
+                <tr key={r._id}>
+                  <td data-label="User" className="cell-strong">{r.user?.name}</td>
+                  <td data-label="Amount">{fmt(Math.abs(r.amount))}</td>
+                  <td data-label="Wallet">{r.description?.includes('mainBalance') ? 'Main' : r.description?.includes('roiBalance') ? 'ROI' : r.description?.includes('ewalletBalance') ? 'E-Wallet' : 'Other'}</td>
+                  <td data-label="Date">{fmtDate(r.createdAt)}</td>
+                  <td data-label="Status"><StatusBadge status={r.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* =========================================================

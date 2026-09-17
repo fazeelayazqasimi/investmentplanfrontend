@@ -14,6 +14,7 @@ import apiClient, {
   transferFundToUser, getTransferSettings, getProgressData,
   transferMainToFund, activateAccountWithSource, investForDownline, getMyDownlines,
   getBankAccounts, getActiveAnnouncements, searchMyDownlines,
+  requestWithdrawal as requestWithdrawalApi,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -338,6 +339,7 @@ function UserOverview({ toastSuccess, toastError }) {
   if (error) return <ErrorBox message={error} />;
 
   const summary = [
+    { label: 'Total Investment', value: fmt(wallet?.totalInvestmentAmount), accent: 'stat-purple', icon: TrendingUp },
     { label: 'Main Wallet', value: fmt(wallet?.mainBalance), accent: 'stat-success', icon: CreditCard },
     { label: 'E-Wallet', value: fmt(wallet?.ewalletBalance), accent: 'stat-amber', icon: WalletIcon },
     { label: 'ROI Wallet', value: fmt(wallet?.roiBalance), accent: 'stat-info', icon: TrendingUp },
@@ -367,13 +369,8 @@ function UserOverview({ toastSuccess, toastError }) {
         borderRadius: 'var(--radius-xl)',
         padding: '20px 24px',
         marginBottom: 'var(--space-5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 12,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 10,
             background: 'var(--color-primary)', color: '#fff',
@@ -382,17 +379,23 @@ function UserOverview({ toastSuccess, toastError }) {
             <Share2 size={18} />
           </div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--color-text)' }}>Refer & Earn</div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Share your link and earn income from referrals</div>
+            <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-text)' }}>
+              Hi, {user?.name || 'there'}!
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Invite your friends and earn together</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 280 }}>
+        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 10 }}>
+          Share your referral link below to start earning referral commissions.
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <input
             readOnly
             value={referralLink}
             style={{
               flex: 1, padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: 8,
               fontSize: 13, background: 'var(--color-surface)', color: 'var(--color-text)', fontFamily: 'monospace',
+              minWidth: 200,
             }}
           />
           <button className="btn btn-primary btn-sm" onClick={copyReferral} style={{ flexShrink: 0 }}>
@@ -1015,6 +1018,11 @@ function UserWallet({ toastSuccess, toastError }) {
   const [downlineSuggestions, setDownlineSuggestions] = useState([]);
   const [selectedDownline, setSelectedDownline] = useState(null);
   const [searchBusy, setSearchBusy] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawField, setWithdrawField] = useState('mainBalance');
+  const [withdrawBusy, setWithdrawBusy] = useState(false);
+  const [withdrawError, setWithdrawError] = useState('');
+  const [withdrawSuccess, setWithdrawSuccess] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1115,6 +1123,22 @@ function UserWallet({ toastSuccess, toastError }) {
       await load();
     } catch (er) { setFundError(er.response?.data?.message || 'Transfer failed'); toastError('Transfer Failed', er.response?.data?.message); }
     finally { setFundBusy(false); }
+  };
+
+  const handleWithdraw = async () => {
+    setWithdrawBusy(true);
+    setWithdrawError('');
+    setWithdrawSuccess('');
+    const amt = Number(withdrawAmount);
+    if (!amt || amt <= 0) { setWithdrawError('Enter a valid amount'); setWithdrawBusy(false); return; }
+    try {
+      const res = await requestWithdrawalApi({ amount: amt, balanceField: withdrawField });
+      setWithdrawSuccess(res.message || 'Your withdrawal request has been submitted. It will be processed within 72 hours.');
+      toastSuccess('Withdrawal Submitted', res.message || 'Your withdrawal will be processed within 72 hours.');
+      setWithdrawAmount('');
+      await load();
+    } catch (er) { setWithdrawError(er.response?.data?.message || 'Withdrawal failed'); toastError('Withdrawal Failed', er.response?.data?.message); }
+    finally { setWithdrawBusy(false); }
   };
 
   let searchDebounceRef = null;
@@ -1403,7 +1427,37 @@ function UserWallet({ toastSuccess, toastError }) {
       )}
 
       {tab === 'withdraw' && (
-        <EmptyState title="Withdrawals not enabled" subtitle="Withdrawal requests are not supported on this platform yet." />
+        <div className="panel">
+          <h3>Request Withdrawal</h3>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Withdrawal requests are processed within 72 hours. Select the wallet and enter the amount to withdraw.
+          </p>
+          {withdrawSuccess && (
+            <div style={{ padding: '12px 16px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: 8, marginBottom: 12, fontSize: 13, color: '#16a34a', fontWeight: 500 }}>
+              {withdrawSuccess}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 400 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">From Wallet</label>
+              <select className="form-input" value={withdrawField} onChange={(e) => setWithdrawField(e.target.value)}>
+                <option value="mainBalance">Main Wallet ({fmt(wallet?.mainBalance)})</option>
+                <option value="roiBalance">ROI Wallet ({fmt(wallet?.roiBalance)})</option>
+                <option value="ewalletBalance">E-Wallet ({fmt(wallet?.ewalletBalance)})</option>
+                <option value="profitShareBalance">Profit Share ({fmt(wallet?.profitShareBalance)})</option>
+                <option value="fundBalance">Fund Wallet ({fmt(wallet?.fundBalance)})</option>
+              </select>
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Amount</label>
+              <input className="form-input" type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} placeholder="0.00" min="0.01" />
+            </div>
+            {withdrawError && <ErrorBox message={withdrawError} />}
+            <button className="btn btn-primary btn-sm" onClick={handleWithdraw} disabled={withdrawBusy || !withdrawAmount} style={{ alignSelf: 'flex-start' }}>
+              {withdrawBusy ? 'Submitting...' : 'Submit Withdrawal Request'}
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="page-header" style={{ marginTop: 'var(--space-6)' }}>

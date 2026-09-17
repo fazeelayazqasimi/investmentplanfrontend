@@ -447,6 +447,20 @@ export const sendUserMessage = async (id, message) => {
   return data;
 };
 
+export const sendUserMessageWithImages = async (id, formData) => {
+  const { data } = await apiClient.post(`/chat/user/conversations/${id}/messages`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+};
+
+export const createUserConversationWithImages = async (formData) => {
+  const { data } = await apiClient.post('/chat/user/conversations', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+};
+
 export const closeConversation = async (id) => {
   const { data } = await apiClient.patch(`/chat/user/conversations/${id}/close`);
   return data;
@@ -475,5 +489,35 @@ export const updateConversationStatus = async (id, status) => {
 
 export const getAdminChatUnread = async () => {
   const { data } = await apiClient.get('/chat/admin/unread');
+  return data;
+};
+
+// Admin: User credentials update
+export const updateAdminUserCredentials = async (id, payload) => {
+  const { data } = await apiClient.patch(`/admin/users/${id}/credentials`, payload);
+  return data;
+};
+
+// Admin: Adjust user wallet
+export const adjustAdminUserWallet = async (id, payload) => {
+  const { data } = await apiClient.post(`/admin/users/${id}/wallet/adjust`, payload);
+  return data;
+};
+
+// Admin: Request withdrawal for user
+export const adminRequestWithdrawal = async (id, payload) => {
+  const { data } = await apiClient.post(`/admin/users/${id}/withdraw`, payload);
+  return data;
+};
+
+// Admin: List withdrawals
+export const getAdminWithdrawals = async (params = {}) => {
+  const { data } = await apiClient.get('/admin/withdrawals', { params });
+  return data;
+};
+
+// User: Request withdrawal
+export const requestWithdrawal = async (payload) => {
+  const { data } = await apiClient.post('/wallet/withdraw', payload);
   return data;
 };
