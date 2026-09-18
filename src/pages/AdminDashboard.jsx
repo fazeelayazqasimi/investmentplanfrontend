@@ -93,7 +93,7 @@ export default function AdminDashboard() {
     <div className="dashboard-layout">
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-logo"><img src={logoHeader} alt="Fin Rise Global" style={{ width: 28, height: 28, borderRadius: 6 }} /></div>
+          <div className="sidebar-logo"><img src={logoHeader} alt="FinRise Global" style={{ width: 28, height: 28, borderRadius: 6 }} /></div>
           <div>
             <div className="sidebar-title">Admin Panel</div>
             <div className="sidebar-subtitle">Platform Management</div>

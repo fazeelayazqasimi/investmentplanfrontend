@@ -388,7 +388,7 @@ export default function LandingPage() {
         <div className="l-container">
           <div className="l-nav-inner">
             <Link to="/" className="l-nav-logo">
-              <img src={theme === 'dark' ? logoWhite : logoBlack} alt="Fin Rise Global" className="l-nav-logo-img" />
+              <img src={theme === 'dark' ? logoWhite : logoBlack} alt="FinRise Global" className="l-nav-logo-img" />
             </Link>
             <ul className="l-nav-links">
               <li><a href="#intro" className="l-nav-link">About</a></li>
@@ -424,7 +424,7 @@ export default function LandingPage() {
               <span className="line"><span className="accent">Money</span> Smarter</span>
             </h1>
             <p className="l-hero-desc">
-              Fin Rise Global gives you the tools to invest, earn daily returns, and grow a referral network — all from one platform.
+              FinRise Global gives you the tools to invest, earn daily returns, and grow a referral network — all from one platform.
             </p>
             <div className="l-hero-ctas">
               <Link to="/register" className="l-hero-cta-primary">
@@ -448,7 +448,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="l-hero-visual">
-            <img src={companyLogo} alt="Fin Rise Global" className="l-hero-logo" />
+            <img src={companyLogo} alt="FinRise Global" className="l-hero-logo" />
           </div>
         </div>
       </section>
@@ -745,7 +745,7 @@ export default function LandingPage() {
           <div className="l-cta-inner gsap-reveal">
             <h2 className="l-cta-title">Ready to Grow<br />Your Wealth?</h2>
             <p className="l-cta-text">
-              Join thousands of investors building their financial future with Fin Rise Global.
+              Join thousands of investors building their financial future with FinRise Global.
             </p>
             <Link to="/register" className="l-cta-btn">
               Create Free Account <ArrowRight size={18} />
@@ -759,7 +759,7 @@ export default function LandingPage() {
         <div className="l-container">
           <div className="l-footer-grid">
             <div className="l-footer-brand-col">
-              <img src={logoWhite} alt="Fin Rise Global" className="l-footer-logo" />
+              <img src={logoWhite} alt="FinRise Global" className="l-footer-logo" />
               <p className="l-footer-text">
                 Empowering financial growth through smart investment solutions and transparent practices.
               </p>
@@ -793,7 +793,7 @@ export default function LandingPage() {
           </div>
           <div className="l-footer-bottom">
             <span className="l-footer-bottom-text">
-              &copy; {new Date().getFullYear()} Fin Rise Global. All rights reserved.
+              &copy; {new Date().getFullYear()} FinRise Global. All rights reserved.
             </span>
           </div>
         </div>

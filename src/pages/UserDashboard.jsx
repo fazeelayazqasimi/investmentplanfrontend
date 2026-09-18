@@ -40,8 +40,6 @@ const NAV = [
   { key: 'wallet', label: 'Wallet', icon: WalletIcon, to: '/dashboard/wallet' },
   { key: 'transactions', label: 'Transactions', icon: Receipt, to: '/dashboard/transactions' },
   { key: 'income', label: 'Income', icon: DollarSign, to: '/dashboard/income' },
-  { key: 'direct-income', label: 'Direct Income', icon: DollarSign, to: '/dashboard/direct-income' },
-  { key: 'level-income', label: 'Level Income', icon: BarChart3, to: '/dashboard/level-income' },
   { key: 'roi', label: 'ROI', icon: Percent, to: '/dashboard/roi' },
   { key: 'referrals', label: 'Referrals', icon: Share2, to: '/dashboard/referrals' },
   { key: 'profile', label: 'Profile', icon: UserIcon, to: '/dashboard/profile' },
@@ -96,10 +94,9 @@ export default function UserDashboard() {
     <div className="dashboard-layout">
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-logo"><img src={logoHeader} alt="Fin Rise Global" style={{ width: 28, height: 28, borderRadius: 6 }} /></div>
+          <div className="sidebar-logo"><img src={logoHeader} alt="FinRise Global" style={{ width: 28, height: 28, borderRadius: 6 }} /></div>
           <div>
             <div className="sidebar-title">My Account</div>
-            <div className="sidebar-subtitle">Investment Platform</div>
           </div>
         </div>
         <nav className="sidebar-nav">

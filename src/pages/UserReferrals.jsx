@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Users, UserCheck, UserX, TrendingUp, DollarSign, Search, ChevronDown, ChevronRight,
   Copy, CheckCircle, ArrowUpRight, Network, Filter, X, ZoomIn, ZoomOut, Maximize2,
-  Minimize2, RotateCcw, Wallet, BarChart3, Target, Activity, Clock, Eye, EyeOff,
+  Minimize2, RotateCcw, Wallet, BarChart3, Target, Activity, Clock,
   ChevronLeft, LayoutGrid, List,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -328,7 +328,6 @@ function IndirectTab({ members }) {
    MEMBER CARD
    ========================================================= */
 function MemberCard({ member: m, showIncome }) {
-  const [expanded, setExpanded] = useState(false);
   const isActive = m.isActivated && m.accountStatus === 'ACTIVE';
 
   return (
@@ -375,41 +374,7 @@ function MemberCard({ member: m, showIncome }) {
         </div>
       </div>
 
-      {m.wallet && (
-        <div className="ref-member-expand">
-          <button className="ref-expand-btn" onClick={() => setExpanded(!expanded)}>
-            {expanded ? <><EyeOff size={14} /> Hide Wallet</> : <><Eye size={14} /> View Wallet</>}
-          </button>
-          {expanded && (
-            <div className="ref-wallet-grid">
-              <div className="ref-wallet-item blue">
-                <Wallet size={14} />
-                <span>Main: {fmt(m.wallet.mainBalance)}</span>
-              </div>
-              <div className="ref-wallet-item green">
-                <TrendingUp size={14} />
-                <span>ROI: {fmt(m.wallet.roiBalance)}</span>
-              </div>
-              <div className="ref-wallet-item yellow">
-                <BarChart3 size={14} />
-                <span>E-Wallet: {fmt(m.wallet.ewalletBalance)}</span>
-              </div>
-              <div className="ref-wallet-item purple">
-                <Target size={14} />
-                <span>Profit: {fmt(m.wallet.profitShareBalance)}</span>
-              </div>
-              <div className="ref-wallet-item red">
-                <Clock size={14} />
-                <span>Pending: {fmt(m.wallet.pendingCommissions)}</span>
-              </div>
-              <div className="ref-wallet-item teal">
-                <DollarSign size={14} />
-                <span>Total: {fmt(m.wallet.totalEarnings)}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+
     </div>
   );
 }
@@ -701,37 +666,7 @@ function NodeDetailPanel({ node, onClose }) {
           </div>
         </div>
 
-        {node.wallet && (
-          <div className="tree-detail-wallet">
-            <h4>Wallet Summary</h4>
-            <div className="tree-detail-wallet-grid">
-              <div className="tree-detail-wallet-item blue">
-                <span>Main Wallet</span>
-                <strong>{fmt(node.wallet.mainBalance)}</strong>
-              </div>
-              <div className="tree-detail-wallet-item green">
-                <span>ROI Wallet</span>
-                <strong>{fmt(node.wallet.roiBalance)}</strong>
-              </div>
-              <div className="tree-detail-wallet-item yellow">
-                <span>E-Wallet</span>
-                <strong>{fmt(node.wallet.ewalletBalance)}</strong>
-              </div>
-              <div className="tree-detail-wallet-item purple">
-                <span>Profit Share</span>
-                <strong>{fmt(node.wallet.profitShareBalance)}</strong>
-              </div>
-              <div className="tree-detail-wallet-item red">
-                <span>Pending</span>
-                <strong>{fmt(node.wallet.pendingCommissions)}</strong>
-              </div>
-              <div className="tree-detail-wallet-item teal">
-                <span>Total Earnings</span>
-                <strong>{fmt(node.wallet.totalEarnings)}</strong>
-              </div>
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );

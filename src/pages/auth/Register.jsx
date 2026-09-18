@@ -74,7 +74,7 @@ function Register() {
       <div className="auth-branding">
         <div className="auth-branding-content">
           <div className="auth-logo">
-            <img src={logoHeader} alt="Fin Rise Global" style={{ width: 40, height: 40, borderRadius: 8 }} />
+            <img src={logoHeader} alt="FinRise Global" style={{ width: 40, height: 40, borderRadius: 8 }} />
           </div>
           <h1>Start Investing Today</h1>
           <p>
