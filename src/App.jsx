@@ -9,7 +9,6 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import UserDashboard from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
-
 function App() {
   const { user, isLoading } = useAuth();
   const location = useLocation();

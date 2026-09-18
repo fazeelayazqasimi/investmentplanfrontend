@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, LineChart, Wallet as WalletIcon, Receipt, Percent, Share2, User as UserIcon,
   LogOut, Loader2, AlertCircle, TrendingUp, ArrowDownToLine, Menu, X, CheckCircle,
-  BarChart3, CreditCard, Users, ArrowRightLeft, DollarSign, Copy, ChevronDown, Megaphone,
+  BarChart3, CreditCard, Users, ArrowRightLeft, DollarSign, Copy, ChevronDown, Megaphone, Trophy,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -26,6 +26,7 @@ import Modal from '../components/Modal';
 import StatusBadge from '../components/StatusBadge';
 import useToast from '../components/useToast';
 import UserReferrals from './UserReferrals';
+import UserRanksContent from './UserRanks';
 import ChatWidget from '../components/ChatWidget';
 import logoHeader from '../images/favicon.png';
 
@@ -42,6 +43,7 @@ const NAV = [
   { key: 'income', label: 'Income', icon: DollarSign, to: '/dashboard/income' },
   { key: 'roi', label: 'ROI', icon: Percent, to: '/dashboard/roi' },
   { key: 'referrals', label: 'Referrals', icon: Share2, to: '/dashboard/referrals' },
+  { key: 'ranks', label: 'My Rank', icon: Trophy, to: '/dashboard/ranks' },
   { key: 'announcements', label: 'Announcements', icon: Megaphone, to: '/dashboard/announcements' },
   { key: 'profile', label: 'Profile', icon: UserIcon, to: '/dashboard/profile' },
 ];
@@ -215,6 +217,7 @@ export default function UserDashboard() {
           {page === 'roi' && <UserRoi />}
           {page === 'referrals' && <UserReferrals />}
           {page === 'announcements' && <UserAnnouncements />}
+          {page === 'ranks' && <UserRanksContent />}
           {page === 'profile' && <UserProfile toastSuccess={success} toastError={toastError} />}
         </div>
       </div>

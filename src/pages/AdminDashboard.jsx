@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronRight, ChevronLeft, ZoomIn, ZoomOut,
   Maximize2, Minimize2, RotateCcw, X, UserCheck, UserX,
   Filter, Download, RefreshCw, ArrowUpDown, Network,
-  DollarSign, Activity, TrendingUp, Megaphone, MessageSquare, Send, Layers, Upload,
+  DollarSign, Activity, TrendingUp, Megaphone, MessageSquare, Send, Layers, Upload, Trophy,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -35,6 +35,7 @@ import Modal from '../components/Modal';
 import StatusBadge from '../components/StatusBadge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import useToast from '../components/useToast';
+import AdminRanksContent from './AdminRanks';
 
 const CHART_COLORS = ['var(--chart-color-1)', 'var(--chart-color-2)', 'var(--chart-color-3)', 'var(--chart-color-4)', 'var(--chart-color-5)', 'var(--chart-color-6)'];
 
@@ -66,6 +67,7 @@ function ResponsiveContainerWrap({ height, children }) {
     { key: 'profit-share-levels', label: 'Profit Share Levels', icon: Percent, to: '/admin/profit-share-levels' },
     { key: 'announcements', label: 'Announcements', icon: Megaphone, to: '/admin/announcements' },
     { key: 'support', label: 'Support Chat', icon: MessageSquare, to: '/admin/support' },
+    { key: 'ranks', label: 'Ranks', icon: Trophy, to: '/admin/ranks' },
     { key: 'reports', label: 'Reports', icon: FileBarChart, to: '/admin/reports' },
     { key: 'settings', label: 'Settings', icon: Settings, to: '/admin/settings' },
   ];
@@ -175,6 +177,7 @@ export default function AdminDashboard() {
           {page === 'announcements' && <AdminAnnouncements toastSuccess={success} toastError={toastError} />}
           {page === 'support' && <AdminSupportChat toastSuccess={success} toastError={toastError} />}
           {page === 'reports' && <AdminReports />}
+          {page === 'ranks' && <AdminRanksContent toastSuccess={success} toastError={toastError} />}
           {page === 'settings' && <AdminSettings toastSuccess={success} toastError={toastError} />}
         </div>
         </div>

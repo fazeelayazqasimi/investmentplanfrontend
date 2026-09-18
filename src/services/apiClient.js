@@ -521,3 +521,49 @@ export const requestWithdrawal = async (payload) => {
   const { data } = await apiClient.post('/wallet/withdraw', payload);
   return data;
 };
+
+// ==================== RANKS ====================
+export const getRanks = async () => {
+  const { data } = await apiClient.get('/ranks');
+  return data;
+};
+
+export const createRank = async (payload) => {
+  const { data } = await apiClient.post('/ranks', payload);
+  return data;
+};
+
+export const updateRank = async (id, payload) => {
+  const { data } = await apiClient.put(`/ranks/${id}`, payload);
+  return data;
+};
+
+export const deleteRank = async (id) => {
+  const { data } = await apiClient.delete(`/ranks/${id}`);
+  return data;
+};
+
+export const toggleRank = async (id) => {
+  const { data } = await apiClient.patch(`/ranks/${id}/toggle`);
+  return data;
+};
+
+export const recalculateRanks = async () => {
+  const { data } = await apiClient.post('/ranks/recalculate');
+  return data;
+};
+
+export const getMyRank = async () => {
+  const { data } = await apiClient.get('/ranks/my-rank');
+  return data;
+};
+
+export const getMyRankHistory = async () => {
+  const { data } = await apiClient.get('/ranks/my-history');
+  return data;
+};
+
+export const getAllRanksPublic = async () => {
+  const { data } = await apiClient.get('/ranks/all');
+  return data;
+};
