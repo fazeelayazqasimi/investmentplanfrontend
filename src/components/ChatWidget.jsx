@@ -171,7 +171,7 @@ export default function ChatWidget() {
       </button>
 
       {open && (
-        <div style={{
+        <div className="chat-widget-panel" style={{
           position: 'fixed', bottom: 88, right: 20, width: 380, maxHeight: 520,
           background: 'var(--color-bg, #fff)', border: '1px solid var(--color-border, #e5e7eb)',
           borderRadius: 16, display: 'flex', flexDirection: 'column', overflow: 'hidden',

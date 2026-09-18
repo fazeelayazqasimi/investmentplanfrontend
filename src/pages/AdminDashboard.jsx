@@ -3760,12 +3760,9 @@ function AdminSupportChat({ toastSuccess, toastError }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, height: 'calc(100vh - 200px)', minHeight: 500 }}>
+      <div className={`admin-support-layout ${activeConvo ? 'chat-active' : ''}`}>
         {/* Conversations List */}
-        <div style={{
-          width: 340, flexShrink: 0, background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        }}>
+        <div className="admin-support-list">
           <div style={{ padding: 12, borderBottom: '1px solid var(--color-border)' }}>
             <select
               className="form-input"
@@ -3822,10 +3819,7 @@ function AdminSupportChat({ toastSuccess, toastError }) {
         </div>
 
         {/* Chat Area */}
-        <div style={{
-          flex: 1, background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        }}>
+        <div className="admin-support-chat">
           {!activeConvo ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
               <div style={{ textAlign: 'center' }}>
@@ -3840,9 +3834,16 @@ function AdminSupportChat({ toastSuccess, toastError }) {
                 padding: '12px 20px', borderBottom: '1px solid var(--color-border)',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{activeConvo.user?.name || 'User'}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>{activeConvo.subject}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    onClick={() => setActiveConvo(null)}
+                    className="admin-back-btn"
+                    style={{ fontSize: 11, padding: '4px 8px' }}
+                  >← Back</button>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{activeConvo.user?.name || 'User'}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>{activeConvo.subject}</div>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map((s) => (

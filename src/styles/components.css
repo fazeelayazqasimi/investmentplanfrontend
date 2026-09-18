@@ -2270,3 +2270,75 @@
   font-weight: var(--font-weight-semibold);
   margin-top: var(--space-2);
 }
+
+/* ==========================================
+   CHAT WIDGET — MOBILE RESPONSIVE
+   ========================================== */
+@media (max-width: 480px) {
+  .chat-widget-panel {
+    bottom: 0 !important;
+    right: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-height: 100vh !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+}
+
+/* ==========================================
+   ADMIN SUPPORT CHAT — MOBILE RESPONSIVE
+   ========================================== */
+.admin-support-layout {
+  display: flex;
+  gap: 16px;
+  height: calc(100vh - 200px);
+  min-height: 500px;
+}
+.admin-support-list {
+  width: 340px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.admin-support-chat {
+  flex: 1;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .admin-support-layout {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 150px);
+  }
+  .admin-support-list {
+    width: 100%;
+    max-height: 300px;
+  }
+  .admin-support-chat {
+    min-height: 400px;
+  }
+  .admin-support-layout.chat-active .admin-support-list {
+    display: none;
+  }
+  .admin-support-layout.chat-active .admin-support-chat {
+    min-height: calc(100vh - 180px);
+  }
+  .admin-back-btn {
+    display: inline-flex !important;
+  }
+}
+.admin-back-btn {
+  display: none;
+}

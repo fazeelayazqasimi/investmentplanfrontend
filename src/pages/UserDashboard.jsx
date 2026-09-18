@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, LineChart, Wallet as WalletIcon, Receipt, Percent, Share2, User as UserIcon,
   LogOut, Loader2, AlertCircle, TrendingUp, ArrowDownToLine, Menu, X, CheckCircle,
-  BarChart3, CreditCard, Users, ArrowRightLeft, DollarSign, Copy, ChevronDown,
+  BarChart3, CreditCard, Users, ArrowRightLeft, DollarSign, Copy, ChevronDown, Megaphone,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -42,6 +42,7 @@ const NAV = [
   { key: 'income', label: 'Income', icon: DollarSign, to: '/dashboard/income' },
   { key: 'roi', label: 'ROI', icon: Percent, to: '/dashboard/roi' },
   { key: 'referrals', label: 'Referrals', icon: Share2, to: '/dashboard/referrals' },
+  { key: 'announcements', label: 'Announcements', icon: Megaphone, to: '/dashboard/announcements' },
   { key: 'profile', label: 'Profile', icon: UserIcon, to: '/dashboard/profile' },
 ];
 
@@ -213,6 +214,7 @@ export default function UserDashboard() {
           {page === 'level-income' && <UserLevelIncome />}
           {page === 'roi' && <UserRoi />}
           {page === 'referrals' && <UserReferrals />}
+          {page === 'announcements' && <UserAnnouncements />}
           {page === 'profile' && <UserProfile toastSuccess={success} toastError={toastError} />}
         </div>
       </div>
@@ -2260,6 +2262,110 @@ function UserProfile({ toastSuccess, toastError }) {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   ANNOUNCEMENTS PAGE
+   ========================================================= */
+function UserAnnouncements() {
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getActiveAnnouncements();
+        setAnnouncements(data.announcements || []);
+      } catch (e) { setError(e.response?.data?.message || 'Failed to load announcements'); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  if (loading) return <Spinner label="Loading announcements..." />;
+  if (error) return <ErrorBox message={error} />;
+
+  const typeColors = {
+    INFO: { bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)', icon: 'info', color: '#3b82f6' },
+    PROMOTION: { bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.3)', icon: 'party', color: '#10b981' },
+    WARNING: { bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', icon: 'warning', color: '#f59e0b' },
+    UPDATE: { bg: 'rgba(99,102,241,0.1)', border: 'rgba(99,102,241,0.3)', icon: 'refresh', color: '#6366f1' },
+    EVENT: { bg: 'rgba(236,72,153,0.1)', border: 'rgba(236,72,153,0.3)', icon: 'calendar', color: '#ec4899' },
+  };
+
+  const typeLabels = { INFO: 'Info', PROMOTION: 'Promotion', WARNING: 'Warning', UPDATE: 'Update', EVENT: 'Event' };
+  const priorityLabels = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', URGENT: 'Urgent' };
+
+  return (
+    <div className="animate-slide-up">
+      <div className="page-header">
+        <div>
+          <h1>Announcements</h1>
+          <p className="subtitle">Stay updated with the latest news and updates</p>
+        </div>
+      </div>
+
+      {announcements.length === 0 ? (
+        <EmptyState title="No announcements" subtitle="There are no active announcements at the moment." />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          {announcements.map((a) => {
+            const tc = typeColors[a.type] || typeColors.INFO;
+            return (
+              <div key={a._id} style={{
+                background: 'var(--color-surface)',
+                border: `1px solid ${tc.border}`,
+                borderRadius: 'var(--radius-lg)',
+                padding: 'var(--space-5)',
+                borderLeft: `4px solid ${tc.color}`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
+                  <span style={{
+                    background: tc.bg,
+                    color: tc.color,
+                    padding: '2px 10px',
+                    borderRadius: 'var(--radius-full)',
+                    fontSize: 'var(--font-size-xs)',
+                    fontWeight: 600,
+                  }}>
+                    {typeLabels[a.type] || a.type}
+                  </span>
+                  {a.priority && a.priority !== 'MEDIUM' && (
+                    <span style={{
+                      background: a.priority === 'URGENT' || a.priority === 'HIGH' ? 'rgba(239,68,68,0.1)' : 'rgba(156,163,175,0.1)',
+                      color: a.priority === 'URGENT' || a.priority === 'HIGH' ? '#ef4444' : '#9ca3af',
+                      padding: '2px 10px',
+                      borderRadius: 'var(--radius-full)',
+                      fontSize: 'var(--font-size-xs)',
+                      fontWeight: 600,
+                    }}>
+                      {priorityLabels[a.priority] || a.priority}
+                    </span>
+                  )}
+                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginLeft: 'auto' }}>
+                    {new Date(a.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+                <h3 style={{ margin: '0 0 var(--space-2)', fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--color-text)' }}>
+                  {a.title}
+                </h3>
+                <p style={{ margin: 0, color: 'var(--color-text-secondary)', lineHeight: 1.6, fontSize: 'var(--font-size-sm)' }}>
+                  {a.message}
+                </p>
+                {a.images && a.images.length > 0 && (
+                  <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-4)', flexWrap: 'wrap' }}>
+                    {a.images.map((img, i) => (
+                      <img key={i} src={img.url} alt="" style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 'var(--radius-md)' }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
