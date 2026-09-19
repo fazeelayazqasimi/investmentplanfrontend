@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, LineChart, Wallet as WalletIcon, Receipt, Percent, Share2, User as UserIcon,
   LogOut, Loader2, AlertCircle, TrendingUp, ArrowDownToLine, Menu, X, CheckCircle,
-  BarChart3, CreditCard, Users, ArrowRightLeft, DollarSign, Copy, ChevronDown, Megaphone, Trophy,
+  BarChart3, CreditCard, Users, ArrowRightLeft, DollarSign, Copy, ChevronDown, Megaphone, Trophy, Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -282,6 +282,7 @@ function UserOverview({ toastSuccess, toastError }) {
   const { user } = useAuth();
   const [wallet, setWallet] = useState(null);
   const [investments, setInvestments] = useState([]);
+  const [allInvestments, setAllInvestments] = useState([]);
   const [profile, setProfile] = useState(null);
   const [settings, setSettings] = useState(null);
   const [progress, setProgress] = useState(null);
@@ -306,9 +307,10 @@ function UserOverview({ toastSuccess, toastError }) {
   useEffect(() => {
     (async () => {
       try {
-        const [w, i, p, directTxn, levelTxn] = await Promise.all([getMyWallet(), getMyInvestments({ status: 'ACTIVE' }), getMyProfile(), getMyTransactions({ type: 'DIRECT_INCOME' }), getMyTransactions({ type: 'LEVEL_INCOME' })]);
+        const [w, i, iAll, p, directTxn, levelTxn] = await Promise.all([getMyWallet(), getMyInvestments({ status: 'ACTIVE' }), getMyInvestments(), getMyProfile(), getMyTransactions({ type: 'DIRECT_INCOME' }), getMyTransactions({ type: 'LEVEL_INCOME' })]);
         setWallet(w.wallet);
         setInvestments(i.investments || []);
+        setAllInvestments(iAll.investments || []);
         setProfile(p);
         setDirectIncome((directTxn.transactions || []).reduce((s, t) => s + (t.amount || 0), 0));
         setLevelIncome((levelTxn.transactions || []).reduce((s, t) => s + (t.amount || 0), 0));
@@ -434,16 +436,29 @@ function UserOverview({ toastSuccess, toastError }) {
         </div>
       )}
 
-      {/* Total Investment - Full Width */}
-      <div className="wallet-card" style={{ marginBottom: 'var(--space-4)', background: '#111827', color: '#fff', border: 'none', width: '100%', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Total Investment</div>
-            <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#fff' }}>
-              {fmt(wallet?.totalInvestmentAmount)}
+      {/* Active Investment + Total Investment - Same Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+        <div className="wallet-card" style={{ background: '#111827', color: '#fff', border: 'none', margin: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Active Investment</div>
+              <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#00C389' }}>
+                {fmt(investments.filter(iv => iv.status === 'ACTIVE').reduce((sum, iv) => sum + iv.originalAmount, 0))}
+              </div>
             </div>
+            <Zap size={32} style={{ color: '#00C389' }} />
           </div>
-          <TrendingUp size={32} style={{ color: '#00C389' }} />
+        </div>
+        <div className="wallet-card" style={{ background: '#111827', color: '#fff', border: 'none', margin: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Total Investment</div>
+              <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#fff' }}>
+                {fmt(allInvestments.reduce((sum, iv) => sum + iv.originalAmount, 0))}
+              </div>
+            </div>
+            <TrendingUp size={32} style={{ color: '#00C389' }} />
+          </div>
         </div>
       </div>
 
@@ -906,6 +921,18 @@ function UserInvestments({ toastSuccess, toastError }) {
             </div>
           </div>
           <TrendingUp size={32} style={{ color: '#00C389' }} />
+        </div>
+      </div>
+
+      <div className="wallet-card" style={{ marginBottom: 'var(--space-4)', background: '#111827', color: '#fff', border: 'none' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Active Investment</div>
+            <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#00C389' }}>
+              {fmt(mine.filter(iv => iv.status === 'ACTIVE').reduce((sum, iv) => sum + iv.originalAmount, 0))}
+            </div>
+          </div>
+          <Zap size={32} style={{ color: '#00C389' }} />
         </div>
       </div>
 
