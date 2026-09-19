@@ -247,6 +247,12 @@ export const getMyRoiHistory = async () => {
   return data.data;
 };
 
+// User: pending commission details
+export const getPendingCommissionDetails = async () => {
+  const { data } = await apiClient.get('/wallet/pending-commissions');
+  return data.data;
+};
+
 // User: referral downlines
 export const getMyDownlines = async () => {
   const { data } = await apiClient.get('/users/downlines');

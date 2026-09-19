@@ -13,7 +13,7 @@ import apiClient, {
   transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
   transferFundToUser, getTransferSettings, getProgressData,
   transferMainToFund, activateAccountWithSource, investForDownline, getMyDownlines,
-  getBankAccounts, getActiveAnnouncements, searchMyDownlines,
+  getBankAccounts, getActiveAnnouncements, searchMyDownlines, getPendingCommissionDetails,
   requestWithdrawal as requestWithdrawalApi,
 } from '../services/apiClient';
 import {
@@ -466,6 +466,33 @@ function UserOverview({ toastSuccess, toastError }) {
       {/* Progress Bars for 2X and 3X Milestones */}
       {progress && (
         <div>
+          {/* 3X Cap Reached Alert */}
+          {progress.percentage3x >= 100 && (
+            <div style={{
+              padding: '16px 20px', marginBottom: 'var(--space-4)',
+              background: 'linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(220,38,38,0.05) 100%)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              borderRadius: 'var(--radius-lg)',
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: '50%',
+                background: 'rgba(239,68,68,0.15)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <AlertCircle size={20} style={{ color: '#ef4444' }} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#ef4444', marginBottom: 2 }}>
+                  Your ROI Has Stopped
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                  3X income limit reached ({fmt(progress.milestone3x)}). <strong>Invest more</strong> to unlock new limits and resume earning ROI.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Combined 2X Progress */}
           {progress.milestone2x > 0 && (
             <div className="invest-progress-card" style={{ marginBottom: 'var(--space-4)' }}>
@@ -522,8 +549,14 @@ function UserOverview({ toastSuccess, toastError }) {
                 </div>
               )}
               {progress.remaining3x <= 0 && (
-                <div className="progress-complete">
-                  3X Cap reached — invest more to resume earning.
+                <div style={{
+                  marginTop: 8, padding: '10px 14px',
+                  background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-md)',
+                  fontSize: 13, color: '#ef4444', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <AlertCircle size={14} />
+                  ROI Stopped — Invest More to Resume Earning
                 </div>
               )}
             </div>
@@ -849,7 +882,15 @@ function UserInvestments({ toastSuccess, toastError }) {
                 <span>Cap: {fmt(progress.milestone3x)}</span>
               </div>
               {progress.remaining3x <= 0 && (
-                <div className="progress-complete">3X Cap Reached! Reinvest to continue.</div>
+                <div style={{
+                  marginTop: 8, padding: '10px 14px',
+                  background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-md)',
+                  fontSize: 13, color: '#ef4444', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <AlertCircle size={14} />
+                  ROI Stopped — Invest More to Resume Earning
+                </div>
               )}
             </div>
           </div>
@@ -1037,6 +1078,10 @@ function UserWallet({ toastSuccess, toastError }) {
   const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [withdrawError, setWithdrawError] = useState('');
   const [withdrawSuccess, setWithdrawSuccess] = useState('');
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [pendingDetails, setPendingDetails] = useState([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [pendingError, setPendingError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1186,6 +1231,21 @@ function UserWallet({ toastSuccess, toastError }) {
     setDownlineSuggestions([]);
   };
 
+  const handlePendingClick = async () => {
+    if ((wallet?.pendingCommissions || 0) <= 0) return;
+    setShowPendingModal(true);
+    setPendingLoading(true);
+    setPendingError('');
+    try {
+      const res = await getPendingCommissionDetails();
+      setPendingDetails(res.pendingCommissions || []);
+    } catch (e) {
+      setPendingError(e.response?.data?.message || 'Failed to load details');
+    } finally {
+      setPendingLoading(false);
+    }
+  };
+
   if (loading) return <Spinner label="Loading wallet..." />;
   if (error) return <ErrorBox message={error} />;
 
@@ -1195,7 +1255,7 @@ function UserWallet({ toastSuccess, toastError }) {
     { label: 'ROI Wallet', value: fmt(wallet?.roiBalance), color: 'green', icon: TrendingUp },
     { label: 'Profit Share Wallet', value: fmt(wallet?.profitShareBalance), color: 'purple', icon: BarChart3 },
     { label: 'Fund Wallet', value: fmt(wallet?.fundBalance), color: 'teal', icon: Users },
-    { label: 'Pending Commissions', value: fmt(wallet?.pendingCommissions), color: 'red', icon: AlertCircle },
+    { label: 'Pending Commissions', value: fmt(wallet?.pendingCommissions), color: 'red', icon: AlertCircle, clickable: true, onClick: handlePendingClick },
   ];
 
   const roiTransferAllowed = settings?.roiTransferEnabled;
@@ -1213,7 +1273,12 @@ function UserWallet({ toastSuccess, toastError }) {
 
       <div className="wallet-summary">
         {balances.map((b) => (
-          <div className={`balance-card ${b.color}`} key={b.label}>
+          <div
+            className={`balance-card ${b.color} ${b.clickable ? 'clickable' : ''}`}
+            key={b.label}
+            onClick={b.clickable ? b.onClick : undefined}
+            style={b.clickable ? { cursor: 'pointer' } : undefined}
+          >
             <div className={`balance-icon ${b.color === 'primary' ? 'blue' : b.color === 'green' ? 'green' : b.color === 'yellow' ? 'yellow' : 'purple'}`}>
               <b.icon size={22} />
             </div>
@@ -1499,6 +1564,99 @@ function UserWallet({ toastSuccess, toastError }) {
           </table>
         </div>
       </div>
+
+      {/* Pending Commission Detail Modal */}
+      {showPendingModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+        }} onClick={() => setShowPendingModal(false)}>
+          <div style={{
+            background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-6)', maxWidth: 600, width: '90%', maxHeight: '80vh',
+            overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+              <h2 style={{ margin: 0, fontSize: 'var(--font-size-xl)', fontWeight: 700 }}>Pending Commissions Detail</h2>
+              <button onClick={() => setShowPendingModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: 'var(--space-3)', padding: '12px 16px', background: 'var(--color-bg-alt)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--color-text-secondary)' }}>
+              Total Pending: <strong style={{ color: 'var(--color-danger)' }}>{fmt(wallet?.pendingCommissions)}</strong>
+            </div>
+
+            {pendingLoading && <Spinner label="Loading details..." />}
+            {pendingError && <ErrorBox message={pendingError} />}
+
+            {!pendingLoading && !pendingError && pendingDetails.length === 0 && (
+              <div style={{ textAlign: 'center', padding: 'var(--space-6)', color: 'var(--color-text-secondary)' }}>
+                No pending commission records found.
+              </div>
+            )}
+
+            {!pendingLoading && !pendingError && pendingDetails.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                {pendingDetails.map((txn) => {
+                  const incomeTypeLabels = {
+                    'ROI_OVERFLOW': 'ROI Cap Overflow',
+                    'NETWORK_COMMISSION': 'Direct/Level Income Overflow',
+                    'DIRECT_INCOME': 'Direct Income Overflow',
+                    'LEVEL_INCOME': 'Level Income Overflow',
+                    'PROFIT_SHARE': 'Profit Share Overflow',
+                    'PROFIT_SHARE_FROM_ROI': 'Profit Share from ROI Overflow',
+                  };
+                  const typeLabel = incomeTypeLabels[txn.incomeType] || (txn.type === 'PENDING_ROI' ? 'ROI Cap Overflow' : 'Network Commission Overflow');
+                  return (
+                    <div key={txn._id} style={{
+                      padding: '14px 16px', borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--color-border)', background: 'var(--color-bg)',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-danger)' }}>{fmt(txn.amount)}</div>
+                          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                            {typeLabel}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>{fmtDateTime(txn.createdAt)}</div>
+                        </div>
+                      </div>
+
+                      {txn.sourceUser && (
+                        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                          <strong>From:</strong> {txn.sourceUser.name} ({txn.sourceUser.email})
+                        </div>
+                      )}
+
+                      {(txn.sourceInvestmentAmount || txn.investmentAmount) && (
+                        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                          <strong>Downline Investment:</strong> {fmt(txn.sourceInvestmentAmount || txn.investmentAmount)}
+                        </div>
+                      )}
+
+                      {txn.incomePercentage && (
+                        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                          <strong>Income Rate:</strong> {txn.incomePercentage}%
+                        </div>
+                      )}
+
+                      {txn.description && (
+                        <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 6, fontStyle: 'italic' }}>
+                          {txn.description}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2062,6 +2220,33 @@ function UserRoi() {
       {/* Progress Bars */}
       {progress && (
         <div>
+          {/* 3X Cap Reached Alert */}
+          {progress.percentage3x >= 100 && (
+            <div style={{
+              padding: '16px 20px', marginBottom: 'var(--space-4)',
+              background: 'linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(220,38,38,0.05) 100%)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              borderRadius: 'var(--radius-lg)',
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: '50%',
+                background: 'rgba(239,68,68,0.15)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <AlertCircle size={20} style={{ color: '#ef4444' }} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#ef4444', marginBottom: 2 }}>
+                  Your ROI Has Stopped
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                  3X income limit reached ({fmt(progress.milestone3x)}). <strong>Invest more</strong> to unlock new limits and resume earning ROI.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Combined 2X Progress */}
           {progress.milestone2x > 0 && (
             <div className="invest-progress-card" style={{ marginBottom: 'var(--space-4)' }}>
@@ -2118,7 +2303,15 @@ function UserRoi() {
                 </div>
               )}
               {progress.remaining3x <= 0 && (
-                <div className="progress-complete">3X Cap Reached! Reinvest to continue.</div>
+                <div style={{
+                  marginTop: 8, padding: '10px 14px',
+                  background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-md)',
+                  fontSize: 13, color: '#ef4444', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <AlertCircle size={14} />
+                  ROI Stopped — Invest More to Resume Earning
+                </div>
               )}
             </div>
           </div>
