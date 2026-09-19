@@ -22,6 +22,7 @@ import apiClient, {
   getAdminConversations, getAdminChatMessages, sendAdminMessage, updateConversationStatus,
   activateUser, deactivateUser, suspendUser, deleteUser,
   updateAdminUserCredentials, adjustAdminUserWallet, getAdminWithdrawals,
+  getAutoRoiSettings, updateAutoRoiSettings,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -1223,6 +1224,12 @@ function AdminRoi({ toastSuccess, toastError }) {
   const [manualResult, setManualResult] = useState(null);
   const [manualConfirmStep, setManualConfirmStep] = useState(false);
 
+  // Auto Daily ROI (Vercel Cron)
+  const [autoRoiEnabled, setAutoRoiEnabled] = useState(false);
+  const [autoRoiTime, setAutoRoiTime] = useState('04:00');
+  const [lastAutoRoiRun, setLastAutoRoiRun] = useState(null);
+  const [autoRoiBusy, setAutoRoiBusy] = useState(false);
+
   // History
   const [historyRows, setHistoryRows] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -1236,6 +1243,12 @@ function AdminRoi({ toastSuccess, toastError }) {
       setSettings(st.settings);
       setRoiDays(st.settings.roiDays || 0);
       setDaySchedule(st.settings.dayWiseRoiSchedule || []);
+      try {
+        const auto = await getAutoRoiSettings();
+        setAutoRoiEnabled(auto.autoRoiEnabled || false);
+        setAutoRoiTime(auto.autoRoiTime || '04:00');
+        setLastAutoRoiRun(auto.lastAutoRoiRun || null);
+      } catch (_) {}
     } catch (e) { setError(e.response?.data?.message || 'Failed to load ROI data'); }
     finally { setLoading(false); }
   };
@@ -1274,6 +1287,18 @@ function AdminRoi({ toastSuccess, toastError }) {
       toastSuccess('Success', 'AUTO ROI schedule saved');
     } catch (e) { toastError('Error', e.response?.data?.message || 'Failed to save schedule'); }
     finally { setBusy(false); }
+  };
+
+  const saveAutoRoiSettings = async () => {
+    setAutoRoiBusy(true);
+    try {
+      const result = await updateAutoRoiSettings({ autoRoiEnabled, autoRoiTime });
+      setAutoRoiEnabled(result.autoRoiEnabled);
+      setAutoRoiTime(result.autoRoiTime);
+      setLastAutoRoiRun(result.lastAutoRoiRun);
+      toastSuccess('Success', `Auto ROI ${result.autoRoiEnabled ? 'enabled' : 'disabled'} at ${result.autoRoiTime}`);
+    } catch (e) { toastError('Error', e.response?.data?.message || 'Failed to save auto ROI settings'); }
+    finally { setAutoRoiBusy(false); }
   };
 
   const runAutoTrigger = async () => {
@@ -1369,6 +1394,47 @@ function AdminRoi({ toastSuccess, toastError }) {
           <button className="btn btn-secondary btn-sm" onClick={openManualModal} disabled={busy || !roiEnabled}>
             Process Manual
           </button>
+        </div>
+      </div>
+
+      {/* Auto Daily ROI (Vercel Cron) */}
+      <div className="panel" style={{ marginBottom: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+              <h3 style={{ margin: 0 }}>Auto Daily ROI (Vercel Cron)</h3>
+              <label className="filter-group" style={{ margin: 0, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={autoRoiEnabled}
+                  onChange={(e) => setAutoRoiEnabled(e.target.checked)}
+                  disabled={autoRoiBusy}
+                />
+                <span style={{ fontSize: 13, fontWeight: 500 }}>{autoRoiEnabled ? 'ON' : 'OFF'}</span>
+              </label>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              Status: <strong>{autoRoiEnabled ? 'Running daily' : 'Disabled'}</strong>
+              {lastAutoRoiRun && (
+                <>{' \u00b7 '}Last Run: <strong>{new Date(lastAutoRoiRun).toLocaleString()}</strong></>
+              )}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Run Time</label>
+              <input
+                type="time"
+                value={autoRoiTime}
+                onChange={(e) => setAutoRoiTime(e.target.value)}
+                disabled={autoRoiBusy}
+                style={{ padding: '6px 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
+              />
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={saveAutoRoiSettings} disabled={autoRoiBusy} style={{ marginTop: 18 }}>
+              {autoRoiBusy ? 'Saving...' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
 

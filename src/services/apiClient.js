@@ -172,6 +172,18 @@ export const updateAdminSettings = async (payload) => {
   return data.data;
 };
 
+// Admin: get auto ROI settings
+export const getAutoRoiSettings = async () => {
+  const { data } = await apiClient.get('/admin/settings/auto-roi');
+  return data.data;
+};
+
+// Admin: update auto ROI settings
+export const updateAutoRoiSettings = async (payload) => {
+  const { data } = await apiClient.put('/admin/settings/auto-roi', payload);
+  return data.data;
+};
+
 // Admin: manually trigger ROI processing
 export const processRoi = async (payload = {}) => {
   const { data } = await apiClient.post('/admin/roi/process', payload);
