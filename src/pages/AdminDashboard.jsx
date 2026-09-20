@@ -2940,6 +2940,8 @@ function AdminSettings({ toastSuccess, toastError }) {
   const [distBusy, setDistBusy] = useState(false);
   // Fund Wallet
   const [fundTransferEnabled, setFundTransferEnabled] = useState(false);
+  // Pending Release
+  const [pendingReleaseMultiplier, setPendingReleaseMultiplier] = useState(3);
   // Day-wise ROI
   const [roiDays, setRoiDays] = useState(0);
   const [daySchedule, setDaySchedule] = useState([]);
@@ -2965,6 +2967,7 @@ function AdminSettings({ toastSuccess, toastError }) {
         setPsTransferEnabled(s.profitShareTransferEnabled || false);
         setPsMethod(s.profitShareDistributionMethod || 'EQUAL');
         setFundTransferEnabled(s.fundTransferEnabled || false);
+        setPendingReleaseMultiplier(s.pendingReleaseMultiplier ?? 3);
         setEwalletDownlineOfferEnabled(s.ewalletDownlineOfferEnabled || false);
         setEwalletMaxPercentage(s.ewalletMaxPercentage || 0);
         setRoiDays(s.roiDays || 0);
@@ -3065,7 +3068,14 @@ function AdminSettings({ toastSuccess, toastError }) {
             <input type="checkbox" checked={allowInvest} onChange={(e) => setAllowInvest(e.target.checked)} />
             Allow user self-investment
           </label>
-          <button className="btn btn-primary btn-sm" onClick={() => save({ allowUserInvestment: allowInvest })} disabled={busy}>Save General</button>
+          <div className="form-group">
+            <label className="form-label">Pending Release Multiplier</label>
+            <p className="text-muted" style={{ fontSize: 12, marginBottom: 4 }}>
+              When a user invests, up to this multiple of the investment amount is released from pending to main balance. (e.g. 3 = invest $100 → release up to $300 from pending)
+            </p>
+            <input className="form-input" type="number" value={pendingReleaseMultiplier} onChange={(e) => setPendingReleaseMultiplier(Number(e.target.value))} min="0" max="100" style={{ maxWidth: 120 }} />
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ allowUserInvestment: allowInvest, pendingReleaseMultiplier })} disabled={busy}>Save General</button>
         </div>
       )}
 
