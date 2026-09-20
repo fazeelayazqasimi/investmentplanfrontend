@@ -288,6 +288,7 @@ function UserOverview({ toastSuccess, toastError }) {
   const [progress, setProgress] = useState(null);
   const [directIncome, setDirectIncome] = useState(0);
   const [levelIncome, setLevelIncome] = useState(0);
+  const [profitShareTotal, setProfitShareTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activating, setActivating] = useState(false);
@@ -307,13 +308,20 @@ function UserOverview({ toastSuccess, toastError }) {
   useEffect(() => {
     (async () => {
       try {
-        const [w, i, iAll, p, directTxn, levelTxn] = await Promise.all([getMyWallet(), getMyInvestments({ status: 'ACTIVE' }), getMyInvestments(), getMyProfile(), getMyTransactions({ type: 'DIRECT_INCOME' }), getMyTransactions({ type: 'LEVEL_INCOME' })]);
+        const [w, i, iAll, p, directTxn, levelTxn, pendingTxn] = await Promise.all([getMyWallet(), getMyInvestments({ status: 'ACTIVE' }), getMyInvestments(), getMyProfile(), getMyTransactions({ type: 'DIRECT_INCOME' }), getMyTransactions({ type: 'LEVEL_INCOME' }), getMyTransactions({ type: 'PENDING_NETWORK_COMMISSION', limit: 500 })]);
         setWallet(w.wallet);
         setInvestments(i.investments || []);
         setAllInvestments(iAll.investments || []);
         setProfile(p);
-        setDirectIncome((directTxn.transactions || []).reduce((s, t) => s + (t.amount || 0), 0));
-        setLevelIncome((levelTxn.transactions || []).reduce((s, t) => s + (t.amount || 0), 0));
+        const directCredited = (directTxn.transactions || []).reduce((s, t) => s + (t.amount || 0), 0);
+        const directPending = (pendingTxn.transactions || []).filter((t) => t.metadata?.incomeType === 'DIRECT_INCOME').reduce((s, t) => s + (t.amount || 0), 0);
+        setDirectIncome(directCredited + directPending);
+        const levelCredited = (levelTxn.transactions || []).reduce((s, t) => s + (t.amount || 0), 0);
+        const levelPending = (pendingTxn.transactions || []).filter((t) => t.metadata?.incomeType === 'LEVEL_INCOME').reduce((s, t) => s + (t.amount || 0), 0);
+        setLevelIncome(levelCredited + levelPending);
+        const psCredited = w.wallet?.profitShareBalance || 0;
+        const psPending = (pendingTxn.transactions || []).filter((t) => t.metadata?.incomeType === 'PROFIT_SHARE' || t.metadata?.incomeType === 'PROFIT_SHARE_FROM_ROI').reduce((s, t) => s + (t.amount || 0), 0);
+        setProfitShareTotal(psCredited + psPending);
         try { const s = await getUserConfig(); setSettings(s); } catch (_) {}
         try { const pr = await getProgressData(); setProgress(pr); } catch (_) {}
       } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
@@ -348,7 +356,7 @@ function UserOverview({ toastSuccess, toastError }) {
     { label: 'ROI Wallet', value: fmt(wallet?.roiBalance), accent: 'stat-info', icon: TrendingUp },
     { label: 'Direct Income', value: fmt(directIncome), accent: 'stat-success', icon: DollarSign },
     { label: 'Level Income', value: fmt(levelIncome), accent: 'stat-info', icon: BarChart3 },
-    { label: 'Profit Share', value: fmt(wallet?.profitShareBalance), accent: 'stat-purple', icon: BarChart3 },
+    { label: 'Profit Share', value: fmt(profitShareTotal), accent: 'stat-purple', icon: BarChart3 },
     { label: 'Fund Wallet', value: fmt(wallet?.fundBalance), accent: 'stat-teal', icon: Users },
     { label: 'Pending Commission', value: fmt(wallet?.pendingCommissions), accent: 'stat-danger', icon: AlertCircle },
     { label: 'Total Earning', value: fmt(wallet?.totalEarnings), accent: 'stat-orange', icon: TrendingUp },
@@ -1871,13 +1879,19 @@ function UserIncome() {
   useEffect(() => {
     (async () => {
       try {
-        const [directTxn, levelTxn, w] = await Promise.all([
+        const [directTxn, levelTxn, pendingTxn, w] = await Promise.all([
           getMyTransactions({ type: 'DIRECT_INCOME' }),
           getMyTransactions({ type: 'LEVEL_INCOME' }),
+          getMyTransactions({ type: 'PENDING_NETWORK_COMMISSION', limit: 500 }),
           getMyWallet(),
         ]);
-        setDirectRows(directTxn.transactions || []);
-        setLevelRows(levelTxn.transactions || []);
+        const pending = pendingTxn.transactions || [];
+        const pendingDirect = pending.filter((t) => t.metadata?.incomeType === 'DIRECT_INCOME');
+        const pendingLevel = pending.filter((t) => t.metadata?.incomeType === 'LEVEL_INCOME');
+        const markedDirect = pendingDirect.map((t) => ({ ...t, _pending: true }));
+        const markedLevel = pendingLevel.map((t) => ({ ...t, _pending: true }));
+        setDirectRows([...(directTxn.transactions || []), ...markedDirect]);
+        setLevelRows([...(levelTxn.transactions || []), ...markedLevel]);
         setWallet(w.wallet);
       } catch (e) { setError(e.response?.data?.message || 'Failed to load income data'); }
       finally { setLoading(false); }
@@ -1966,22 +1980,22 @@ function UserIncome() {
                 <tr><td colSpan={6} className="table-empty">No level income earned yet</td></tr>
               )}
               {tab === 'direct' && directRows.map((t) => (
-                <tr key={t._id}>
+                <tr key={t._id} style={t._pending ? { opacity: 0.75 } : undefined}>
                   <td data-label="From" className="cell-strong">{t.description || 'Referral'}</td>
                   <td data-label="Investment">{fmt(t.metadata?.investmentAmount)}</td>
                   <td data-label="Income %">{t.metadata?.percentage ? `${t.metadata.percentage}%` : '—'}</td>
                   <td data-label="Amount" className="text-success cell-strong">{fmt(t.amount)}</td>
-                  <td data-label="Status"><StatusBadge status={t.status} /></td>
+                  <td data-label="Status">{t._pending ? <span className="badge badge-amber" style={{ fontSize: 11 }}>Pending</span> : <StatusBadge status={t.status} />}</td>
                   <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
                 </tr>
               ))}
               {tab === 'level' && levelRows.map((t) => (
-                <tr key={t._id}>
+                <tr key={t._id} style={t._pending ? { opacity: 0.75 } : undefined}>
                   <td data-label="From" className="cell-strong">{t.description || 'Referral'}</td>
                   <td data-label="Investment">{fmt(t.metadata?.investmentAmount)}</td>
                   <td data-label="Income %">{t.metadata?.percentage ? `${t.metadata.percentage}%` : '—'}</td>
                   <td data-label="Amount" className="text-blue cell-strong">{fmt(t.amount)}</td>
-                  <td data-label="Status"><StatusBadge status={t.status} /></td>
+                  <td data-label="Status">{t._pending ? <span className="badge badge-amber" style={{ fontSize: 11 }}>Pending</span> : <StatusBadge status={t.status} />}</td>
                   <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
                 </tr>
               ))}
@@ -2004,8 +2018,15 @@ function UserDirectIncome() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await getMyTransactions({ type: 'DIRECT_INCOME' });
-        setRows(res.transactions || []);
+        const [res, pendingRes] = await Promise.all([
+          getMyTransactions({ type: 'DIRECT_INCOME' }),
+          getMyTransactions({ type: 'PENDING_NETWORK_COMMISSION', limit: 500 }),
+        ]);
+        const credited = (res.transactions || []).map((t) => ({ ...t, _pending: false }));
+        const pending = (pendingRes.transactions || [])
+          .filter((t) => t.metadata?.incomeType === 'DIRECT_INCOME')
+          .map((t) => ({ ...t, _pending: true }));
+        setRows([...credited, ...pending]);
       } catch (e) { setError(e.response?.data?.message || 'Failed to load direct income data'); }
       finally { setLoading(false); }
     })();
@@ -2073,13 +2094,13 @@ function UserDirectIncome() {
                 <tr><td colSpan={6} className="table-empty">No direct income earned yet</td></tr>
               )}
               {rows.map((t) => (
-                <tr key={t._id}>
+                <tr key={t._id} style={t._pending ? { opacity: 0.75 } : undefined}>
                   <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
                   <td data-label="From" className="cell-strong">{t.description || 'Referral'}</td>
                   <td data-label="Investment">{fmt(t.metadata?.investmentAmount)}</td>
                   <td data-label="Income %">{t.metadata?.percentage ? `${t.metadata.percentage}%` : '—'}</td>
                   <td data-label="Amount" className="text-success cell-strong">{fmt(t.amount)}</td>
-                  <td data-label="Status"><StatusBadge status={t.status} /></td>
+                  <td data-label="Status">{t._pending ? <span className="badge badge-amber" style={{ fontSize: 11 }}>Pending</span> : <StatusBadge status={t.status} />}</td>
                 </tr>
               ))}
             </tbody>
@@ -2101,8 +2122,15 @@ function UserLevelIncome() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await getMyTransactions({ type: 'LEVEL_INCOME' });
-        setRows(res.transactions || []);
+        const [res, pendingRes] = await Promise.all([
+          getMyTransactions({ type: 'LEVEL_INCOME' }),
+          getMyTransactions({ type: 'PENDING_NETWORK_COMMISSION', limit: 500 }),
+        ]);
+        const credited = (res.transactions || []).map((t) => ({ ...t, _pending: false }));
+        const pending = (pendingRes.transactions || [])
+          .filter((t) => t.metadata?.incomeType === 'LEVEL_INCOME')
+          .map((t) => ({ ...t, _pending: true }));
+        setRows([...credited, ...pending]);
       } catch (e) { setError(e.response?.data?.message || 'Failed to load level income data'); }
       finally { setLoading(false); }
     })();
@@ -2171,14 +2199,14 @@ function UserLevelIncome() {
                 <tr><td colSpan={7} className="table-empty">No level income earned yet</td></tr>
               )}
               {rows.map((t) => (
-                <tr key={t._id}>
+                <tr key={t._id} style={t._pending ? { opacity: 0.75 } : undefined}>
                   <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
                   <td data-label="Level" className="cell-strong">{t.metadata?.level ? `Level ${t.metadata.level}` : '—'}</td>
                   <td data-label="From" className="cell-strong">{t.description || 'Referral'}</td>
                   <td data-label="Investment">{fmt(t.metadata?.investmentAmount)}</td>
                   <td data-label="Income %">{t.metadata?.percentage ? `${t.metadata.percentage}%` : '—'}</td>
                   <td data-label="Amount" className="text-blue cell-strong">{fmt(t.amount)}</td>
-                  <td data-label="Status"><StatusBadge status={t.status} /></td>
+                  <td data-label="Status">{t._pending ? <span className="badge badge-amber" style={{ fontSize: 11 }}>Pending</span> : <StatusBadge status={t.status} />}</td>
                 </tr>
               ))}
             </tbody>
