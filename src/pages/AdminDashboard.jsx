@@ -180,6 +180,7 @@ export default function AdminDashboard() {
           {page === 'reports' && <AdminReports />}
           {page === 'ranks' && <AdminRanksContent toastSuccess={success} toastError={toastError} />}
           {page === 'settings' && <AdminSettings toastSuccess={success} toastError={toastError} />}
+          <ToastContainer />
         </div>
         </div>
     </div>
@@ -787,14 +788,23 @@ function AdminDeposits({ toastSuccess, toastError }) {
         <div className="table-card">
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>User</th><th>Email</th><th>Amount</th><th>Transaction ID</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead><tr><th>User</th><th>Email</th><th>Amount</th><th>Proof</th><th>Transaction ID</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
-                {rows.length === 0 && <tr><td colSpan={7} className="table-empty">No deposits found</td></tr>}
+                {rows.length === 0 && <tr><td colSpan={8} className="table-empty">No deposits found</td></tr>}
                 {rows.map((r) => (
                   <tr key={r._id}>
                     <td data-label="User" className="cell-strong">{r.user?.name}</td>
                     <td data-label="Email">{r.user?.email}</td>
                     <td data-label="Amount">{fmt(r.amount)}</td>
+                    <td data-label="Proof">
+                      {r.proofImage ? (
+                        <a href={r.proofImage} target="_blank" rel="noopener noreferrer">
+                          <img src={r.proofImage} alt="Proof" style={{ maxWidth: 50, maxHeight: 50, borderRadius: 4, border: '1px solid var(--color-border)' }} />
+                        </a>
+                      ) : (
+                        <span className="text-muted">-</span>
+                      )}
+                    </td>
                     <td data-label="Transaction ID" style={{ fontFamily: 'monospace', fontSize: 12 }}>{r._id.slice(-8)}</td>
                     <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
                     <td data-label="Status"><StatusBadge status={r.status} /></td>
@@ -2926,8 +2936,12 @@ function AdminSettings({ toastSuccess, toastError }) {
   // E-Wallet Downline Offer
   const [ewalletDownlineOfferEnabled, setEwalletDownlineOfferEnabled] = useState(false);
   const [ewalletMaxPercentage, setEwalletMaxPercentage] = useState(0);
+  // E-Wallet Downline Activation & Deposit
+  const [ewalletDownlineActivationEnabled, setEwalletDownlineActivationEnabled] = useState(false);
+  const [ewalletDownlineDepositEnabled, setEwalletDownlineDepositEnabled] = useState(false);
   // Activation
   const [activationFee, setActivationFee] = useState(0);
+  const [selfInvestmentEwalletMaxPercentage, setSelfInvestmentEwalletMaxPercentage] = useState(0);
   // Income
   const [directIncome, setDirectIncome] = useState(0);
   const [levelIncome, setLevelIncome] = useState(0);
@@ -2961,6 +2975,7 @@ function AdminSettings({ toastSuccess, toastError }) {
         setSignupBonus(s.signupBonusAmount || 0);
         setUplineBonus(s.uplineSignupBonusAmount || 0);
         setActivationFee(s.activationFee || 0);
+        setSelfInvestmentEwalletMaxPercentage(s.selfInvestmentEwalletMaxPercentage || 0);
         setDirectIncome(s.directIncomePercentage || 0);
         setLevelIncome(s.levelIncomePercentage || 0);
         setRoiTransferEnabled(s.roiTransferEnabled || false);
@@ -2970,6 +2985,8 @@ function AdminSettings({ toastSuccess, toastError }) {
         setPendingReleaseMultiplier(s.pendingReleaseMultiplier ?? 3);
         setEwalletDownlineOfferEnabled(s.ewalletDownlineOfferEnabled || false);
         setEwalletMaxPercentage(s.ewalletMaxPercentage || 0);
+        setEwalletDownlineActivationEnabled(s.ewalletDownlineActivationEnabled || false);
+        setEwalletDownlineDepositEnabled(s.ewalletDownlineDepositEnabled || false);
         setRoiDays(s.roiDays || 0);
         setDaySchedule(s.dayWiseRoiSchedule || []);
       } catch (e) { setError(e.response?.data?.message || 'Failed to load settings'); }
@@ -3140,7 +3157,25 @@ function AdminSettings({ toastSuccess, toastError }) {
             <p className="form-hint">Maximum percentage of downline investment that can be paid from E-Wallet</p>
           </div>
 
-          <button className="btn btn-primary btn-sm" onClick={() => save({ ewalletEnabled, ewalletUsageEnabled, signupBonusAmount: Number(signupBonus), uplineSignupBonusAmount: Number(uplineBonus), ewalletDownlineOfferEnabled, ewalletMaxPercentage: Number(ewalletMaxPercentage) })} disabled={busy}>Save E-Wallet Settings</button>
+          <h4 style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-2)' }}>Downline Activation via E-Wallet</h4>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Allow users to activate their downline member's account using their E-Wallet balance. The activation fee is deducted from the sender's E-Wallet.
+          </p>
+          <label className="form-group filter-group">
+            <input type="checkbox" checked={ewalletDownlineActivationEnabled} onChange={(e) => setEwalletDownlineActivationEnabled(e.target.checked)} />
+            Allow E-Wallet for downline account activation
+          </label>
+
+          <h4 style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-2)' }}>Downline Deposit via E-Wallet</h4>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Allow users to deposit funds to their downline member's main wallet using their E-Wallet balance. The deposit is credited directly — no admin approval needed.
+          </p>
+          <label className="form-group filter-group">
+            <input type="checkbox" checked={ewalletDownlineDepositEnabled} onChange={(e) => setEwalletDownlineDepositEnabled(e.target.checked)} />
+            Allow E-Wallet for downline deposit
+          </label>
+
+          <button className="btn btn-primary btn-sm" onClick={() => save({ ewalletEnabled, ewalletUsageEnabled, signupBonusAmount: Number(signupBonus), uplineSignupBonusAmount: Number(uplineBonus), ewalletDownlineOfferEnabled, ewalletMaxPercentage: Number(ewalletMaxPercentage), ewalletDownlineActivationEnabled, ewalletDownlineDepositEnabled })} disabled={busy}>Save E-Wallet Settings</button>
         </div>
       )}
 
@@ -3156,7 +3191,17 @@ function AdminSettings({ toastSuccess, toastError }) {
             <input className="form-input" type="number" value={activationFee} onChange={(e) => setActivationFee(Number(e.target.value))} min="0" />
             <p className="form-hint">Set to 0 to disable activation fee</p>
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => save({ activationFee: Number(activationFee) })} disabled={busy}>Save Activation Fee</button>
+
+          <h4 style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-2)' }}>Self-Investment E-Wallet Limit</h4>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            Limit the maximum percentage of investment amount that users can pay from their E-Wallet when investing for themselves.
+          </p>
+          <div className="form-group">
+            <label className="form-label">Max E-Wallet % for Self-Investment</label>
+            <input className="form-input" type="number" value={selfInvestmentEwalletMaxPercentage} onChange={(e) => setSelfInvestmentEwalletMaxPercentage(Number(e.target.value))} min="0" max="100" />
+            <p className="form-hint">Set to 0 for no limit. Example: 10 means user can use max 10% from E-Wallet.</p>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ activationFee: Number(activationFee), selfInvestmentEwalletMaxPercentage: Number(selfInvestmentEwalletMaxPercentage) })} disabled={busy}>Save Activation Settings</button>
         </div>
       )}
 
@@ -3263,7 +3308,10 @@ function AdminBankAccounts({ toastSuccess, toastError }) {
   const [accountHolder, setAccountHolder] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [iban, setIban] = useState('');
-  const [accountType, setAccountType] = useState('BANK');
+  const [accountType, setAccountType] = useState('LOCAL_BANK');
+  const [walletAddress, setWalletAddress] = useState('');
+  const [qrCodeFile, setQrCodeFile] = useState(null);
+  const [qrCodePreview, setQrCodePreview] = useState('');
   const [displayOrder, setDisplayOrder] = useState(0);
 
   const load = async () => {
@@ -3279,30 +3327,46 @@ function AdminBankAccounts({ toastSuccess, toastError }) {
 
   const resetForm = () => {
     setBankName(''); setAccountHolder(''); setAccountNumber('');
-    setIban(''); setAccountType('BANK'); setDisplayOrder(0);
+    setIban(''); setAccountType('LOCAL_BANK'); setWalletAddress('');
+    setQrCodeFile(null); setQrCodePreview(''); setDisplayOrder(0);
     setEditId(null); setShowForm(false);
   };
 
   const startEdit = (acc) => {
     setBankName(acc.bankName); setAccountHolder(acc.accountHolder);
     setAccountNumber(acc.accountNumber); setIban(acc.iban || '');
-    setAccountType(acc.accountType); setDisplayOrder(acc.displayOrder || 0);
+    setAccountType(acc.accountType); setWalletAddress(acc.walletAddress || '');
+    setDisplayOrder(acc.displayOrder || 0);
+    setQrCodeFile(null); setQrCodePreview(acc.qrCodeImage || '');
     setEditId(acc._id); setShowForm(true);
   };
 
   const handleSubmit = async () => {
-    if (!bankName || !accountHolder || !accountNumber) {
+    if (accountType === 'LOCAL_BANK' && (!bankName || !accountHolder || !accountNumber)) {
       toastError('Error', 'Bank name, account holder, and account number are required');
+      return;
+    }
+    if (accountType === 'BEP20' && !walletAddress) {
+      toastError('Error', 'Wallet address is required for BEP20 Transfer');
       return;
     }
     setBusy(true);
     try {
-      const payload = { bankName, accountHolder, accountNumber, iban, accountType, displayOrder: Number(displayOrder) };
+      const fd = new FormData();
+      fd.append('bankName', bankName);
+      fd.append('accountHolder', accountHolder);
+      fd.append('accountNumber', accountNumber);
+      fd.append('iban', iban);
+      fd.append('accountType', accountType);
+      fd.append('walletAddress', walletAddress);
+      fd.append('displayOrder', Number(displayOrder));
+      if (qrCodeFile) fd.append('qrCode', qrCodeFile);
+
       if (editId) {
-        await updateBankAccount(editId, payload);
+        await apiClient.put(`/bank-accounts/admin/${editId}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
         toastSuccess('Success', 'Bank account updated');
       } else {
-        await createBankAccount(payload);
+        await apiClient.post('/bank-accounts/admin', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
         toastSuccess('Success', 'Bank account added');
       }
       resetForm();
@@ -3337,44 +3401,92 @@ function AdminBankAccounts({ toastSuccess, toastError }) {
 
       {showForm && (
         <div className="panel" style={{ marginBottom: 'var(--space-4)' }}>
-          <h4>{editId ? 'Edit Bank Account' : 'Add Bank Account'}</h4>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Bank Name</label>
-              <input className="form-input" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. HBL, Meezan Bank" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Account Holder</label>
-              <input className="form-input" value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} placeholder="Account holder name" />
+          <h4>{editId ? 'Edit Payment Method' : 'Add Payment Method'}</h4>
+
+          {/* Account Type Toggle */}
+          <div className="form-group">
+            <label className="form-label">Payment Type</label>
+            <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={() => setAccountType('LOCAL_BANK')}
+                style={{
+                  flex: 1, padding: '12px 16px', borderRadius: 10, border: '2px solid',
+                  borderColor: accountType === 'LOCAL_BANK' ? 'var(--color-primary)' : 'var(--color-border)',
+                  background: accountType === 'LOCAL_BANK' ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                  color: accountType === 'LOCAL_BANK' ? 'var(--color-primary)' : 'var(--color-text)',
+                  fontWeight: accountType === 'LOCAL_BANK' ? 600 : 400, cursor: 'pointer',
+                  fontSize: 14, textAlign: 'center', transition: 'all 0.2s',
+                }}
+              >
+                🏦 Local Bank
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountType('BEP20')}
+                style={{
+                  flex: 1, padding: '12px 16px', borderRadius: 10, border: '2px solid',
+                  borderColor: accountType === 'BEP20' ? 'var(--color-primary)' : 'var(--color-border)',
+                  background: accountType === 'BEP20' ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                  color: accountType === 'BEP20' ? 'var(--color-primary)' : 'var(--color-text)',
+                  fontWeight: accountType === 'BEP20' ? 600 : 400, cursor: 'pointer',
+                  fontSize: 14, textAlign: 'center', transition: 'all 0.2s',
+                }}
+              >
+                🔗 BEP20 Transfer
+              </button>
             </div>
           </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Account Number</label>
-              <input className="form-input" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Account number" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">IBAN (optional)</label>
-              <input className="form-input" value={iban} onChange={(e) => setIban(e.target.value)} placeholder="IBAN" />
-            </div>
+
+          {/* LOCAL_BANK Fields */}
+          {accountType === 'LOCAL_BANK' && (
+            <>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Bank Name</label>
+                  <input className="form-input" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. HBL, Meezan Bank" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Account Holder</label>
+                  <input className="form-input" value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} placeholder="Account holder name" />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Account Number</label>
+                  <input className="form-input" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Account number" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">IBAN (optional)</label>
+                  <input className="form-input" value={iban} onChange={(e) => setIban(e.target.value)} placeholder="IBAN" />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* BEP20 Fields */}
+          {accountType === 'BEP20' && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Wallet Address (BEP20)</label>
+                <input className="form-input" value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} placeholder="0x..." />
+              </div>
+              <div className="form-group">
+                <label className="form-label">QR Code Image (optional)</label>
+                <input className="form-input" type="file" accept="image/*" onChange={(e) => { const f = e.target.files[0]; setQrCodeFile(f); if (f) setQrCodePreview(URL.createObjectURL(f)); }} />
+                {qrCodePreview && <img src={qrCodePreview} alt="QR Preview" style={{ marginTop: 8, maxWidth: 120, maxHeight: 120, borderRadius: 8, border: '1px solid var(--color-border)' }} />}
+              </div>
+            </>
+          )}
+
+          {/* Common: Display Order */}
+          <div className="form-group">
+            <label className="form-label">Display Order</label>
+            <input className="form-input" type="number" value={displayOrder} onChange={(e) => setDisplayOrder(e.target.value)} min="0" style={{ maxWidth: 120 }} />
           </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Account Type</label>
-              <select className="select" value={accountType} onChange={(e) => setAccountType(e.target.value)}>
-                <option value="BANK">Bank</option>
-                <option value="JAZZCASH">JazzCash</option>
-                <option value="EASYPAISA">EasyPaisa</option>
-                <option value="OTHER">Other</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Display Order</label>
-              <input className="form-input" type="number" value={displayOrder} onChange={(e) => setDisplayOrder(e.target.value)} min="0" />
-            </div>
-          </div>
+
           <button className="btn btn-primary btn-sm" onClick={handleSubmit} disabled={busy}>
-            {busy ? 'Saving...' : editId ? 'Update Account' : 'Add Account'}
+            {busy ? 'Saving...' : editId ? 'Update' : 'Add Account'}
           </button>
         </div>
       )}
@@ -3385,18 +3497,33 @@ function AdminBankAccounts({ toastSuccess, toastError }) {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Type</th><th>Bank Name</th><th>Account Holder</th><th>Account Number</th><th>IBAN</th><th>Order</th><th></th>
+                  <th>Type</th><th>Details</th><th>Order</th><th></th>
                 </tr>
               </thead>
               <tbody>
-                {accounts.length === 0 && <tr><td colSpan={7} className="table-empty">No bank accounts configured</td></tr>}
+                {accounts.length === 0 && <tr><td colSpan={4} className="table-empty">No payment methods configured</td></tr>}
                 {accounts.map((acc) => (
                   <tr key={acc._id}>
-                    <td data-label="Type"><span className="badge badge-primary">{acc.accountType}</span></td>
-                    <td data-label="Bank Name" className="cell-strong">{acc.bankName}</td>
-                    <td data-label="Account Holder">{acc.accountHolder}</td>
-                    <td data-label="Account Number" style={{ fontFamily: 'monospace' }}>{acc.accountNumber}</td>
-                    <td data-label="IBAN" style={{ fontFamily: 'monospace', fontSize: 12 }}>{acc.iban || '—'}</td>
+                    <td data-label="Type">
+                      <span className="badge badge-primary" style={{ fontSize: 12 }}>
+                        {acc.accountType === 'LOCAL_BANK' ? '🏦 Local Bank' : '🔗 BEP20'}
+                      </span>
+                    </td>
+                    <td data-label="Details">
+                      {acc.accountType === 'LOCAL_BANK' ? (
+                        <div>
+                          <div className="cell-strong">{acc.bankName}</div>
+                          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{acc.accountHolder}</div>
+                          <div style={{ fontFamily: 'monospace', fontSize: 12 }}>{acc.accountNumber}</div>
+                          {acc.iban && <div style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--color-text-secondary)' }}>{acc.iban}</div>}
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>{acc.walletAddress}</div>
+                          {acc.qrCodeImage && <img src={acc.qrCodeImage} alt="QR" style={{ marginTop: 6, maxWidth: 60, maxHeight: 60, borderRadius: 6, border: '1px solid var(--color-border)' }} />}
+                        </div>
+                      )}
+                    </td>
                     <td data-label="Order">{acc.displayOrder}</td>
                     <td>
                       <div className="filter-group">

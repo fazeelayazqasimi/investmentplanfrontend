@@ -80,7 +80,9 @@ export const getMyTransactions = async (params = {}) => {
 
 // User submits a deposit request (status: PENDING until admin approves)
 export const requestDeposit = async (payload) => {
-  const { data } = await apiClient.post('/wallet/deposit', payload);
+  const { data } = await apiClient.post('/wallet/deposit', payload, {
+    headers: payload instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+  });
   return data.data;
 };
 
@@ -338,6 +340,18 @@ export const transferMainToFund = async (payload) => {
 // User: activate account with wallet source
 export const activateAccountWithSource = async (walletSource) => {
   const { data } = await apiClient.post('/users/activate', { walletSource });
+  return data.data;
+};
+
+// User: activate downline account using E-Wallet
+export const activateDownlineAccount = async (payload) => {
+  const { data } = await apiClient.post('/users/activate-downline', payload);
+  return data.data;
+};
+
+// User: deposit for downline using E-Wallet
+export const depositForDownline = async (payload) => {
+  const { data } = await apiClient.post('/users/deposit-downline', payload);
   return data.data;
 };
 

@@ -13,6 +13,7 @@ import apiClient, {
   transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
   transferFundToUser, getTransferSettings, getProgressData,
   transferMainToFund, activateAccountWithSource, investForDownline, getMyDownlines,
+  activateDownlineAccount, depositForDownline,
   getBankAccounts, getActiveAnnouncements, searchMyDownlines, getPendingCommissionDetails,
   requestWithdrawal as requestWithdrawalApi,
 } from '../services/apiClient';
@@ -289,6 +290,7 @@ function UserOverview({ toastSuccess, toastError }) {
   const [directIncome, setDirectIncome] = useState(0);
   const [levelIncome, setLevelIncome] = useState(0);
   const [profitShareTotal, setProfitShareTotal] = useState(0);
+  const [investmentStats, setInvestmentStats] = useState({ totalInvestment: 0, activeInvestment: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activating, setActivating] = useState(false);
@@ -312,6 +314,7 @@ function UserOverview({ toastSuccess, toastError }) {
         setWallet(w.wallet);
         setInvestments(i.investments || []);
         setAllInvestments(iAll.investments || []);
+        setInvestmentStats(iAll.stats || i.stats || { totalInvestment: 0, activeInvestment: 0 });
         setProfile(p);
         const directCredited = (directTxn.transactions || []).reduce((s, t) => s + (t.amount || 0), 0);
         const directPending = (pendingTxn.transactions || []).filter((t) => t.metadata?.incomeType === 'DIRECT_INCOME').reduce((s, t) => s + (t.amount || 0), 0);
@@ -373,45 +376,66 @@ function UserOverview({ toastSuccess, toastError }) {
 
   return (
     <div className="animate-slide-up">
-      {/* Referral Link Banner */}
+      {/* Top Greeting + Referral Card */}
       <div style={{
-        background: 'linear-gradient(135deg, #e8f5ec, #d1ebd9)',
-        border: '1px solid #b8dfc4',
+        background: 'linear-gradient(135deg, var(--color-primary), #0d9e6a)',
         borderRadius: 'var(--radius-xl)',
-        padding: '20px 24px',
+        padding: '24px 28px',
         marginBottom: 'var(--space-5)',
+        color: '#fff',
+        position: 'relative',
+        overflow: 'hidden',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 10,
-            background: 'var(--color-primary)', color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
-            <Share2 size={18} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 40, color: 'var(--color-text)' }}>
-              Hello, <span style={{ fontSize: 40, fontWeight: 800, color: 'var(--color-primary)' }}>{user?.name || 'there'}</span>!
+        <div style={{ position: 'absolute', top: -30, right: -30, width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
+        <div style={{ position: 'absolute', bottom: -40, right: 60, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 14, opacity: 0.8, marginBottom: 4 }}>Welcome back</div>
+              <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.2 }}>{user?.name || 'there'}</div>
+              <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>{user?.email}</div>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Invite your friends and earn together</div>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 14px',
+              fontSize: 13, fontWeight: 500, backdropFilter: 'blur(4px)',
+            }}>
+              <UserIcon size={16} />
+              <span>{profile?.user?.role === 'ADMIN' ? 'Admin' : 'Investor'}</span>
+            </div>
           </div>
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 10 }}>
-          Share your referral link below to start earning referral commissions.
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <input
-            readOnly
-            value={referralLink}
-            style={{
-              flex: 1, padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: 8,
-              fontSize: 13, background: 'var(--color-surface)', color: 'var(--color-text)', fontFamily: 'monospace',
-              minWidth: 200,
-            }}
-          />
-          <button className="btn btn-primary btn-sm" onClick={copyReferral} style={{ flexShrink: 0 }}>
-            {copied ? <><CheckCircle size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
-          </button>
+
+          {/* Referral Link */}
+          <div style={{
+            background: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: '12px 16px',
+            backdropFilter: 'blur(4px)',
+          }}>
+            <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Share2 size={14} /> Share your referral link
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                readOnly
+                value={referralLink}
+                style={{
+                  flex: 1, padding: '8px 12px', border: '1px solid rgba(255,255,255,0.25)',
+                  borderRadius: 8, fontSize: 12, background: 'rgba(255,255,255,0.1)',
+                  color: '#fff', fontFamily: 'monospace', minWidth: 150,
+                }}
+              />
+              <button
+                className="btn btn-sm"
+                onClick={copyReferral}
+                style={{
+                  background: '#fff', color: 'var(--color-primary)', fontWeight: 600,
+                  flexShrink: 0, border: 'none',
+                }}
+              >
+                {copied ? <><CheckCircle size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -451,7 +475,7 @@ function UserOverview({ toastSuccess, toastError }) {
             <div>
               <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Active Investment</div>
               <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#00C389' }}>
-                {fmt(investments.filter(iv => iv.status === 'ACTIVE').reduce((sum, iv) => sum + iv.originalAmount, 0))}
+                {fmt(investmentStats.activeInvestment || 0)}
               </div>
             </div>
             <Zap size={32} style={{ color: '#00C389' }} />
@@ -462,7 +486,7 @@ function UserOverview({ toastSuccess, toastError }) {
             <div>
               <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Total Investment</div>
               <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#fff' }}>
-                {fmt(allInvestments.reduce((sum, iv) => sum + iv.originalAmount, 0))}
+                {fmt(investmentStats.totalInvestment || 0)}
               </div>
             </div>
             <TrendingUp size={32} style={{ color: '#00C389' }} />
@@ -716,6 +740,7 @@ function UserInvestments({ toastSuccess, toastError }) {
   const [mine, setMine] = useState([]);
   const [wallet, setWallet] = useState(null);
   const [progress, setProgress] = useState(null);
+  const [investmentStats, setInvestmentStats] = useState({ totalInvestment: 0, activeInvestment: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -730,15 +755,23 @@ function UserInvestments({ toastSuccess, toastError }) {
   const [downlineSettings, setDownlineSettings] = useState(null);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
+  // Downline Activation modal
+  const [showActivateDownlineModal, setShowActivateDownlineModal] = useState(false);
+  const [activateDownlineReceiver, setActivateDownlineReceiver] = useState('');
+  // Downline Deposit modal
+  const [showDepositDownlineModal, setShowDepositDownlineModal] = useState(false);
+  const [depositDownlineReceiver, setDepositDownlineReceiver] = useState('');
+  const [depositDownlineAmount, setDepositDownlineAmount] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [m, w] = await Promise.all([getMyInvestments(status ? { status } : {}), getMyWallet()]);
       setMine(m.investments || []);
+      setInvestmentStats(m.stats || { totalInvestment: 0, activeInvestment: 0 });
       setWallet(w.wallet);
       try { const pr = await getProgressData(); setProgress(pr); } catch (_) {}
-      try { const dl = await getMyDownlines(); setDownlines(dl.downlines || []); } catch (_) {}
+      try { const dl = await getMyDownlines(); setDownlines(dl.directDownlines || dl.downlines || []); } catch (_) {}
       try { const s = await getTransferSettings(); setDownlineSettings(s); } catch (_) {}
     } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
     finally { setLoading(false); }
@@ -746,12 +779,16 @@ function UserInvestments({ toastSuccess, toastError }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const roundToTwo = (v) => Math.round((v + Number.EPSILON) * 100) / 100;
+
   // Auto-calculate wallet split: Main → E-Wallet → Fund
   const autoAllocate = (total) => {
     const amt = Number(total) || 0;
+    const maxEwalletPct = downlineSettings?.selfInvestmentEwalletMaxPercentage || 0;
+    const maxEwalletFromPct = maxEwalletPct > 0 ? roundToTwo(amt * maxEwalletPct / 100) : Infinity;
     const maxMain = Math.min(amt, wallet?.mainBalance || 0);
     const remaining = amt - maxMain;
-    const maxEwallet = Math.min(remaining, wallet?.ewalletBalance || 0);
+    const maxEwallet = Math.min(remaining, wallet?.ewalletBalance || 0, maxEwalletFromPct);
     const remaining2 = remaining - maxEwallet;
     const maxFund = Math.min(remaining2, wallet?.fundBalance || 0);
     setMainAmount(maxMain > 0 ? String(maxMain) : '');
@@ -831,6 +868,34 @@ function UserInvestments({ toastSuccess, toastError }) {
     finally { setBusy(false); }
   };
 
+  const submitActivateDownline = async () => {
+    setBusy(true);
+    setFormError('');
+    if (!activateDownlineReceiver) { setFormError('Select a downline member'); setBusy(false); return; }
+    try {
+      await activateDownlineAccount({ receiverId: activateDownlineReceiver });
+      setShowActivateDownlineModal(false); setActivateDownlineReceiver('');
+      toastSuccess('Downline Activated', 'Downline account activated successfully using E-Wallet');
+      await load();
+    } catch (e) { setFormError(e.response?.data?.message || 'Activation failed'); toastError('Activation Failed', e.response?.data?.message); }
+    finally { setBusy(false); }
+  };
+
+  const submitDepositDownline = async () => {
+    setBusy(true);
+    setFormError('');
+    const amt = Number(depositDownlineAmount);
+    if (!amt || amt <= 0) { setFormError('Enter a valid amount'); setBusy(false); return; }
+    if (!depositDownlineReceiver) { setFormError('Select a downline member'); setBusy(false); return; }
+    try {
+      await depositForDownline({ receiverId: depositDownlineReceiver, amount: amt });
+      setShowDepositDownlineModal(false); setDepositDownlineReceiver(''); setDepositDownlineAmount('');
+      toastSuccess('Deposit Successful', `${fmt(amt)} deposited to downline using E-Wallet`);
+      await load();
+    } catch (e) { setFormError(e.response?.data?.message || 'Deposit failed'); toastError('Deposit Failed', e.response?.data?.message); }
+    finally { setBusy(false); }
+  };
+
   if (loading) return <Spinner label="Loading investments..." />;
   if (error) return <ErrorBox message={error} />;
 
@@ -847,6 +912,16 @@ function UserInvestments({ toastSuccess, toastError }) {
         {downlines.length > 0 && downlineSettings?.ewalletDownlineOfferEnabled && (
           <button className="btn btn-secondary btn-sm" onClick={() => { setShowDownlineModal(true); setAmount(''); setDownlineReceiver(''); setDownlineEwallet(''); }}>
             <Users size={14} /> Invest for Downline
+          </button>
+        )}
+        {downlines.length > 0 && downlineSettings?.ewalletDownlineActivationEnabled && (
+          <button className="btn btn-secondary btn-sm" onClick={() => { setShowActivateDownlineModal(true); setActivateDownlineReceiver(''); setFormError(''); }}>
+            <CheckCircle size={14} /> Activate Downline
+          </button>
+        )}
+        {downlines.length > 0 && downlineSettings?.ewalletDownlineDepositEnabled && (
+          <button className="btn btn-secondary btn-sm" onClick={() => { setShowDepositDownlineModal(true); setDepositDownlineReceiver(''); setDepositDownlineAmount(''); setFormError(''); }}>
+            <DollarSign size={14} /> Deposit for Downline
           </button>
         )}
       </div>
@@ -925,7 +1000,7 @@ function UserInvestments({ toastSuccess, toastError }) {
           <div>
             <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Total Investment</div>
             <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#fff' }}>
-              {fmt(mine.reduce((sum, iv) => sum + iv.originalAmount, 0))}
+              {fmt(investmentStats.totalInvestment || 0)}
             </div>
           </div>
           <TrendingUp size={32} style={{ color: '#00C389' }} />
@@ -937,7 +1012,7 @@ function UserInvestments({ toastSuccess, toastError }) {
           <div>
             <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Active Investment</div>
             <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#00C389' }}>
-              {fmt(mine.filter(iv => iv.status === 'ACTIVE').reduce((sum, iv) => sum + iv.originalAmount, 0))}
+              {fmt(investmentStats.activeInvestment || 0)}
             </div>
           </div>
           <Zap size={32} style={{ color: '#00C389' }} />
@@ -1006,7 +1081,12 @@ function UserInvestments({ toastSuccess, toastError }) {
                 <span>E-Wallet</span>
                 <span style={{ fontWeight: 400, color: 'var(--gray-500)', fontSize: 12 }}>Available: {fmt(wallet?.ewalletBalance)}</span>
               </label>
-              <input className="form-input" type="number" value={ewalletAmount} onChange={(e) => handleWalletChange('ewallet', e.target.value)} min="0" max={wallet?.ewalletBalance || 0} placeholder="0.00" />
+              {downlineSettings?.selfInvestmentEwalletMaxPercentage > 0 && investAmount > 0 && (
+                <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block' }}>
+                  Max from E-Wallet: {fmt(roundToTwo(investAmount * downlineSettings.selfInvestmentEwalletMaxPercentage / 100))} ({downlineSettings.selfInvestmentEwalletMaxPercentage}% of investment)
+                </span>
+              )}
+              <input className="form-input" type="number" value={ewalletAmount} onChange={(e) => handleWalletChange('ewallet', e.target.value)} min="0" max={downlineSettings?.selfInvestmentEwalletMaxPercentage > 0 && investAmount > 0 ? Math.min(wallet?.ewalletBalance || 0, roundToTwo(investAmount * downlineSettings.selfInvestmentEwalletMaxPercentage / 100)) : (wallet?.ewalletBalance || 0)} placeholder="0.00" />
             </div>
             <div className="form-group">
               <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -1070,6 +1150,72 @@ function UserInvestments({ toastSuccess, toastError }) {
           {formError && <ErrorBox message={formError} />}
         </Modal>
       )}
+
+      {showActivateDownlineModal && (
+        <Modal title="Activate Downline Account"
+          footer={
+            <>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowActivateDownlineModal(false)} disabled={busy}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={submitActivateDownline} disabled={busy}>
+                {busy ? <><span className="spinner" /> Processing...</> : 'Activate Account'}
+              </button>
+            </>
+          }
+          onClose={() => setShowActivateDownlineModal(false)}>
+          <p style={{ marginBottom: 'var(--space-2)' }}>Available E-Wallet: <strong>{fmt(wallet?.ewalletBalance)}</strong></p>
+          <p style={{ marginBottom: 'var(--space-4)', fontSize: 13, color: 'var(--color-text-secondary)' }}>
+            Activation fee will be deducted from your E-Wallet balance.
+          </p>
+          <div className="form-group">
+            <label className="form-label">Select Downline Member</label>
+            <select className="select" value={activateDownlineReceiver} onChange={(e) => setActivateDownlineReceiver(e.target.value)}>
+              <option value="">Choose a member...</option>
+              {downlines.filter((dl) => !dl.isActivated).map((dl) => (
+                <option key={dl._id || dl.user?._id} value={dl._id || dl.user?._id}>
+                  {dl.name || dl.user?.name} ({dl.email || dl.user?.email})
+                </option>
+              ))}
+            </select>
+          </div>
+          {downlines.filter((dl) => !dl.isActivated).length === 0 && (
+            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', textAlign: 'center', padding: 'var(--space-4)' }}>
+              All downline members are already activated.
+            </p>
+          )}
+          {formError && <ErrorBox message={formError} />}
+        </Modal>
+      )}
+
+      {showDepositDownlineModal && (
+        <Modal title="Deposit for Downline"
+          footer={
+            <>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowDepositDownlineModal(false)} disabled={busy}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={submitDepositDownline} disabled={busy}>
+                {busy ? <><span className="spinner" /> Processing...</> : 'Confirm Deposit'}
+              </button>
+            </>
+          }
+          onClose={() => setShowDepositDownlineModal(false)}>
+          <p style={{ marginBottom: 'var(--space-2)' }}>Available E-Wallet: <strong>{fmt(wallet?.ewalletBalance)}</strong></p>
+          <div className="form-group">
+            <label className="form-label">Select Downline Member</label>
+            <select className="select" value={depositDownlineReceiver} onChange={(e) => setDepositDownlineReceiver(e.target.value)}>
+              <option value="">Choose a member...</option>
+              {downlines.map((dl) => (
+                <option key={dl._id || dl.user?._id} value={dl._id || dl.user?._id}>
+                  {dl.name || dl.user?.name} ({dl.email || dl.user?.email})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Deposit Amount ($)</label>
+            <input className="form-input" type="number" value={depositDownlineAmount} onChange={(e) => setDepositDownlineAmount(e.target.value)} min="1" max={wallet?.ewalletBalance || 0} />
+          </div>
+          {formError && <ErrorBox message={formError} />}
+        </Modal>
+      )}
     </div>
   );
 }
@@ -1095,6 +1241,7 @@ function UserWallet({ toastSuccess, toastError }) {
   const [bankAccounts, setBankAccounts] = useState([]);
   const [selectedBank, setSelectedBank] = useState('');
   const [bankLoading, setBankLoading] = useState(false);
+  const [proofImageFile, setProofImageFile] = useState(null);
   const [showFundForm, setShowFundForm] = useState(false);
   const [showMainToFundForm, setShowMainToFundForm] = useState(false);
   const [mainToFundAmount, setMainToFundAmount] = useState('');
@@ -1152,12 +1299,18 @@ function UserWallet({ toastSuccess, toastError }) {
     const amt = Number(amount);
     if (!amt || amt <= 0) { setFormError('Enter a valid amount'); setBusy(false); return; }
     try {
-      await requestDeposit({ amount: amt, description: desc, bankAccountId: selectedBank || undefined });
+      const fd = new FormData();
+      fd.append('amount', amt);
+      fd.append('description', desc);
+      if (selectedBank) fd.append('bankAccountId', selectedBank);
+      if (proofImageFile) fd.append('proofImage', proofImageFile);
+      await requestDeposit(fd);
       setSuccess('Deposit request submitted. Awaiting admin approval.');
       toastSuccess('Deposit Submitted', `Deposit request for ${fmt(amt)} submitted successfully.`);
       setAmount('');
       setDesc('');
       setSelectedBank('');
+      setProofImageFile(null);
       setShowDepositForm(false);
       await load();
     } catch (er) { setFormError(er.response?.data?.message || 'Deposit failed'); toastError('Deposit Failed', er.response?.data?.message); }
@@ -1434,11 +1587,13 @@ function UserWallet({ toastSuccess, toastError }) {
                       tabIndex={0}
                       onKeyDown={(e) => e.key === 'Enter' && setSelectedBank(acc._id)}
                     >
-                      <div className="bank-card-type">{acc.accountType === 'BANK' ? 'Bank' : acc.accountType === 'JAZZCASH' ? 'JazzCash' : acc.accountType === 'EASYPAISA' ? 'EasyPaisa' : 'Other'}</div>
+                      <div className="bank-card-type">{acc.accountType === 'LOCAL_BANK' ? '🏦 Local Bank' : '🔗 BEP20'}</div>
                       <div className="bank-card-name">{acc.bankName}</div>
                       <div className="bank-card-holder">{acc.accountHolder}</div>
                       <div className="bank-card-number">{acc.accountNumber}</div>
                       {acc.iban && <div className="bank-card-iban">{acc.iban}</div>}
+                      {acc.walletAddress && <div className="bank-card-number" style={{ fontSize: 11, wordBreak: 'break-all' }}>{acc.walletAddress}</div>}
+                      {acc.qrCodeImage && <img src={acc.qrCodeImage} alt="QR Code" style={{ marginTop: 8, maxWidth: 150, maxHeight: 150, borderRadius: 8, border: '1px solid var(--color-border)' }} />}
                     </div>
                   ))}
                 </div>
@@ -1455,6 +1610,11 @@ function UserWallet({ toastSuccess, toastError }) {
             <div className="form-group">
               <label className="form-label">Details / Reference</label>
               <input className="form-input" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Payment reference or transaction ID" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Payment Proof Image (optional)</label>
+              <input className="form-input" type="file" accept="image/*" onChange={(e) => setProofImageFile(e.target.files[0] || null)} />
+              {proofImageFile && <p className="form-hint" style={{ marginTop: 4 }}>{proofImageFile.name}</p>}
             </div>
             {formError && <ErrorBox message={formError} />}
             {success && <div className="success-box" style={{ marginBottom: 'var(--space-3)' }}><CheckCircle size={18} /> {success}</div>}
