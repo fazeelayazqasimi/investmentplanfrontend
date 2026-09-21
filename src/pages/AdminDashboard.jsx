@@ -22,6 +22,7 @@ import apiClient, {
   getAdminConversations, getAdminChatMessages, sendAdminMessage, updateConversationStatus,
   activateUser, deactivateUser, suspendUser, deleteUser,
   updateAdminUserCredentials, adjustAdminUserWallet, getAdminWithdrawals,
+  approveWithdrawalAdmin, rejectWithdrawalAdmin,
   getAutoRoiSettings, updateAutoRoiSettings,
 } from '../services/apiClient';
 import {
@@ -840,31 +841,63 @@ function AdminDeposits({ toastSuccess, toastError }) {
 }
 
 /* =========================================================
-   WITHDRAWALS (not implemented backend)
+   WITHDRAWALS (pending admin approval)
    ========================================================= */
-function AdminWithdrawals() {
+function AdminWithdrawals({ toastSuccess, toastError }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [filter, setFilter] = useState('PENDING');
+  const [processing, setProcessing] = useState(null);
+  const [rejectModal, setRejectModal] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const load = async () => {
     setLoading(true);
     try {
-      const data = await getAdminWithdrawals({ limit: 100 });
+      const params = { limit: 100 };
+      if (filter !== 'ALL') params.status = filter;
+      const data = await getAdminWithdrawals(params);
       setRows(data.data?.transactions || []);
     } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [filter]);
 
   const handleApprove = async (id) => {
-    if (!window.confirm('Approve this withdrawal?')) return;
+    if (!window.confirm('Approve this withdrawal? Amount will be debited from user wallet.')) return;
+    setProcessing(id);
     try {
-      await apiClient.post(`/admin/users/${id}/withdraw`);
-      toast('Withdrawal approved', 'success');
+      await approveWithdrawalAdmin(id);
+      toastSuccess('Approved', 'Withdrawal approved and wallet debited');
       load();
-    } catch (e) { toast(e.response?.data?.message || 'Failed', 'error'); }
+    } catch (e) { toastError('Failed', e.response?.data?.message || 'Approval failed'); }
+    finally { setProcessing(null); }
+  };
+
+  const handleReject = async () => {
+    if (!rejectModal) return;
+    setProcessing(rejectModal);
+    try {
+      await rejectWithdrawalAdmin(rejectModal, rejectReason);
+      toastSuccess('Rejected', 'Withdrawal rejected');
+      setRejectModal(null);
+      setRejectReason('');
+      load();
+    } catch (e) { toastError('Failed', e.response?.data?.message || 'Rejection failed'); }
+    finally { setProcessing(null); }
+  };
+
+  const getWalletLabel = (desc, meta) => {
+    if (meta?.balanceField) {
+      const map = { mainBalance: 'Main', roiBalance: 'ROI', ewalletBalance: 'E-Wallet', profitShareBalance: 'Profit Share', fundBalance: 'Fund' };
+      return map[meta.balanceField] || 'Other';
+    }
+    if (desc?.includes('mainBalance')) return 'Main';
+    if (desc?.includes('roiBalance')) return 'ROI';
+    if (desc?.includes('ewalletBalance')) return 'E-Wallet';
+    return 'Other';
   };
 
   if (loading) return <Spinner label="Loading withdrawals..." />;
@@ -876,25 +909,78 @@ function AdminWithdrawals() {
         <div><h2>Withdrawal Requests</h2></div>
         <button className="btn btn-secondary btn-sm" onClick={load}><RefreshCw size={14} /> Refresh</button>
       </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)' }}>
+        {['PENDING', 'COMPLETED', 'REJECTED', 'ALL'].map((f) => (
+          <button key={f} className={`btn btn-sm ${filter === f ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter(f)}>
+            {f.charAt(0) + f.slice(1).toLowerCase()}
+          </button>
+        ))}
+      </div>
+
       <div className="table-card">
         <div className="table-wrap">
           <table className="data-table">
-            <thead><tr><th>User</th><th>Amount</th><th>Wallet</th><th>Date</th><th>Status</th></tr></thead>
+            <thead>
+              <tr><th>User</th><th>Amount</th><th>Wallet</th><th>Payout Method</th><th>Payout Details</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+            </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={5} className="table-empty">No withdrawal requests</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={8} className="table-empty">No withdrawal requests</td></tr>}
               {rows.map((r) => (
                 <tr key={r._id}>
                   <td data-label="User" className="cell-strong">{r.user?.name}</td>
                   <td data-label="Amount">{fmt(Math.abs(r.amount))}</td>
-                  <td data-label="Wallet">{r.description?.includes('mainBalance') ? 'Main' : r.description?.includes('roiBalance') ? 'ROI' : r.description?.includes('ewalletBalance') ? 'E-Wallet' : 'Other'}</td>
+                  <td data-label="Wallet">{getWalletLabel(r.description, r.metadata)}</td>
+                  <td data-label="Payout Method">{r.metadata?.payoutMethod === 'BANK' ? 'Bank Account' : r.metadata?.payoutMethod === 'BEP20' ? 'BEP20' : '-'}</td>
+                  <td data-label="Payout Details" style={{ fontSize: 12, maxWidth: 200, wordBreak: 'break-all' }}>
+                    {r.metadata?.payoutMethod === 'BANK' && (
+                      <div>
+                        <div><strong>{r.metadata?.payoutDetails?.bankName || '-'}</strong></div>
+                        <div>{r.metadata?.payoutDetails?.accountHolder || '-'}</div>
+                        <div>{r.metadata?.payoutDetails?.accountNumber || '-'}</div>
+                        {r.metadata?.payoutDetails?.iban && <div>IBAN: {r.metadata.payoutDetails.iban}</div>}
+                      </div>
+                    )}
+                    {r.metadata?.payoutMethod === 'BEP20' && (
+                      <div>{r.metadata?.payoutDetails?.bep20Address || '-'}</div>
+                    )}
+                    {!r.metadata?.payoutMethod && '-'}
+                  </td>
                   <td data-label="Date">{fmtDate(r.createdAt)}</td>
                   <td data-label="Status"><StatusBadge status={r.status} /></td>
+                  <td data-label="Actions">
+                    {r.status === 'PENDING' && (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn btn-primary btn-sm" disabled={processing === r._id} onClick={() => handleApprove(r._id)}>
+                          {processing === r._id ? '...' : 'Approve'}
+                        </button>
+                        <button className="btn btn-secondary btn-sm" disabled={processing === r._id} onClick={() => { setRejectModal(r._id); setRejectReason(''); }}>
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {rejectModal && (
+        <Modal title="Reject Withdrawal" onClose={() => setRejectModal(null)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 300 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Provide a reason for rejecting this withdrawal request (optional):</p>
+            <input className="form-input" type="text" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Rejection reason..." />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setRejectModal(null)}>Cancel</button>
+              <button className="btn btn-primary btn-sm" disabled={processing === rejectModal} onClick={handleReject}>
+                {processing === rejectModal ? 'Rejecting...' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -2956,6 +3042,8 @@ function AdminSettings({ toastSuccess, toastError }) {
   const [fundTransferEnabled, setFundTransferEnabled] = useState(false);
   // Pending Release
   const [pendingReleaseMultiplier, setPendingReleaseMultiplier] = useState(3);
+  // Withdrawal
+  const [withdrawalMaxAmount, setWithdrawalMaxAmount] = useState(0);
   // Day-wise ROI
   const [roiDays, setRoiDays] = useState(0);
   const [daySchedule, setDaySchedule] = useState([]);
@@ -2983,6 +3071,7 @@ function AdminSettings({ toastSuccess, toastError }) {
         setPsMethod(s.profitShareDistributionMethod || 'EQUAL');
         setFundTransferEnabled(s.fundTransferEnabled || false);
         setPendingReleaseMultiplier(s.pendingReleaseMultiplier ?? 3);
+        setWithdrawalMaxAmount(s.withdrawalMaxAmount || 0);
         setEwalletDownlineOfferEnabled(s.ewalletDownlineOfferEnabled || false);
         setEwalletMaxPercentage(s.ewalletMaxPercentage || 0);
         setEwalletDownlineActivationEnabled(s.ewalletDownlineActivationEnabled || false);
@@ -3092,7 +3181,14 @@ function AdminSettings({ toastSuccess, toastError }) {
             </p>
             <input className="form-input" type="number" value={pendingReleaseMultiplier} onChange={(e) => setPendingReleaseMultiplier(Number(e.target.value))} min="0" max="100" style={{ maxWidth: 120 }} />
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => save({ allowUserInvestment: allowInvest, pendingReleaseMultiplier })} disabled={busy}>Save General</button>
+          <div className="form-group">
+            <label className="form-label">Maximum Withdrawal Amount Per Request</label>
+            <p className="text-muted" style={{ fontSize: 12, marginBottom: 4 }}>
+              Set the maximum amount a user can withdraw in a single request. Set to 0 for no limit.
+            </p>
+            <input className="form-input" type="number" value={withdrawalMaxAmount} onChange={(e) => setWithdrawalMaxAmount(Number(e.target.value))} min="0" style={{ maxWidth: 120 }} placeholder="0 = no limit" />
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ allowUserInvestment: allowInvest, pendingReleaseMultiplier, withdrawalMaxAmount: Number(withdrawalMaxAmount) })} disabled={busy}>Save General</button>
         </div>
       )}
 

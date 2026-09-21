@@ -536,21 +536,33 @@ export const adjustAdminUserWallet = async (id, payload) => {
   return data;
 };
 
-// Admin: Request withdrawal for user
-export const adminRequestWithdrawal = async (id, payload) => {
-  const { data } = await apiClient.post(`/admin/users/${id}/withdraw`, payload);
-  return data;
-};
-
 // Admin: List withdrawals
 export const getAdminWithdrawals = async (params = {}) => {
   const { data } = await apiClient.get('/admin/withdrawals', { params });
   return data;
 };
 
-// User: Request withdrawal
+// Admin: Approve a pending withdrawal
+export const approveWithdrawalAdmin = async (id) => {
+  const { data } = await apiClient.post(`/admin/withdrawals/${id}/approve`);
+  return data;
+};
+
+// Admin: Reject a pending withdrawal
+export const rejectWithdrawalAdmin = async (id, reason = '') => {
+  const { data } = await apiClient.post(`/admin/withdrawals/${id}/reject`, { reason });
+  return data;
+};
+
+// User: Request withdrawal (pending admin approval)
 export const requestWithdrawal = async (payload) => {
   const { data } = await apiClient.post('/wallet/withdraw', payload);
+  return data;
+};
+
+// User: Get own withdrawal history
+export const getMyWithdrawals = async (params = {}) => {
+  const { data } = await apiClient.get('/wallet/withdrawals', { params });
   return data;
 };
 

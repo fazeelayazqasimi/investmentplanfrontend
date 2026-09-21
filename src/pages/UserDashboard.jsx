@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, LineChart, Wallet as WalletIcon, Receipt, Percent, Share2, User as UserIcon,
-  LogOut, Loader2, AlertCircle, TrendingUp, ArrowDownToLine, Menu, X, CheckCircle,
+  LogOut, Loader2, AlertCircle, TrendingUp, ArrowDownToLine, ArrowUpFromLine, Menu, X, CheckCircle,
   BarChart3, CreditCard, Users, ArrowRightLeft, DollarSign, Copy, ChevronDown, Megaphone, Trophy, Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +16,7 @@ import apiClient, {
   activateDownlineAccount, depositForDownline,
   getBankAccounts, getActiveAnnouncements, searchMyDownlines, getPendingCommissionDetails,
   requestWithdrawal as requestWithdrawalApi,
+  getMyWithdrawals,
 } from '../services/apiClient';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -1260,6 +1261,16 @@ function UserWallet({ toastSuccess, toastError }) {
   const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [withdrawError, setWithdrawError] = useState('');
   const [withdrawSuccess, setWithdrawSuccess] = useState('');
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawPayoutMethod, setWithdrawPayoutMethod] = useState('BANK');
+  const [withdrawBankName, setWithdrawBankName] = useState('');
+  const [withdrawAccountHolder, setWithdrawAccountHolder] = useState('');
+  const [withdrawAccountNumber, setWithdrawAccountNumber] = useState('');
+  const [withdrawIban, setWithdrawIban] = useState('');
+  const [withdrawBep20Address, setWithdrawBep20Address] = useState('');
+  const [withdrawNotes, setWithdrawNotes] = useState('');
+  const [withdrawHistory, setWithdrawHistory] = useState([]);
+  const [withdrawHistoryLoading, setWithdrawHistoryLoading] = useState(false);
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingDetails, setPendingDetails] = useState([]);
   const [pendingLoading, setPendingLoading] = useState(false);
@@ -1275,6 +1286,10 @@ function UserWallet({ toastSuccess, toastError }) {
         const s = await getTransferSettings();
         setSettings(s);
       } catch (e) { /* settings fetch optional */ }
+      try {
+        const wd = await getMyWithdrawals({ limit: 50 });
+        setWithdrawHistory(wd.data?.transactions || []);
+      } catch (e) { /* withdrawal history optional */ }
     } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
     finally { setLoading(false); }
   }, []);
@@ -1378,12 +1393,39 @@ function UserWallet({ toastSuccess, toastError }) {
     setWithdrawSuccess('');
     const amt = Number(withdrawAmount);
     if (!amt || amt <= 0) { setWithdrawError('Enter a valid amount'); setWithdrawBusy(false); return; }
+
+    if (withdrawPayoutMethod === 'BANK') {
+      if (!withdrawBankName.trim()) { setWithdrawError('Bank name is required'); setWithdrawBusy(false); return; }
+      if (!withdrawAccountHolder.trim()) { setWithdrawError('Account holder name is required'); setWithdrawBusy(false); return; }
+      if (!withdrawAccountNumber.trim()) { setWithdrawError('Account number is required'); setWithdrawBusy(false); return; }
+    }
+    if (withdrawPayoutMethod === 'BEP20') {
+      if (!withdrawBep20Address.trim()) { setWithdrawError('BEP20 wallet address is required'); setWithdrawBusy(false); return; }
+    }
+
+    const payoutDetails = withdrawPayoutMethod === 'BANK'
+      ? { bankName: withdrawBankName.trim(), accountHolder: withdrawAccountHolder.trim(), accountNumber: withdrawAccountNumber.trim(), iban: withdrawIban.trim() }
+      : { bep20Address: withdrawBep20Address.trim() };
+
     try {
-      const res = await requestWithdrawalApi({ amount: amt, balanceField: withdrawField });
-      setWithdrawSuccess(res.message || 'Your withdrawal request has been submitted. It will be processed within 72 hours.');
+      const res = await requestWithdrawalApi({
+        amount: amt,
+        balanceField: withdrawField,
+        payoutMethod: withdrawPayoutMethod,
+        payoutDetails,
+        notes: withdrawNotes.trim(),
+      });
+      setWithdrawSuccess(res.message || 'Your withdrawal request has been submitted. Admin will review and approve within 72 hours.');
       toastSuccess('Withdrawal Submitted', res.message || 'Your withdrawal will be processed within 72 hours.');
       setWithdrawAmount('');
+      setWithdrawBankName('');
+      setWithdrawAccountHolder('');
+      setWithdrawAccountNumber('');
+      setWithdrawIban('');
+      setWithdrawBep20Address('');
+      setWithdrawNotes('');
       await load();
+      setTimeout(() => setShowWithdrawModal(false), 2000);
     } catch (er) { setWithdrawError(er.response?.data?.message || 'Withdrawal failed'); toastError('Withdrawal Failed', er.response?.data?.message); }
     finally { setWithdrawBusy(false); }
   };
@@ -1505,6 +1547,12 @@ function UserWallet({ toastSuccess, toastError }) {
         >
           <ArrowRightLeft size={16} /> {showFundForm ? 'Close' : 'Fund Transfer'}
         </button>
+        <button
+          className="btn btn-primary"
+          onClick={() => { setWithdrawSuccess(''); setWithdrawError(''); setShowWithdrawModal(true); }}
+        >
+          <ArrowUpFromLine size={16} /> Request Withdrawal
+        </button>
       </div>
       {!fundTransferAllowed && (
         <div className="info-banner danger" style={{ marginBottom: 'var(--space-3)' }}>
@@ -1587,12 +1635,21 @@ function UserWallet({ toastSuccess, toastError }) {
                       tabIndex={0}
                       onKeyDown={(e) => e.key === 'Enter' && setSelectedBank(acc._id)}
                     >
-                      <div className="bank-card-type">{acc.accountType === 'LOCAL_BANK' ? '🏦 Local Bank' : '🔗 BEP20'}</div>
+                      <div className="bank-card-type" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{acc.accountType === 'LOCAL_BANK' ? <><CreditCard size={14} /> Local Bank</> : <><WalletIcon size={14} /> BEP20</>}</div>
                       <div className="bank-card-name">{acc.bankName}</div>
                       <div className="bank-card-holder">{acc.accountHolder}</div>
-                      <div className="bank-card-number">{acc.accountNumber}</div>
-                      {acc.iban && <div className="bank-card-iban">{acc.iban}</div>}
-                      {acc.walletAddress && <div className="bank-card-number" style={{ fontSize: 11, wordBreak: 'break-all' }}>{acc.walletAddress}</div>}
+                      <div className="bank-card-number" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>{acc.accountNumber}</span>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(acc.accountNumber); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', padding: 2 }} title="Copy account number"><Copy size={14} /></button>
+                      </div>
+                      {acc.iban && <div className="bank-card-iban" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>{acc.iban}</span>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(acc.iban); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', padding: 2 }} title="Copy IBAN"><Copy size={14} /></button>
+                      </div>}
+                      {acc.walletAddress && <div className="bank-card-number" style={{ fontSize: 11, wordBreak: 'break-all', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>{acc.walletAddress}</span>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(acc.walletAddress); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', padding: 2, flexShrink: 0 }} title="Copy wallet address"><Copy size={14} /></button>
+                      </div>}
                       {acc.qrCodeImage && <img src={acc.qrCodeImage} alt="QR Code" style={{ marginTop: 8, maxWidth: 150, maxHeight: 150, borderRadius: 8, border: '1px solid var(--color-border)' }} />}
                     </div>
                   ))}
@@ -1700,36 +1757,106 @@ function UserWallet({ toastSuccess, toastError }) {
         </div>
       )}
 
-      {tab === 'withdraw' && (
-        <div className="panel">
-          <h3>Request Withdrawal</h3>
+      {showWithdrawModal && (
+        <Modal title="Request Withdrawal" onClose={() => setShowWithdrawModal(false)}>
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
-            Withdrawal requests are processed within 72 hours. Select the wallet and enter the amount to withdraw.
+            Withdrawal requests are reviewed by admin within 72 hours. Provide your payout details below.
           </p>
           {withdrawSuccess && (
             <div style={{ padding: '12px 16px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: 8, marginBottom: 12, fontSize: 13, color: '#16a34a', fontWeight: 500 }}>
               {withdrawSuccess}
             </div>
           )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 400 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 380 }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">From Wallet</label>
               <select className="form-input" value={withdrawField} onChange={(e) => setWithdrawField(e.target.value)}>
                 <option value="mainBalance">Main Wallet ({fmt(wallet?.mainBalance)})</option>
-                <option value="roiBalance">ROI Wallet ({fmt(wallet?.roiBalance)})</option>
-                <option value="ewalletBalance">E-Wallet ({fmt(wallet?.ewalletBalance)})</option>
-                <option value="profitShareBalance">Profit Share ({fmt(wallet?.profitShareBalance)})</option>
-                <option value="fundBalance">Fund Wallet ({fmt(wallet?.fundBalance)})</option>
               </select>
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Amount</label>
               <input className="form-input" type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} placeholder="0.00" min="0.01" />
+              {settings?.withdrawalMaxAmount > 0 && (
+                <p className="text-muted" style={{ fontSize: 12, marginTop: 4, color: '#f59e0b' }}>
+                  Maximum withdrawal amount: {fmt(settings.withdrawalMaxAmount)}
+                </p>
+              )}
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Payout Method</label>
+              <select className="form-input" value={withdrawPayoutMethod} onChange={(e) => setWithdrawPayoutMethod(e.target.value)}>
+                <option value="BANK">Bank Account</option>
+                <option value="BEP20">BEP20 Wallet</option>
+              </select>
+            </div>
+
+            {withdrawPayoutMethod === 'BANK' && (
+              <>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Bank Name</label>
+                  <input className="form-input" type="text" value={withdrawBankName} onChange={(e) => setWithdrawBankName(e.target.value)} placeholder="e.g. HBL, Meezan Bank" />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Account Holder Name</label>
+                  <input className="form-input" type="text" value={withdrawAccountHolder} onChange={(e) => setWithdrawAccountHolder(e.target.value)} placeholder="Full name on bank account" />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Account Number</label>
+                  <input className="form-input" type="text" value={withdrawAccountNumber} onChange={(e) => setWithdrawAccountNumber(e.target.value)} placeholder="Bank account number" />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">IBAN (Optional)</label>
+                  <input className="form-input" type="text" value={withdrawIban} onChange={(e) => setWithdrawIban(e.target.value)} placeholder="IBAN number" />
+                </div>
+              </>
+            )}
+
+            {withdrawPayoutMethod === 'BEP20' && (
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">BEP20 Wallet Address</label>
+                <input className="form-input" type="text" value={withdrawBep20Address} onChange={(e) => setWithdrawBep20Address(e.target.value)} placeholder="0x..." />
+              </div>
+            )}
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Notes (Optional)</label>
+              <input className="form-input" type="text" value={withdrawNotes} onChange={(e) => setWithdrawNotes(e.target.value)} placeholder="Any additional notes for admin" />
             </div>
             {withdrawError && <ErrorBox message={withdrawError} />}
             <button className="btn btn-primary btn-sm" onClick={handleWithdraw} disabled={withdrawBusy || !withdrawAmount} style={{ alignSelf: 'flex-start' }}>
               {withdrawBusy ? 'Submitting...' : 'Submit Withdrawal Request'}
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {withdrawHistory.length > 0 && (
+        <div className="page-header" style={{ marginTop: 'var(--space-6)' }}>
+          <div>
+            <h2>Withdrawal History</h2>
+          </div>
+        </div>
+      )}
+      {withdrawHistory.length > 0 && (
+        <div className="table-card">
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr><th>Amount</th><th>Wallet</th><th>Payout</th><th>Status</th><th>Date</th></tr>
+              </thead>
+              <tbody>
+                {withdrawHistory.map((w) => (
+                  <tr key={w._id}>
+                    <td data-label="Amount" className="cell-strong">{fmt(Math.abs(w.amount))}</td>
+                    <td data-label="Wallet">{w.metadata?.balanceField === 'mainBalance' ? 'Main' : w.metadata?.balanceField === 'roiBalance' ? 'ROI' : w.metadata?.balanceField === 'ewalletBalance' ? 'E-Wallet' : w.metadata?.balanceField === 'profitShareBalance' ? 'Profit Share' : w.metadata?.balanceField === 'fundBalance' ? 'Fund' : 'Other'}</td>
+                    <td data-label="Payout">{w.metadata?.payoutMethod === 'BANK' ? `Bank: ${w.metadata?.payoutDetails?.bankName || '-'}` : w.metadata?.payoutMethod === 'BEP20' ? `BEP20: ${(w.metadata?.payoutDetails?.bep20Address || '').slice(0, 10)}...` : '-'}</td>
+                    <td data-label="Status"><StatusBadge status={w.status} /></td>
+                    <td data-label="Date">{fmtDate(w.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
