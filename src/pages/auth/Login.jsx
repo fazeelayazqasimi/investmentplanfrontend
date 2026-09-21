@@ -158,7 +158,13 @@ function Login() {
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', marginTop: 'var(--space-6)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+          <p style={{ textAlign: 'center', marginTop: 'var(--space-4)', fontSize: 'var(--font-size-sm)' }}>
+            <Link to="/forgot-password" style={{ color: 'var(--color-primary)', fontWeight: 'var(--font-weight-medium)' }}>
+              Forgot Password?
+            </Link>
+          </p>
+
+          <p style={{ textAlign: 'center', marginTop: 'var(--space-4)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
             Don&apos;t have an account?{' '}
             <Link to="/register" style={{ color: 'var(--color-primary)', fontWeight: 'var(--font-weight-medium)' }}>
               Create one

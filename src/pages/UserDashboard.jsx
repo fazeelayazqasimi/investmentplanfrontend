@@ -2724,7 +2724,6 @@ function UserProfile({ toastSuccess, toastError }) {
   const [edit, setEdit] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [additionalEmails, setAdditionalEmails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -2735,7 +2734,6 @@ function UserProfile({ toastSuccess, toastError }) {
       setProfile(p);
       setName(p.user.name);
       setPhone(p.user.phone);
-      setAdditionalEmails(p.user.additionalEmails || []);
     } catch (e) { setError(e.response?.data?.message || 'Failed'); }
     finally { setLoading(false); }
   }, []);
@@ -2745,8 +2743,7 @@ function UserProfile({ toastSuccess, toastError }) {
   const save = async () => {
     setSaving(true);
     try {
-      const filteredEmails = additionalEmails.filter((e) => e.trim());
-      await updateMyProfile({ name, phone, additionalEmails: filteredEmails });
+      await updateMyProfile({ name, phone });
       toastSuccess('Profile Updated', 'Your profile has been saved successfully.');
       setEdit(false);
       await load();
@@ -2754,23 +2751,6 @@ function UserProfile({ toastSuccess, toastError }) {
       setError(e.response?.data?.message || 'Failed');
       toastError('Update Failed', e.response?.data?.message);
     } finally { setSaving(false); }
-  };
-
-  const addEmail = () => {
-    if (additionalEmails.length >= 4) return;
-    setAdditionalEmails((prev) => [...prev, '']);
-  };
-
-  const removeEmail = (index) => {
-    setAdditionalEmails((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleAdditionalEmailChange = (index, value) => {
-    setAdditionalEmails((prev) => {
-      const updated = [...prev];
-      updated[index] = value;
-      return updated;
-    });
   };
 
   if (loading) return <Spinner label="Loading profile..." />;
@@ -2793,12 +2773,6 @@ function UserProfile({ toastSuccess, toastError }) {
             <div className="detail-grid">
               <div className="detail-item"><span className="k">Name</span><span className="v">{u.name}</span></div>
               <div className="detail-item"><span className="k">Email</span><span className="v">{u.email}</span></div>
-              {(u.additionalEmails || []).length > 0 && (
-                <div className="detail-item" style={{ flexDirection: 'column', gap: 4 }}>
-                  <span className="k">Additional Emails</span>
-                  {u.additionalEmails.map((e, i) => <span className="v" key={i}>{e}</span>)}
-                </div>
-              )}
               <div className="detail-item"><span className="k">Phone</span><span className="v">{u.phone}</span></div>
               <div className="detail-item"><span className="k">Status</span><span className="v"><StatusBadge status={u.accountStatus} /></span></div>
               <div className="detail-item"><span className="k">Referral Code</span><span className="v">{u.referralCode}</span></div>
@@ -2823,28 +2797,6 @@ function UserProfile({ toastSuccess, toastError }) {
               <input className="form-input" value={u.email} disabled style={{ opacity: 0.6 }} />
               <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>Primary email cannot be changed</p>
             </div>
-
-            {additionalEmails.map((email, index) => (
-              <div className="form-group" key={index}>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span>Additional Email {index + 1}</span>
-                  <button type="button" onClick={() => removeEmail(index)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2, display: 'flex' }}>
-                    <X size={16} />
-                  </button>
-                </label>
-                <input className="form-input" type="email" value={email}
-                  onChange={(e) => handleAdditionalEmailChange(index, e.target.value)}
-                  placeholder="you@example.com" />
-              </div>
-            ))}
-
-            {additionalEmails.length < 4 && (
-              <button type="button" onClick={addEmail}
-                style={{ background: 'none', border: '1px dashed var(--color-border)', borderRadius: 8, padding: '10px 16px', width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--color-primary)', fontSize: 13, fontWeight: 500, marginBottom: 'var(--space-3)' }}>
-                <Plus size={16} /> Add Another Email
-              </button>
-            )}
 
             <div className="filter-group">
               <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>

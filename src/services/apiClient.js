@@ -39,7 +39,7 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       const currentPath = window.location.pathname;
-      const isAuthPage = currentPath === '/login' || currentPath === '/register';
+      const isAuthPage = ['/login', '/register', '/forgot-password', '/'].includes(currentPath);
 
       localStorage.removeItem(TOKEN_KEY);
 

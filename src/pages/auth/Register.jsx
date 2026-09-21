@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, TrendingUp, User, Phone, BarChart3, Shield, Users, Plus, X } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, TrendingUp, User, Phone, BarChart3, Shield, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
 import logoHeader from '../../images/favicon.png';
@@ -14,7 +14,6 @@ function Register() {
     name: '', email: '', phone: '', password: '', confirmPassword: '',
     referralCode: searchParams.get('ref') || '',
   });
-  const [additionalEmails, setAdditionalEmails] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
@@ -25,23 +24,6 @@ function Register() {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setError('');
     setFieldErrors([]);
-  };
-
-  const addEmail = () => {
-    if (additionalEmails.length >= 4) return;
-    setAdditionalEmails((prev) => [...prev, '']);
-  };
-
-  const removeEmail = (index) => {
-    setAdditionalEmails((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleAdditionalEmailChange = (index, value) => {
-    setAdditionalEmails((prev) => {
-      const updated = [...prev];
-      updated[index] = value;
-      return updated;
-    });
   };
 
   const handleSubmit = async (e) => {
@@ -56,14 +38,11 @@ function Register() {
       return;
     }
 
-    const filteredEmails = additionalEmails.filter((e) => e.trim());
-
     try {
       const data = await authService.register({
         name: formData.name, email: formData.email, phone: formData.phone,
         password: formData.password, confirmPassword: formData.confirmPassword,
         referralCode: formData.referralCode,
-        additionalEmails: filteredEmails.length > 0 ? filteredEmails : undefined,
       });
       login(data.user, data.token);
       navigate('/dashboard', { replace: true });
@@ -154,28 +133,6 @@ function Register() {
               <input type="email" name="email" className="form-input" placeholder="you@example.com"
                 value={formData.email} onChange={handleChange} required autoComplete="email" />
             </div>
-
-            {additionalEmails.map((email, index) => (
-              <div className="form-group" key={index} style={{ marginBottom: 'var(--space-3)' }}>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span>Additional Email {index + 1} <span className="text-muted">(Optional)</span></span>
-                  <button type="button" onClick={() => removeEmail(index)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2, display: 'flex' }}>
-                    <X size={16} />
-                  </button>
-                </label>
-                <input type="email" className="form-input" placeholder="you@example.com"
-                  value={email} onChange={(e) => handleAdditionalEmailChange(index, e.target.value)}
-                  autoComplete="email" />
-              </div>
-            ))}
-
-            {additionalEmails.length < 4 && (
-              <button type="button" onClick={addEmail}
-                style={{ background: 'none', border: '1px dashed var(--color-border)', borderRadius: 8, padding: '10px 16px', width: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--color-primary)', fontSize: 13, fontWeight: 500, marginBottom: 'var(--space-4)' }}>
-                <Plus size={16} /> Add Another Email
-              </button>
-            )}
 
             <div className="form-group">
               <label className="form-label">Phone Number</label>
