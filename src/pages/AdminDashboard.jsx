@@ -3043,6 +3043,7 @@ function AdminSettings({ toastSuccess, toastError }) {
   // Pending Release
   const [pendingReleaseMultiplier, setPendingReleaseMultiplier] = useState(3);
   // Withdrawal
+  const [withdrawalMinAmount, setWithdrawalMinAmount] = useState(0);
   const [withdrawalMaxAmount, setWithdrawalMaxAmount] = useState(0);
   // Day-wise ROI
   const [roiDays, setRoiDays] = useState(0);
@@ -3071,6 +3072,7 @@ function AdminSettings({ toastSuccess, toastError }) {
         setPsMethod(s.profitShareDistributionMethod || 'EQUAL');
         setFundTransferEnabled(s.fundTransferEnabled || false);
         setPendingReleaseMultiplier(s.pendingReleaseMultiplier ?? 3);
+        setWithdrawalMinAmount(s.withdrawalMinAmount || 0);
         setWithdrawalMaxAmount(s.withdrawalMaxAmount || 0);
         setEwalletDownlineOfferEnabled(s.ewalletDownlineOfferEnabled || false);
         setEwalletMaxPercentage(s.ewalletMaxPercentage || 0);
@@ -3182,13 +3184,20 @@ function AdminSettings({ toastSuccess, toastError }) {
             <input className="form-input" type="number" value={pendingReleaseMultiplier} onChange={(e) => setPendingReleaseMultiplier(Number(e.target.value))} min="0" max="100" style={{ maxWidth: 120 }} />
           </div>
           <div className="form-group">
+            <label className="form-label">Minimum Withdrawal Amount Per Request</label>
+            <p className="text-muted" style={{ fontSize: 12, marginBottom: 4 }}>
+              Set the minimum amount a user must withdraw in a single request. Set to 0 for no minimum.
+            </p>
+            <input className="form-input" type="number" value={withdrawalMinAmount} onChange={(e) => setWithdrawalMinAmount(Number(e.target.value))} min="0" style={{ maxWidth: 120 }} placeholder="0 = no minimum" />
+          </div>
+          <div className="form-group">
             <label className="form-label">Maximum Withdrawal Amount Per Request</label>
             <p className="text-muted" style={{ fontSize: 12, marginBottom: 4 }}>
               Set the maximum amount a user can withdraw in a single request. Set to 0 for no limit.
             </p>
             <input className="form-input" type="number" value={withdrawalMaxAmount} onChange={(e) => setWithdrawalMaxAmount(Number(e.target.value))} min="0" style={{ maxWidth: 120 }} placeholder="0 = no limit" />
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => save({ allowUserInvestment: allowInvest, pendingReleaseMultiplier, withdrawalMaxAmount: Number(withdrawalMaxAmount) })} disabled={busy}>Save General</button>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ allowUserInvestment: allowInvest, pendingReleaseMultiplier, withdrawalMinAmount: Number(withdrawalMinAmount), withdrawalMaxAmount: Number(withdrawalMaxAmount) })} disabled={busy}>Save General</button>
         </div>
       )}
 

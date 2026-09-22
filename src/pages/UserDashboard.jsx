@@ -1262,11 +1262,6 @@ function UserWallet({ toastSuccess, toastError }) {
   const [withdrawError, setWithdrawError] = useState('');
   const [withdrawSuccess, setWithdrawSuccess] = useState('');
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [withdrawPayoutMethod, setWithdrawPayoutMethod] = useState('BANK');
-  const [withdrawBankName, setWithdrawBankName] = useState('');
-  const [withdrawAccountHolder, setWithdrawAccountHolder] = useState('');
-  const [withdrawAccountNumber, setWithdrawAccountNumber] = useState('');
-  const [withdrawIban, setWithdrawIban] = useState('');
   const [withdrawBep20Address, setWithdrawBep20Address] = useState('');
   const [withdrawNotes, setWithdrawNotes] = useState('');
   const [withdrawHistory, setWithdrawHistory] = useState([]);
@@ -1394,34 +1389,21 @@ function UserWallet({ toastSuccess, toastError }) {
     const amt = Number(withdrawAmount);
     if (!amt || amt <= 0) { setWithdrawError('Enter a valid amount'); setWithdrawBusy(false); return; }
 
-    if (withdrawPayoutMethod === 'BANK') {
-      if (!withdrawBankName.trim()) { setWithdrawError('Bank name is required'); setWithdrawBusy(false); return; }
-      if (!withdrawAccountHolder.trim()) { setWithdrawError('Account holder name is required'); setWithdrawBusy(false); return; }
-      if (!withdrawAccountNumber.trim()) { setWithdrawError('Account number is required'); setWithdrawBusy(false); return; }
-    }
-    if (withdrawPayoutMethod === 'BEP20') {
-      if (!withdrawBep20Address.trim()) { setWithdrawError('BEP20 wallet address is required'); setWithdrawBusy(false); return; }
-    }
+    if (!withdrawBep20Address.trim()) { setWithdrawError('BEP20 wallet address is required'); setWithdrawBusy(false); return; }
 
-    const payoutDetails = withdrawPayoutMethod === 'BANK'
-      ? { bankName: withdrawBankName.trim(), accountHolder: withdrawAccountHolder.trim(), accountNumber: withdrawAccountNumber.trim(), iban: withdrawIban.trim() }
-      : { bep20Address: withdrawBep20Address.trim() };
+    const payoutDetails = { bep20Address: withdrawBep20Address.trim() };
 
     try {
       const res = await requestWithdrawalApi({
         amount: amt,
         balanceField: withdrawField,
-        payoutMethod: withdrawPayoutMethod,
+        payoutMethod: 'BEP20',
         payoutDetails,
         notes: withdrawNotes.trim(),
       });
       setWithdrawSuccess(res.message || 'Your withdrawal request has been submitted. Admin will review and approve within 72 hours.');
       toastSuccess('Withdrawal Submitted', res.message || 'Your withdrawal will be processed within 72 hours.');
       setWithdrawAmount('');
-      setWithdrawBankName('');
-      setWithdrawAccountHolder('');
-      setWithdrawAccountNumber('');
-      setWithdrawIban('');
       setWithdrawBep20Address('');
       setWithdrawNotes('');
       await load();
@@ -1777,6 +1759,11 @@ function UserWallet({ toastSuccess, toastError }) {
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Amount</label>
               <input className="form-input" type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} placeholder="0.00" min="0.01" />
+              {settings?.withdrawalMinAmount > 0 && (
+                <p className="text-muted" style={{ fontSize: 12, marginTop: 4, color: '#f59e0b' }}>
+                  Minimum withdrawal amount: {fmt(settings.withdrawalMinAmount)}
+                </p>
+              )}
               {settings?.withdrawalMaxAmount > 0 && (
                 <p className="text-muted" style={{ fontSize: 12, marginTop: 4, color: '#f59e0b' }}>
                   Maximum withdrawal amount: {fmt(settings.withdrawalMaxAmount)}
@@ -1784,40 +1771,9 @@ function UserWallet({ toastSuccess, toastError }) {
               )}
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Payout Method</label>
-              <select className="form-input" value={withdrawPayoutMethod} onChange={(e) => setWithdrawPayoutMethod(e.target.value)}>
-                <option value="BANK">Bank Account</option>
-                <option value="BEP20">BEP20 Wallet</option>
-              </select>
+              <label className="form-label">BEP20 Wallet Address</label>
+              <input className="form-input" type="text" value={withdrawBep20Address} onChange={(e) => setWithdrawBep20Address(e.target.value)} placeholder="0x..." />
             </div>
-
-            {withdrawPayoutMethod === 'BANK' && (
-              <>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Bank Name</label>
-                  <input className="form-input" type="text" value={withdrawBankName} onChange={(e) => setWithdrawBankName(e.target.value)} placeholder="e.g. HBL, Meezan Bank" />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Account Holder Name</label>
-                  <input className="form-input" type="text" value={withdrawAccountHolder} onChange={(e) => setWithdrawAccountHolder(e.target.value)} placeholder="Full name on bank account" />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Account Number</label>
-                  <input className="form-input" type="text" value={withdrawAccountNumber} onChange={(e) => setWithdrawAccountNumber(e.target.value)} placeholder="Bank account number" />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">IBAN (Optional)</label>
-                  <input className="form-input" type="text" value={withdrawIban} onChange={(e) => setWithdrawIban(e.target.value)} placeholder="IBAN number" />
-                </div>
-              </>
-            )}
-
-            {withdrawPayoutMethod === 'BEP20' && (
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">BEP20 Wallet Address</label>
-                <input className="form-input" type="text" value={withdrawBep20Address} onChange={(e) => setWithdrawBep20Address(e.target.value)} placeholder="0x..." />
-              </div>
-            )}
 
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Notes (Optional)</label>
