@@ -596,7 +596,7 @@ function UserOverview({ toastSuccess, toastError }) {
                   {fmt(progress.remaining3x)} remaining before 3X cap
                 </div>
               )}
-              {progress.remaining3x <= 0 && (
+              {progress.remaining3x <= 0 && progress.totalInvestment > 0 && (
                 <div style={{
                   marginTop: 8, padding: '10px 14px',
                   background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-md)',
@@ -605,6 +605,17 @@ function UserOverview({ toastSuccess, toastError }) {
                 }}>
                   <AlertCircle size={14} />
                   ROI Stopped — Invest More to Resume Earning
+                </div>
+              )}
+              {progress.totalInvestment === 0 && (
+                <div style={{
+                  marginTop: 8, padding: '10px 14px',
+                  background: 'rgba(16,185,129,0.08)', borderRadius: 'var(--radius-md)',
+                  fontSize: 13, color: '#10b981', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <Zap size={14} />
+                  Start investing and upgrade your progress
                 </div>
               )}
             </div>
@@ -980,7 +991,7 @@ function UserInvestments({ toastSuccess, toastError }) {
                 <span>Earned: {fmt(progress.progress3x)}</span>
                 <span>Cap: {fmt(progress.milestone3x)}</span>
               </div>
-              {progress.remaining3x <= 0 && (
+              {progress.remaining3x <= 0 && progress.totalInvestment > 0 && (
                 <div style={{
                   marginTop: 8, padding: '10px 14px',
                   background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-md)',
@@ -989,6 +1000,17 @@ function UserInvestments({ toastSuccess, toastError }) {
                 }}>
                   <AlertCircle size={14} />
                   ROI Stopped — Invest More to Resume Earning
+                </div>
+              )}
+              {progress.totalInvestment === 0 && (
+                <div style={{
+                  marginTop: 8, padding: '10px 14px',
+                  background: 'rgba(16,185,129,0.08)', borderRadius: 'var(--radius-md)',
+                  fontSize: 13, color: '#10b981', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <Zap size={14} />
+                  Start investing and upgrade your progress
                 </div>
               )}
             </div>
@@ -2600,7 +2622,7 @@ function UserRoi() {
                   {fmt(progress.remaining3x)} remaining before 3X cap
                 </div>
               )}
-              {progress.remaining3x <= 0 && (
+              {progress.remaining3x <= 0 && progress.totalInvestment > 0 && (
                 <div style={{
                   marginTop: 8, padding: '10px 14px',
                   background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-md)',
@@ -2609,6 +2631,17 @@ function UserRoi() {
                 }}>
                   <AlertCircle size={14} />
                   ROI Stopped — Invest More to Resume Earning
+                </div>
+              )}
+              {progress.totalInvestment === 0 && (
+                <div style={{
+                  marginTop: 8, padding: '10px 14px',
+                  background: 'rgba(16,185,129,0.08)', borderRadius: 'var(--radius-md)',
+                  fontSize: 13, color: '#10b981', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <Zap size={14} />
+                  Start investing and upgrade your progress
                 </div>
               )}
             </div>
