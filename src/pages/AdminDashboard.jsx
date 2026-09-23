@@ -5,7 +5,7 @@ import {
   Percent, Share2, FileBarChart, Settings, LogOut, Search, Menu,
   ChevronDown, ChevronRight, ChevronLeft, ZoomIn, ZoomOut,
   Maximize2, Minimize2, RotateCcw, X, UserCheck, UserX,
-  Filter, Download, RefreshCw, ArrowUpDown, Network,
+  Filter, Download, RefreshCw, ArrowUpDown, Network, AlertCircle,
   DollarSign, Activity, TrendingUp, Megaphone, MessageSquare, Send, Layers, Upload, Trophy,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -845,6 +845,7 @@ function AdminDeposits({ toastSuccess, toastError }) {
    ========================================================= */
 function AdminWithdrawals({ toastSuccess, toastError }) {
   const [rows, setRows] = useState([]);
+  const [stats, setStats] = useState({ totalWithdrawn: 0, pendingAmount: 0, feesCollected: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('PENDING');
@@ -859,6 +860,7 @@ function AdminWithdrawals({ toastSuccess, toastError }) {
       if (filter !== 'ALL') params.status = filter;
       const data = await getAdminWithdrawals(params);
       setRows(data.data?.transactions || []);
+      if (data.data?.stats) setStats(data.data.stats);
     } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
     finally { setLoading(false); }
   };
@@ -910,6 +912,30 @@ function AdminWithdrawals({ toastSuccess, toastError }) {
         <button className="btn btn-secondary btn-sm" onClick={load}><RefreshCw size={14} /> Refresh</button>
       </div>
 
+      <div className="stats-grid" style={{ marginBottom: 'var(--space-4)' }}>
+        <div className="stat-card stat-info">
+          <div className="stat-icon"><ArrowUpFromLine size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Total Withdrawn</div>
+            <div className="stat-value">{fmt(stats.totalWithdrawn)}</div>
+          </div>
+        </div>
+        <div className="stat-card stat-amber">
+          <div className="stat-icon"><AlertCircle size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Pending (To Process)</div>
+            <div className="stat-value">{fmt(stats.pendingAmount)}</div>
+          </div>
+        </div>
+        <div className="stat-card stat-success">
+          <div className="stat-icon"><DollarSign size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Fees Collected</div>
+            <div className="stat-value">{fmt(stats.feesCollected)}</div>
+          </div>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)' }}>
         {['PENDING', 'COMPLETED', 'REJECTED', 'ALL'].map((f) => (
           <button key={f} className={`btn btn-sm ${filter === f ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter(f)}>
@@ -931,7 +957,7 @@ function AdminWithdrawals({ toastSuccess, toastError }) {
                   <td data-label="User" className="cell-strong">{r.user?.name}</td>
                   <td data-label="Amount">{fmt(Math.abs(r.amount))}</td>
                   <td data-label="Wallet">{getWalletLabel(r.description, r.metadata)}</td>
-                  <td data-label="Payout Method">{r.metadata?.payoutMethod === 'BANK' ? 'Bank Account' : r.metadata?.payoutMethod === 'BEP20' ? 'BEP20' : '-'}</td>
+                  <td data-label="Payout Method">{r.metadata?.payoutMethod === 'BANK' ? 'Bank Account' : r.metadata?.payoutMethod === 'BEP20' ? 'USDT BEP20' : '-'}</td>
                   <td data-label="Payout Details" style={{ fontSize: 12, maxWidth: 200, wordBreak: 'break-all' }}>
                     {r.metadata?.payoutMethod === 'BANK' && (
                       <div>
@@ -3045,6 +3071,7 @@ function AdminSettings({ toastSuccess, toastError }) {
   // Withdrawal
   const [withdrawalMinAmount, setWithdrawalMinAmount] = useState(0);
   const [withdrawalMaxAmount, setWithdrawalMaxAmount] = useState(0);
+  const [withdrawalFeePercentage, setWithdrawalFeePercentage] = useState(0);
   // Day-wise ROI
   const [roiDays, setRoiDays] = useState(0);
   const [daySchedule, setDaySchedule] = useState([]);
@@ -3074,6 +3101,7 @@ function AdminSettings({ toastSuccess, toastError }) {
         setPendingReleaseMultiplier(s.pendingReleaseMultiplier ?? 3);
         setWithdrawalMinAmount(s.withdrawalMinAmount || 0);
         setWithdrawalMaxAmount(s.withdrawalMaxAmount || 0);
+        setWithdrawalFeePercentage(s.withdrawalFeePercentage || 0);
         setEwalletDownlineOfferEnabled(s.ewalletDownlineOfferEnabled || false);
         setEwalletMaxPercentage(s.ewalletMaxPercentage || 0);
         setEwalletDownlineActivationEnabled(s.ewalletDownlineActivationEnabled || false);
@@ -3197,7 +3225,14 @@ function AdminSettings({ toastSuccess, toastError }) {
             </p>
             <input className="form-input" type="number" value={withdrawalMaxAmount} onChange={(e) => setWithdrawalMaxAmount(Number(e.target.value))} min="0" style={{ maxWidth: 120 }} placeholder="0 = no limit" />
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => save({ allowUserInvestment: allowInvest, pendingReleaseMultiplier, withdrawalMinAmount: Number(withdrawalMinAmount), withdrawalMaxAmount: Number(withdrawalMaxAmount) })} disabled={busy}>Save General</button>
+          <div className="form-group">
+            <label className="form-label">Withdrawal Fee (%)</label>
+            <p className="text-muted" style={{ fontSize: 12, marginBottom: 4 }}>
+              Percentage deducted from each withdrawal amount. User receives the net amount (e.g. 5% on $100 → user receives $95). Set to 0 for no fee.
+            </p>
+            <input className="form-input" type="number" value={withdrawalFeePercentage} onChange={(e) => setWithdrawalFeePercentage(Number(e.target.value))} min="0" max="100" style={{ maxWidth: 120 }} placeholder="0 = no fee" />
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ allowUserInvestment: allowInvest, pendingReleaseMultiplier, withdrawalMinAmount: Number(withdrawalMinAmount), withdrawalMaxAmount: Number(withdrawalMaxAmount), withdrawalFeePercentage: Number(withdrawalFeePercentage) })} disabled={busy}>Save General</button>
         </div>
       )}
 

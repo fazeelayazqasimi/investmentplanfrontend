@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import apiClient, {
   getMyInvestments, getMyWallet, getMyTransactions, requestDeposit,
-  getMyRoiHistory, getMyProfile, updateMyProfile,
+  getMyRoiHistory, getMyProfile, updateMyProfile, uploadMyProfilePhoto,
   transferRoiToMain, transferProfitShareToMain, getUserConfig, activateAccount,
   transferFundToUser, getTransferSettings, getProgressData,
   transferMainToFund, activateAccountWithSource, investForDownline, getMyDownlines,
@@ -43,7 +43,6 @@ const NAV = [
   { key: 'wallet', label: 'Wallet', icon: WalletIcon, to: '/dashboard/wallet' },
   { key: 'transactions', label: 'Transactions', icon: Receipt, to: '/dashboard/transactions' },
   { key: 'income', label: 'Income', icon: DollarSign, to: '/dashboard/income' },
-  { key: 'roi', label: 'ROI', icon: Percent, to: '/dashboard/roi' },
   { key: 'referrals', label: 'Referrals', icon: Share2, to: '/dashboard/referrals' },
   { key: 'ranks', label: 'My Rank', icon: Trophy, to: '/dashboard/ranks' },
   { key: 'announcements', label: 'Announcements', icon: Megaphone, to: '/dashboard/announcements' },
@@ -102,6 +101,7 @@ export default function UserDashboard() {
           <div className="sidebar-logo"><img src={logoHeader} alt="FinRise Global" style={{ width: 28, height: 28, borderRadius: 6 }} /></div>
           <div>
             <div className="sidebar-title">My Account</div>
+            <div className="sidebar-subtitle">FinRise Global</div>
           </div>
         </div>
         <nav className="sidebar-nav">
@@ -216,7 +216,6 @@ export default function UserDashboard() {
           {page === 'income' && <UserIncome />}
           {page === 'direct-income' && <UserDirectIncome />}
           {page === 'level-income' && <UserLevelIncome />}
-          {page === 'roi' && <UserRoi />}
           {page === 'referrals' && <UserReferrals />}
           {page === 'announcements' && <UserAnnouncements />}
           {page === 'ranks' && <UserRanksContent />}
@@ -364,6 +363,7 @@ function UserOverview({ toastSuccess, toastError }) {
     { label: 'Fund Wallet', value: fmt(wallet?.fundBalance), accent: 'stat-teal', icon: Users },
     { label: 'Pending Commission', value: fmt(wallet?.pendingCommissions), accent: 'stat-danger', icon: AlertCircle },
     { label: 'Total Earning', value: fmt(wallet?.totalEarnings), accent: 'stat-orange', icon: TrendingUp },
+    { label: 'Total Withdraw', value: fmt(wallet?.totalWithdrawn), accent: 'stat-teal', icon: ArrowUpFromLine },
   ];
 
   const pie = [
@@ -398,12 +398,15 @@ function UserOverview({ toastSuccess, toastError }) {
               <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>{user?.email}</div>
             </div>
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 14px',
-              fontSize: 13, fontWeight: 500, backdropFilter: 'blur(4px)',
+              width: 44, height: 44, borderRadius: '50%', overflow: 'hidden',
+              background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', flexShrink: 0, border: '2px solid rgba(255,255,255,0.4)',
             }}>
-              <UserIcon size={16} />
-              <span>{profile?.user?.role === 'ADMIN' ? 'Admin' : 'Investor'}</span>
+              {profile?.user?.avatar ? (
+                <img src={profile.user.avatar} alt={user?.name || 'User'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <UserIcon size={22} />
+              )}
             </div>
           </div>
 
@@ -1282,7 +1285,6 @@ function UserWallet({ toastSuccess, toastError }) {
   const [withdrawField, setWithdrawField] = useState('mainBalance');
   const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [withdrawError, setWithdrawError] = useState('');
-  const [withdrawSuccess, setWithdrawSuccess] = useState('');
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawBep20Address, setWithdrawBep20Address] = useState('');
   const [withdrawNotes, setWithdrawNotes] = useState('');
@@ -1407,24 +1409,22 @@ function UserWallet({ toastSuccess, toastError }) {
   const handleWithdraw = async () => {
     setWithdrawBusy(true);
     setWithdrawError('');
-    setWithdrawSuccess('');
     const amt = Number(withdrawAmount);
     if (!amt || amt <= 0) { setWithdrawError('Enter a valid amount'); setWithdrawBusy(false); return; }
 
-    if (!withdrawBep20Address.trim()) { setWithdrawError('BEP20 wallet address is required'); setWithdrawBusy(false); return; }
+    if (!withdrawBep20Address.trim()) { setWithdrawError('USDT BEP20 wallet address is required'); setWithdrawBusy(false); return; }
 
     const payoutDetails = { bep20Address: withdrawBep20Address.trim() };
 
     try {
-      const res = await requestWithdrawalApi({
+      await requestWithdrawalApi({
         amount: amt,
         balanceField: withdrawField,
         payoutMethod: 'BEP20',
         payoutDetails,
         notes: withdrawNotes.trim(),
       });
-      setWithdrawSuccess(res.message || 'Your withdrawal request has been submitted. Admin will review and approve within 72 hours.');
-      toastSuccess('Withdrawal Submitted', res.message || 'Your withdrawal will be processed within 72 hours.');
+      toastSuccess('Withdrawal Submitted', 'Your withdrawal request has been submitted.');
       setWithdrawAmount('');
       setWithdrawBep20Address('');
       setWithdrawNotes('');
@@ -1524,11 +1524,6 @@ function UserWallet({ toastSuccess, toastError }) {
         ))}
       </div>
 
-      <div className="info-banner danger">
-        <AlertCircle size={14} />
-        Fund Wallet cannot be withdrawn. It can only be used for downline transfers and account activation.
-      </div>
-
       {/* Transfer Sections */}
       <div className="toolbar">
         <button
@@ -1553,16 +1548,11 @@ function UserWallet({ toastSuccess, toastError }) {
         </button>
         <button
           className="btn btn-primary"
-          onClick={() => { setWithdrawSuccess(''); setWithdrawError(''); setShowWithdrawModal(true); }}
+          onClick={() => { setWithdrawError(''); setShowWithdrawModal(true); }}
         >
           <ArrowUpFromLine size={16} /> Request Withdrawal
         </button>
       </div>
-      {!fundTransferAllowed && (
-        <div className="info-banner danger" style={{ marginBottom: 'var(--space-3)' }}>
-          Fund Wallet transfers are currently disabled by admin.
-        </div>
-      )}
 
       <div className="transfers-grid">
         <div className="panel">
@@ -1578,7 +1568,6 @@ function UserWallet({ toastSuccess, toastError }) {
             >
               {transferring ? 'Transferring...' : 'Transfer to Main Wallet'}
             </button>
-            {!settings?.roiTransferEnabled && <span className="text-muted" style={{ fontSize: 12 }}>Disabled by admin</span>}
           </div>
         </div>
 
@@ -1595,7 +1584,6 @@ function UserWallet({ toastSuccess, toastError }) {
             >
               {transferring ? 'Transferring...' : 'Transfer to Main Wallet'}
             </button>
-            {!settings?.profitShareTransferEnabled && <span className="text-muted" style={{ fontSize: 12 }}>Disabled by admin</span>}
           </div>
         </div>
       </div>
@@ -1605,9 +1593,6 @@ function UserWallet({ toastSuccess, toastError }) {
           <h3>Move to Fund Wallet</h3>
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
             Transfer funds from your Main Wallet to your Fund Wallet. Available: <strong>{fmt(wallet?.mainBalance)}</strong>
-          </p>
-          <p className="text-muted" style={{ fontSize: 12, marginBottom: 'var(--space-3)', color: 'var(--color-danger)' }}>
-            Fund Wallet cannot be withdrawn. It can only be used for downline transfers and account activation.
           </p>
           <div className="form-group">
             <label className="form-label">Amount</label>
@@ -1639,7 +1624,7 @@ function UserWallet({ toastSuccess, toastError }) {
                       tabIndex={0}
                       onKeyDown={(e) => e.key === 'Enter' && setSelectedBank(acc._id)}
                     >
-                      <div className="bank-card-type" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{acc.accountType === 'LOCAL_BANK' ? <><CreditCard size={14} /> Local Bank</> : <><WalletIcon size={14} /> BEP20</>}</div>
+                      <div className="bank-card-type" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{acc.accountType === 'LOCAL_BANK' ? <><CreditCard size={14} /> Local Bank</> : <><WalletIcon size={14} /> USDT BEP20</>}</div>
                       <div className="bank-card-name">{acc.bankName}</div>
                       <div className="bank-card-holder">{acc.accountHolder}</div>
                       <div className="bank-card-number" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1763,14 +1748,6 @@ function UserWallet({ toastSuccess, toastError }) {
 
       {showWithdrawModal && (
         <Modal title="Request Withdrawal" onClose={() => setShowWithdrawModal(false)}>
-          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
-            Withdrawal requests are reviewed by admin within 72 hours. Provide your payout details below.
-          </p>
-          {withdrawSuccess && (
-            <div style={{ padding: '12px 16px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: 8, marginBottom: 12, fontSize: 13, color: '#16a34a', fontWeight: 500 }}>
-              {withdrawSuccess}
-            </div>
-          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 380 }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">From Wallet</label>
@@ -1791,9 +1768,17 @@ function UserWallet({ toastSuccess, toastError }) {
                   Maximum withdrawal amount: {fmt(settings.withdrawalMaxAmount)}
                 </p>
               )}
+              {(settings?.withdrawalFeePercentage || 0) > 0 && (
+                <p style={{ fontSize: 12, marginTop: 4, color: '#f59e0b', fontWeight: 500 }}>
+                  Fee: {settings.withdrawalFeePercentage}%
+                  {Number(withdrawAmount) > 0 && (
+                    <> — You will receive: {fmt(Number(withdrawAmount) - (Number(withdrawAmount) * settings.withdrawalFeePercentage) / 100)}</>
+                  )}
+                </p>
+              )}
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">BEP20 Wallet Address</label>
+              <label className="form-label">USDT BEP20 Wallet Address</label>
               <input className="form-input" type="text" value={withdrawBep20Address} onChange={(e) => setWithdrawBep20Address(e.target.value)} placeholder="0x..." />
             </div>
 
@@ -1809,35 +1794,36 @@ function UserWallet({ toastSuccess, toastError }) {
         </Modal>
       )}
 
-      {withdrawHistory.length > 0 && (
-        <div className="page-header" style={{ marginTop: 'var(--space-6)' }}>
-          <div>
-            <h2>Withdrawal History</h2>
-          </div>
+      <div className="page-header" style={{ marginTop: 'var(--space-6)' }}>
+        <div>
+          <h2>Withdrawal History</h2>
         </div>
-      )}
-      {withdrawHistory.length > 0 && (
-        <div className="table-card">
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr><th>Amount</th><th>Wallet</th><th>Payout</th><th>Status</th><th>Date</th></tr>
-              </thead>
-              <tbody>
-                {withdrawHistory.map((w) => (
-                  <tr key={w._id}>
-                    <td data-label="Amount" className="cell-strong">{fmt(Math.abs(w.amount))}</td>
-                    <td data-label="Wallet">{w.metadata?.balanceField === 'mainBalance' ? 'Main' : w.metadata?.balanceField === 'roiBalance' ? 'ROI' : w.metadata?.balanceField === 'ewalletBalance' ? 'E-Wallet' : w.metadata?.balanceField === 'profitShareBalance' ? 'Profit Share' : w.metadata?.balanceField === 'fundBalance' ? 'Fund' : 'Other'}</td>
-                    <td data-label="Payout">{w.metadata?.payoutMethod === 'BANK' ? `Bank: ${w.metadata?.payoutDetails?.bankName || '-'}` : w.metadata?.payoutMethod === 'BEP20' ? `BEP20: ${(w.metadata?.payoutDetails?.bep20Address || '').slice(0, 10)}...` : '-'}</td>
-                    <td data-label="Status"><StatusBadge status={w.status} /></td>
-                    <td data-label="Date">{fmtDate(w.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      </div>
+      <div className="table-card">
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr><th>Amount</th><th>Fee</th><th>Net</th><th>Wallet</th><th>Payout</th><th>Status</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+              {withdrawHistory.length === 0 && (
+                <tr><td colSpan={7} className="table-empty">No withdrawal requests yet</td></tr>
+              )}
+              {withdrawHistory.map((w) => (
+                <tr key={w._id}>
+                  <td data-label="Amount" className="cell-strong">{fmt(Math.abs(w.amount))}</td>
+                  <td data-label="Fee">{w.metadata?.fee != null ? fmt(w.metadata.fee) : '—'}</td>
+                  <td data-label="Net">{w.metadata?.netAmount != null ? fmt(w.metadata.netAmount) : fmt(Math.abs(w.amount))}</td>
+                  <td data-label="Wallet">{w.metadata?.balanceField === 'mainBalance' ? 'Main' : w.metadata?.balanceField === 'roiBalance' ? 'ROI' : w.metadata?.balanceField === 'ewalletBalance' ? 'E-Wallet' : w.metadata?.balanceField === 'profitShareBalance' ? 'Profit Share' : w.metadata?.balanceField === 'fundBalance' ? 'Fund' : 'Other'}</td>
+                  <td data-label="Payout">{w.metadata?.payoutMethod === 'BANK' ? `Bank: ${w.metadata?.payoutDetails?.bankName || '-'}` : w.metadata?.payoutMethod === 'BEP20' ? `USDT BEP20: ${(w.metadata?.payoutDetails?.bep20Address || '').slice(0, 10)}...` : '-'}</td>
+                  <td data-label="Status"><StatusBadge status={w.status} /></td>
+                  <td data-label="Date">{fmtDate(w.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
 
       <div className="page-header" style={{ marginTop: 'var(--space-6)' }}>
         <div>
@@ -2138,17 +2124,22 @@ function UserIncome() {
   const [directRows, setDirectRows] = useState([]);
   const [levelRows, setLevelRows] = useState([]);
   const [wallet, setWallet] = useState(null);
+  const [roiRows, setRoiRows] = useState([]);
+  const [progress, setProgress] = useState(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     (async () => {
       try {
-        const [directTxn, levelTxn, pendingTxn, w] = await Promise.all([
+        const [directTxn, levelTxn, pendingTxn, w, roiRes] = await Promise.all([
           getMyTransactions({ type: 'DIRECT_INCOME' }),
           getMyTransactions({ type: 'LEVEL_INCOME' }),
           getMyTransactions({ type: 'PENDING_NETWORK_COMMISSION', limit: 500 }),
           getMyWallet(),
+          getMyRoiHistory(),
         ]);
         const pending = pendingTxn.transactions || [];
         const pendingDirect = pending.filter((t) => t.metadata?.incomeType === 'DIRECT_INCOME');
@@ -2158,6 +2149,8 @@ function UserIncome() {
         setDirectRows([...(directTxn.transactions || []), ...markedDirect]);
         setLevelRows([...(levelTxn.transactions || []), ...markedLevel]);
         setWallet(w.wallet);
+        setRoiRows(roiRes.history || []);
+        try { const pr = await getProgressData(); setProgress(pr); } catch (_) {}
       } catch (e) { setError(e.response?.data?.message || 'Failed to load income data'); }
       finally { setLoading(false); }
     })();
@@ -2168,13 +2161,22 @@ function UserIncome() {
 
   const totalDirect = directRows.reduce((s, t) => s + (t.amount || 0), 0);
   const totalLevel = levelRows.reduce((s, t) => s + (t.amount || 0), 0);
+  const totalRoi = wallet?.totalRoiEarned || 0;
+  const totalProfitShare = wallet?.totalProfitShareEarned || 0;
+  const totalIncome = totalDirect + totalLevel + totalRoi + totalProfitShare;
+
+  const filteredRoiRows = roiRows.filter((r) => {
+    if (dateFrom && new Date(r.roiDate) < new Date(dateFrom)) return false;
+    if (dateTo && new Date(r.roiDate) > new Date(dateTo + 'T23:59:59')) return false;
+    return true;
+  });
 
   return (
     <div className="animate-slide-up">
       <div className="page-header">
         <div>
           <h1>Income</h1>
-          <p className="subtitle">Track your Direct and Level income earnings</p>
+          <p className="subtitle">Track all your income earnings in one place</p>
         </div>
       </div>
 
@@ -2194,17 +2196,24 @@ function UserIncome() {
           </div>
         </div>
         <div className="stat-card stat-purple">
-          <div className="stat-icon"><TrendingUp size={22} /></div>
+          <div className="stat-icon"><Percent size={22} /></div>
           <div className="stat-content">
-            <div className="stat-label">Total Network Income</div>
-            <div className="stat-value">{fmt(totalDirect + totalLevel)}</div>
+            <div className="stat-label">Total ROI</div>
+            <div className="stat-value">{fmt(totalRoi)}</div>
           </div>
         </div>
         <div className="stat-card stat-amber">
+          <div className="stat-icon"><TrendingUp size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Total Profit Share</div>
+            <div className="stat-value">{fmt(totalProfitShare)}</div>
+          </div>
+        </div>
+        <div className="stat-card stat-orange">
           <div className="stat-icon"><WalletIcon size={22} /></div>
           <div className="stat-content">
-            <div className="stat-label">Main Wallet Balance</div>
-            <div className="stat-value">{fmt(wallet?.mainBalance)}</div>
+            <div className="stat-label">Total Income (All Incomes)</div>
+            <div className="stat-value">{fmt(totalIncome)}</div>
           </div>
         </div>
       </div>
@@ -2262,6 +2271,178 @@ function UserIncome() {
                   <td data-label="Amount" className="text-blue cell-strong">{fmt(t.amount)}</td>
                   <td data-label="Status">{t._pending ? <span className="badge badge-amber" style={{ fontSize: 11 }}>Pending</span> : <StatusBadge status={t.status} />}</td>
                   <td data-label="Date">{fmtDateTime(t.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ROI Section (merged from separate ROI tab) */}
+      <div className="page-header" style={{ marginTop: 'var(--space-6)' }}>
+        <div>
+          <h2>ROI</h2>
+          <p className="subtitle">Track your return on investment earnings</p>
+        </div>
+      </div>
+
+      {progress && (
+        <div>
+          {/* 3X Cap Reached Alert */}
+          {progress.percentage3x >= 100 && (
+            <div style={{
+              padding: '16px 20px', marginBottom: 'var(--space-4)',
+              background: 'linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(220,38,38,0.05) 100%)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              borderRadius: 'var(--radius-lg)',
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: '50%',
+                background: 'rgba(239,68,68,0.15)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <AlertCircle size={20} style={{ color: '#ef4444' }} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#ef4444', marginBottom: 2 }}>
+                  Your ROI Has Stopped
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                  3X income limit reached ({fmt(progress.milestone3x)}). <strong>Invest more</strong> to unlock new limits and resume earning ROI.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Combined 2X Progress */}
+          {progress.milestone2x > 0 && (
+            <div className="invest-progress-card" style={{ marginBottom: 'var(--space-4)' }}>
+              <div className="invest-progress-header">
+                <div className="invest-progress-title">
+                  <TrendingUp size={16} />
+                  <span>2X Return Target: {fmt(progress.milestone2x)}</span>
+                </div>
+                <span className={`invest-progress-badge ${progress.percentage2x >= 100 ? 'completed' : 'active'}`}>
+                  {progress.percentage2x >= 100 ? 'COMPLETED' : 'ACTIVE'}
+                </span>
+              </div>
+              <div className="progress-bar-track">
+                <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
+              </div>
+              <div className="invest-progress-info">
+                <span>Returned: {fmt(progress.progress2x)}</span>
+                <span>{progress.percentage2x}%</span>
+              </div>
+              {progress.remaining2x > 0 && (
+                <div className="invest-progress-remaining">{fmt(progress.remaining2x)} remaining to reach 2X</div>
+              )}
+              {progress.percentage2x >= 100 && (
+                <div className="invest-progress-complete">2X Milestone Reached!</div>
+              )}
+              {progress.cycle2xCompletions > 0 && (
+                <div style={{ marginTop: 6, fontSize: 'var(--font-size-xs)', color: 'var(--color-success)', fontWeight: 500 }}>
+                  ✅ 2X completed {progress.cycle2xCompletions} time{progress.cycle2xCompletions > 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Global 3X Cap */}
+          <div className="progress-section">
+            <div className="progress-card progress-3x">
+              <div className="progress-header">
+                <div className="progress-title">
+                  <BarChart3 size={18} />
+                  <span>Income 3X Cap</span>
+                </div>
+                <span className="progress-badge purple">{progress.percentage3x}%</span>
+              </div>
+              <div className="progress-bar-track">
+                <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
+              </div>
+              <div className="progress-info">
+                <span>Earned: {fmt(progress.progress3x)}</span>
+                <span>Cap: {fmt(progress.milestone3x)}</span>
+              </div>
+              {progress.remaining3x > 0 && (
+                <div className="progress-remaining">
+                  {fmt(progress.remaining3x)} remaining before 3X cap
+                </div>
+              )}
+              {progress.remaining3x <= 0 && progress.totalInvestment > 0 && (
+                <div style={{
+                  marginTop: 8, padding: '10px 14px',
+                  background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-md)',
+                  fontSize: 13, color: '#ef4444', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <AlertCircle size={14} />
+                  ROI Stopped — Invest More to Resume Earning
+                </div>
+              )}
+              {progress.totalInvestment === 0 && (
+                <div style={{
+                  marginTop: 8, padding: '10px 14px',
+                  background: 'rgba(16,185,129,0.08)', borderRadius: 'var(--radius-md)',
+                  fontSize: 13, color: '#10b981', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <Zap size={14} />
+                  Start investing and upgrade your progress
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Date Filter */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 'var(--space-4)', marginTop: 'var(--space-4)', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>From:</label>
+          <input
+            type="date"
+            className="form-input"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            style={{ width: 160, padding: '6px 10px', fontSize: 13 }}
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>To:</label>
+          <input
+            type="date"
+            className="form-input"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            style={{ width: 160, padding: '6px 10px', fontSize: 13 }}
+          />
+        </div>
+        {(dateFrom || dateTo) && (
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => { setDateFrom(''); setDateTo(''); }}
+            style={{ padding: '6px 12px', fontSize: 13 }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      <div className="table-card">
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr><th>Amount</th><th>Status</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+              {filteredRoiRows.length === 0 && <tr><td colSpan={3} className="table-empty">No ROI credited yet</td></tr>}
+              {filteredRoiRows.map((r) => (
+                <tr key={r._id}>
+                  <td data-label="Amount" className="cell-strong">{fmt(r.roiAmount)}</td>
+                  <td data-label="Status"><StatusBadge status={r.status} /></td>
+                  <td data-label="Date">{fmtDate(r.roiDate)}</td>
                 </tr>
               ))}
             </tbody>
@@ -2483,229 +2664,6 @@ function UserLevelIncome() {
 }
 
 /* =========================================================
-   ROI
-   ========================================================= */
-function UserRoi() {
-  const [rows, setRows] = useState([]);
-  const [progress, setProgress] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const r = await getMyRoiHistory();
-        setRows(r.history || []);
-        try { const pr = await getProgressData(); setProgress(pr); } catch (_) {}
-      } catch (e) { setError(e.response?.data?.message || 'Failed'); }
-      finally { setLoading(false); }
-    })();
-  }, []);
-
-  const filteredRows = rows.filter((r) => {
-    if (dateFrom && new Date(r.roiDate) < new Date(dateFrom)) return false;
-    if (dateTo && new Date(r.roiDate) > new Date(dateTo + 'T23:59:59')) return false;
-    return true;
-  });
-
-  const totalRoi = filteredRows.reduce((sum, r) => sum + (r.roiAmount || 0), 0);
-
-  if (loading) return <Spinner label="Loading ROI history..." />;
-  if (error) return <ErrorBox message={error} />;
-
-  return (
-    <div className="animate-slide-up">
-      <div className="page-header">
-        <div>
-          <h1>ROI History</h1>
-          <p className="subtitle">Track your return on investment earnings</p>
-        </div>
-      </div>
-
-      {/* Total ROI Card */}
-      <div className="wallet-card" style={{ marginBottom: 'var(--space-4)', background: '#111827', color: '#fff', border: 'none' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div className="wallet-card-label" style={{ color: '#9CA3AF' }}>Total ROI Earned</div>
-            <div className="wallet-card-balance" style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: '#fff' }}>
-              {fmt(totalRoi)}
-            </div>
-          </div>
-          <Percent size={32} style={{ color: '#00C389' }} />
-        </div>
-      </div>
-
-      {/* Progress Bars */}
-      {progress && (
-        <div>
-          {/* 3X Cap Reached Alert */}
-          {progress.percentage3x >= 100 && (
-            <div style={{
-              padding: '16px 20px', marginBottom: 'var(--space-4)',
-              background: 'linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(220,38,38,0.05) 100%)',
-              border: '1px solid rgba(239,68,68,0.3)',
-              borderRadius: 'var(--radius-lg)',
-              display: 'flex', alignItems: 'center', gap: 12,
-            }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: '50%',
-                background: 'rgba(239,68,68,0.15)', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
-                <AlertCircle size={20} style={{ color: '#ef4444' }} />
-              </div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 15, color: '#ef4444', marginBottom: 2 }}>
-                  Your ROI Has Stopped
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                  3X income limit reached ({fmt(progress.milestone3x)}). <strong>Invest more</strong> to unlock new limits and resume earning ROI.
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Combined 2X Progress */}
-          {progress.milestone2x > 0 && (
-            <div className="invest-progress-card" style={{ marginBottom: 'var(--space-4)' }}>
-              <div className="invest-progress-header">
-                <div className="invest-progress-title">
-                  <TrendingUp size={16} />
-                  <span>2X Return Target: {fmt(progress.milestone2x)}</span>
-                </div>
-                <span className={`invest-progress-badge ${progress.percentage2x >= 100 ? 'completed' : 'active'}`}>
-                  {progress.percentage2x >= 100 ? 'COMPLETED' : 'ACTIVE'}
-                </span>
-              </div>
-              <div className="progress-bar-track">
-                <div className="progress-bar-fill green" style={{ width: `${Math.min(progress.percentage2x, 100)}%` }} />
-              </div>
-              <div className="invest-progress-info">
-                <span>Returned: {fmt(progress.progress2x)}</span>
-                <span>{progress.percentage2x}%</span>
-              </div>
-              {progress.remaining2x > 0 && (
-                <div className="invest-progress-remaining">{fmt(progress.remaining2x)} remaining to reach 2X</div>
-              )}
-              {progress.percentage2x >= 100 && (
-                <div className="invest-progress-complete">2X Milestone Reached!</div>
-              )}
-              {progress.cycle2xCompletions > 0 && (
-                <div style={{ marginTop: 6, fontSize: 'var(--font-size-xs)', color: 'var(--color-success)', fontWeight: 500 }}>
-                  ✅ 2X completed {progress.cycle2xCompletions} time{progress.cycle2xCompletions > 1 ? 's' : ''}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Global 3X Cap */}
-          <div className="progress-section">
-            <div className="progress-card progress-3x">
-              <div className="progress-header">
-                <div className="progress-title">
-                  <BarChart3 size={18} />
-                  <span>Income 3X Cap</span>
-                </div>
-                <span className="progress-badge purple">{progress.percentage3x}%</span>
-              </div>
-              <div className="progress-bar-track">
-                <div className="progress-bar-fill purple" style={{ width: `${Math.min(progress.percentage3x, 100)}%` }} />
-              </div>
-              <div className="progress-info">
-                <span>Earned: {fmt(progress.progress3x)}</span>
-                <span>Cap: {fmt(progress.milestone3x)}</span>
-              </div>
-              {progress.remaining3x > 0 && (
-                <div className="progress-remaining">
-                  {fmt(progress.remaining3x)} remaining before 3X cap
-                </div>
-              )}
-              {progress.remaining3x <= 0 && progress.totalInvestment > 0 && (
-                <div style={{
-                  marginTop: 8, padding: '10px 14px',
-                  background: 'rgba(239,68,68,0.08)', borderRadius: 'var(--radius-md)',
-                  fontSize: 13, color: '#ef4444', fontWeight: 600,
-                  display: 'flex', alignItems: 'center', gap: 8,
-                }}>
-                  <AlertCircle size={14} />
-                  ROI Stopped — Invest More to Resume Earning
-                </div>
-              )}
-              {progress.totalInvestment === 0 && (
-                <div style={{
-                  marginTop: 8, padding: '10px 14px',
-                  background: 'rgba(16,185,129,0.08)', borderRadius: 'var(--radius-md)',
-                  fontSize: 13, color: '#10b981', fontWeight: 600,
-                  display: 'flex', alignItems: 'center', gap: 8,
-                }}>
-                  <Zap size={14} />
-                  Start investing and upgrade your progress
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Date Filter */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 'var(--space-4)', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>From:</label>
-          <input
-            type="date"
-            className="form-input"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            style={{ width: 160, padding: '6px 10px', fontSize: 13 }}
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>To:</label>
-          <input
-            type="date"
-            className="form-input"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            style={{ width: 160, padding: '6px 10px', fontSize: 13 }}
-          />
-        </div>
-        {(dateFrom || dateTo) && (
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => { setDateFrom(''); setDateTo(''); }}
-            style={{ padding: '6px 12px', fontSize: 13 }}
-          >
-            Clear
-          </button>
-        )}
-      </div>
-
-      <div className="table-card">
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr><th>Amount</th><th>Status</th><th>Date</th></tr>
-            </thead>
-            <tbody>
-              {filteredRows.length === 0 && <tr><td colSpan={3} className="table-empty">No ROI credited yet</td></tr>}
-              {filteredRows.map((r) => (
-                <tr key={r._id}>
-                  <td data-label="Amount" className="cell-strong">{fmt(r.roiAmount)}</td>
-                  <td data-label="Status"><StatusBadge status={r.status} /></td>
-                  <td data-label="Date">{fmtDate(r.roiDate)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================
    PROFILE
    ========================================================= */
 function UserProfile({ toastSuccess, toastError }) {
@@ -2716,6 +2674,8 @@ function UserProfile({ toastSuccess, toastError }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -2742,6 +2702,19 @@ function UserProfile({ toastSuccess, toastError }) {
     } finally { setSaving(false); }
   };
 
+  const uploadPhoto = async () => {
+    if (!photoFile) return;
+    setUploadingPhoto(true);
+    try {
+      await uploadMyProfilePhoto(photoFile);
+      setPhotoFile(null);
+      toastSuccess('Photo Updated', 'Your profile photo has been updated.');
+      await load();
+    } catch (e) {
+      toastError('Upload Failed', e.response?.data?.message || 'Failed to upload photo');
+    } finally { setUploadingPhoto(false); }
+  };
+
   if (loading) return <Spinner label="Loading profile..." />;
   if (error) return <ErrorBox message={error} />;
 
@@ -2757,6 +2730,34 @@ function UserProfile({ toastSuccess, toastError }) {
       </div>
 
       <div className="panel max-w-md">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 'var(--space-4)' }}>
+          <div style={{
+            width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+            background: 'var(--color-bg-alt)', border: '2px solid var(--color-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {u.avatar ? (
+              <img src={u.avatar} alt={u.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--color-text-secondary)' }}>{u.name?.charAt(0) || 'U'}</span>
+            )}
+          </div>
+          <div>
+            <label className="form-label" style={{ marginBottom: 6 }}>Profile Photo</label>
+            <input
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+              onChange={(e) => setPhotoFile(e.target.files[0] || null)}
+              style={{ fontSize: 13, display: 'block' }}
+            />
+            {photoFile && (
+              <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} onClick={uploadPhoto} disabled={uploadingPhoto}>
+                {uploadingPhoto ? <><span className="spinner" /> Uploading...</> : 'Upload Photo'}
+              </button>
+            )}
+          </div>
+        </div>
+
         {!edit ? (
           <>
             <div className="detail-grid">

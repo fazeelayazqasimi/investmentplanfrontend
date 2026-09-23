@@ -243,6 +243,16 @@ export const updateMyProfile = async (payload) => {
   return data.data;
 };
 
+// User: upload profile photo
+export const uploadMyProfilePhoto = async (file) => {
+  const fd = new FormData();
+  fd.append('avatar', file);
+  const { data } = await apiClient.put('/users/profile/photo', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data.data;
+};
+
 // User: activate account (deducts activation fee from main wallet)
 export const activateAccount = async () => {
   const { data } = await apiClient.post('/users/activate');
