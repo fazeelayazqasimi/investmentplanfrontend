@@ -697,7 +697,7 @@ function AdminInvestments() {
         <div className="filter-bar">
           <input className="search-input" placeholder="Search user, email..." value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} />
           <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All Status</option><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option>
+            <option value="">All Status</option><option value="ACTIVE">Active</option><option value="PAUSED">Paused</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option>
           </select>
           <button className="btn btn-secondary btn-sm" onClick={() => load()}>Search</button>
         </div>

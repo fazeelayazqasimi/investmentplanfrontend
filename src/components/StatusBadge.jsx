@@ -4,6 +4,7 @@ const STATUS_MAP = {
   APPROVED: 'badge-success',
   PENDING: 'badge-warning',
   PROCESSING: 'badge-warning',
+  PAUSED: 'badge-warning',
   REJECTED: 'badge-danger',
   CANCELLED: 'badge-danger',
   SUSPENDED: 'badge-danger',
