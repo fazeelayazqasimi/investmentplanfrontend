@@ -7,6 +7,7 @@ import {
   Maximize2, Minimize2, RotateCcw, X, UserCheck, UserX,
   Filter, Download, RefreshCw, ArrowUpDown, Network, AlertCircle,
   DollarSign, Activity, TrendingUp, Megaphone, MessageSquare, Send, Layers, Upload, Trophy,
+  Copy, CheckCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -845,13 +846,20 @@ function AdminDeposits({ toastSuccess, toastError }) {
    ========================================================= */
 function AdminWithdrawals({ toastSuccess, toastError }) {
   const [rows, setRows] = useState([]);
-  const [stats, setStats] = useState({ totalWithdrawn: 0, pendingAmount: 0, feesCollected: 0 });
+  const [stats, setStats] = useState({ totalWithdrawn: 0, pendingAmount: 0, feesCollected: 0, rejectedCount: 0, rejectedAmount: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('PENDING');
   const [processing, setProcessing] = useState(null);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handleCopyAddress = (id, address) => {
+    navigator.clipboard.writeText(address);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -934,6 +942,14 @@ function AdminWithdrawals({ toastSuccess, toastError }) {
             <div className="stat-value">{fmt(stats.feesCollected)}</div>
           </div>
         </div>
+        <div className="stat-card stat-danger">
+          <div className="stat-icon"><X size={22} /></div>
+          <div className="stat-content">
+            <div className="stat-label">Rejected</div>
+            <div className="stat-value">{fmt(stats.rejectedAmount || 0)}</div>
+            <div className="stat-label" style={{ fontWeight: 400, marginTop: 2 }}>{stats.rejectedCount || 0} withdrawal{(stats.rejectedCount || 0) !== 1 ? 's' : ''}</div>
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--space-4)' }}>
@@ -968,7 +984,14 @@ function AdminWithdrawals({ toastSuccess, toastError }) {
                       </div>
                     )}
                     {r.metadata?.payoutMethod === 'BEP20' && (
-                      <div>{r.metadata?.payoutDetails?.bep20Address || '-'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ wordBreak: 'break-all' }}>{r.metadata?.payoutDetails?.bep20Address || '-'}</span>
+                        {r.metadata?.payoutDetails?.bep20Address && (
+                          <button type="button" onClick={(e) => { e.stopPropagation(); handleCopyAddress(r._id, r.metadata.payoutDetails.bep20Address); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', padding: 2, flexShrink: 0 }} title="Copy BEP20 address">
+                            {copiedId === r._id ? <CheckCircle size={14} color="green" /> : <Copy size={14} />}
+                          </button>
+                        )}
+                      </div>
                     )}
                     {!r.metadata?.payoutMethod && '-'}
                   </td>
