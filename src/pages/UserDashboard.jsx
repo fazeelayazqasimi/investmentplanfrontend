@@ -1424,7 +1424,7 @@ function UserWallet({ toastSuccess, toastError }) {
         payoutDetails,
         notes: withdrawNotes.trim(),
       });
-      toastSuccess('Withdrawal Submitted', 'Your withdrawal request has been submitted.');
+      toastSuccess('Withdrawal Submitted', 'Amount deducted from your balance. It will be refunded if the admin rejects the request.');
       setWithdrawAmount('');
       setWithdrawBep20Address('');
       setWithdrawNotes('');
@@ -1776,6 +1776,9 @@ function UserWallet({ toastSuccess, toastError }) {
                   )}
                 </p>
               )}
+              <p style={{ fontSize: 12, marginTop: 4, color: 'var(--text-secondary)' }}>
+                Amount is deducted from your balance immediately. If the admin rejects the request, it will be refunded.
+              </p>
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">USDT BEP20 Wallet Address</label>

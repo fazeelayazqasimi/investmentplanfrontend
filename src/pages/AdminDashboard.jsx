@@ -868,11 +868,11 @@ function AdminWithdrawals({ toastSuccess, toastError }) {
   useEffect(() => { load(); }, [filter]);
 
   const handleApprove = async (id) => {
-    if (!window.confirm('Approve this withdrawal? Amount will be debited from user wallet.')) return;
+    if (!window.confirm('Approve this withdrawal? The amount was already held from the user wallet at request time.')) return;
     setProcessing(id);
     try {
       await approveWithdrawalAdmin(id);
-      toastSuccess('Approved', 'Withdrawal approved and wallet debited');
+      toastSuccess('Approved', 'Withdrawal approved');
       load();
     } catch (e) { toastError('Failed', e.response?.data?.message || 'Approval failed'); }
     finally { setProcessing(null); }
@@ -883,7 +883,7 @@ function AdminWithdrawals({ toastSuccess, toastError }) {
     setProcessing(rejectModal);
     try {
       await rejectWithdrawalAdmin(rejectModal, rejectReason);
-      toastSuccess('Rejected', 'Withdrawal rejected');
+      toastSuccess('Rejected', 'Withdrawal rejected — amount refunded to user');
       setRejectModal(null);
       setRejectReason('');
       load();
