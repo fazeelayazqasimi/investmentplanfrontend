@@ -3043,6 +3043,8 @@ function AdminSettings({ toastSuccess, toastError }) {
   // E-Wallet
   const [ewalletEnabled, setEwalletEnabled] = useState(false);
   const [ewalletUsageEnabled, setEwalletUsageEnabled] = useState(false);
+  // E-Wallet self-investment payment option
+  const [ewalletInvestmentEnabled, setEwalletInvestmentEnabled] = useState(false);
   const [signupBonus, setSignupBonus] = useState(0);
   const [uplineBonus, setUplineBonus] = useState(0);
   // E-Wallet Downline Offer
@@ -3088,6 +3090,7 @@ function AdminSettings({ toastSuccess, toastError }) {
         setAllowInvest(s.allowUserInvestment);
         setEwalletEnabled(s.ewalletEnabled || false);
         setEwalletUsageEnabled(s.ewalletUsageEnabled || false);
+        setEwalletInvestmentEnabled(s.ewalletInvestmentEnabled || false);
         setSignupBonus(s.signupBonusAmount || 0);
         setUplineBonus(s.uplineSignupBonusAmount || 0);
         setActivationFee(s.activationFee || 0);
@@ -3274,6 +3277,20 @@ function AdminSettings({ toastSuccess, toastError }) {
             <input type="checkbox" checked={ewalletUsageEnabled} onChange={(e) => setEwalletUsageEnabled(e.target.checked)} />
             Allow users to use E-Wallet (withdraw/transfer)
           </label>
+
+          <h4 style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-2)' }}>Self-Investment Payment</h4>
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
+            When enabled, users can pay for their own investments from their E-Wallet balance (in addition to Main and Fund Wallet). Optionally limit the maximum percentage of the investment amount that can come from E-Wallet.
+          </p>
+          <label className="form-group filter-group">
+            <input type="checkbox" checked={ewalletInvestmentEnabled} onChange={(e) => setEwalletInvestmentEnabled(e.target.checked)} />
+            Allow E-Wallet for self-investment
+          </label>
+          <div className="form-group">
+            <label className="form-label">Max E-Wallet % of Investment</label>
+            <input className="form-input" type="number" value={selfInvestmentEwalletMaxPercentage} onChange={(e) => setSelfInvestmentEwalletMaxPercentage(Number(e.target.value))} min="0" max="100" disabled={!ewalletInvestmentEnabled} />
+            <p className="form-hint">Only applies when the option above is enabled. Set to 0 for no limit. Example: 20 means max 20% of investment can be paid from E-Wallet.</p>
+          </div>
           <div className="form-group">
             <label className="form-label">Signup Bonus Amount ($)</label>
             <input className="form-input" type="number" value={signupBonus} onChange={(e) => setSignupBonus(Number(e.target.value))} min="0" />
@@ -3315,7 +3332,7 @@ function AdminSettings({ toastSuccess, toastError }) {
             Allow E-Wallet for downline deposit
           </label>
 
-          <button className="btn btn-primary btn-sm" onClick={() => save({ ewalletEnabled, ewalletUsageEnabled, signupBonusAmount: Number(signupBonus), uplineSignupBonusAmount: Number(uplineBonus), ewalletDownlineOfferEnabled, ewalletMaxPercentage: Number(ewalletMaxPercentage), ewalletDownlineActivationEnabled, ewalletDownlineDepositEnabled })} disabled={busy}>Save E-Wallet Settings</button>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ ewalletEnabled, ewalletUsageEnabled, ewalletInvestmentEnabled, selfInvestmentEwalletMaxPercentage: Number(selfInvestmentEwalletMaxPercentage), signupBonusAmount: Number(signupBonus), uplineSignupBonusAmount: Number(uplineBonus), ewalletDownlineOfferEnabled, ewalletMaxPercentage: Number(ewalletMaxPercentage), ewalletDownlineActivationEnabled, ewalletDownlineDepositEnabled })} disabled={busy}>Save E-Wallet Settings</button>
         </div>
       )}
 
@@ -3331,17 +3348,7 @@ function AdminSettings({ toastSuccess, toastError }) {
             <input className="form-input" type="number" value={activationFee} onChange={(e) => setActivationFee(Number(e.target.value))} min="0" />
             <p className="form-hint">Set to 0 to disable activation fee</p>
           </div>
-
-          <h4 style={{ marginTop: 'var(--space-4)', marginBottom: 'var(--space-2)' }}>Self-Investment E-Wallet Limit</h4>
-          <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
-            Limit the maximum percentage of investment amount that users can pay from their E-Wallet when investing for themselves.
-          </p>
-          <div className="form-group">
-            <label className="form-label">Max E-Wallet % for Self-Investment</label>
-            <input className="form-input" type="number" value={selfInvestmentEwalletMaxPercentage} onChange={(e) => setSelfInvestmentEwalletMaxPercentage(Number(e.target.value))} min="0" max="100" />
-            <p className="form-hint">Set to 0 for no limit. Example: 10 means user can use max 10% from E-Wallet.</p>
-          </div>
-          <button className="btn btn-primary btn-sm" onClick={() => save({ activationFee: Number(activationFee), selfInvestmentEwalletMaxPercentage: Number(selfInvestmentEwalletMaxPercentage) })} disabled={busy}>Save Activation Settings</button>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ activationFee: Number(activationFee) })} disabled={busy}>Save Activation Settings</button>
         </div>
       )}
 

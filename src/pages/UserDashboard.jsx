@@ -796,14 +796,16 @@ function UserInvestments({ toastSuccess, toastError }) {
 
   const roundToTwo = (v) => Math.round((v + Number.EPSILON) * 100) / 100;
 
+  const ewalletInvestmentEnabled = !!downlineSettings?.ewalletInvestmentEnabled;
+
   // Auto-calculate wallet split: Main → E-Wallet → Fund
   const autoAllocate = (total) => {
     const amt = Number(total) || 0;
-    const maxEwalletPct = downlineSettings?.selfInvestmentEwalletMaxPercentage || 0;
+    const maxEwalletPct = ewalletInvestmentEnabled ? (downlineSettings?.selfInvestmentEwalletMaxPercentage || 0) : 0;
     const maxEwalletFromPct = maxEwalletPct > 0 ? roundToTwo(amt * maxEwalletPct / 100) : Infinity;
     const maxMain = Math.min(amt, wallet?.mainBalance || 0);
     const remaining = amt - maxMain;
-    const maxEwallet = Math.min(remaining, wallet?.ewalletBalance || 0, maxEwalletFromPct);
+    const maxEwallet = ewalletInvestmentEnabled ? Math.min(remaining, wallet?.ewalletBalance || 0, maxEwalletFromPct) : 0;
     const remaining2 = remaining - maxEwallet;
     const maxFund = Math.min(remaining2, wallet?.fundBalance || 0);
     setMainAmount(maxMain > 0 ? String(maxMain) : '');
@@ -837,7 +839,7 @@ function UserInvestments({ toastSuccess, toastError }) {
   const splitExceeds = investAmount > 0 && splitDifference < -0.01;
   const insufficientBalance = investAmount > 0 && (
     (Number(mainAmount) || 0) > (wallet?.mainBalance || 0) ||
-    (Number(ewalletAmount) || 0) > (wallet?.ewalletBalance || 0) ||
+    (ewalletInvestmentEnabled && (Number(ewalletAmount) || 0) > (wallet?.ewalletBalance || 0)) ||
     (Number(fundAmount) || 0) > (wallet?.fundBalance || 0)
   );
 
@@ -852,8 +854,9 @@ function UserInvestments({ toastSuccess, toastError }) {
     const totalWallet = mainAmt + ewalletAmt + fundAmt;
     if (Math.abs(totalWallet - amt) > 0.01) { setFormError(`Wallet split (${fmt(totalWallet)}) must equal investment amount (${fmt(amt)})`); setBusy(false); return; }
     if (mainAmt > (wallet?.mainBalance || 0)) { setFormError('Main Wallet amount exceeds available balance'); setBusy(false); return; }
-    if (ewalletAmt > (wallet?.ewalletBalance || 0)) { setFormError('E-Wallet amount exceeds available balance'); setBusy(false); return; }
+    if (ewalletInvestmentEnabled && ewalletAmt > (wallet?.ewalletBalance || 0)) { setFormError('E-Wallet amount exceeds available balance'); setBusy(false); return; }
     if (fundAmt > (wallet?.fundBalance || 0)) { setFormError('Fund Wallet amount exceeds available balance'); setBusy(false); return; }
+    if (!ewalletInvestmentEnabled && ewalletAmt > 0) { setFormError('E-Wallet for investment is currently disabled by admin'); setBusy(false); return; }
     try {
       await apiClient.post('/investments', {
         amount: amt,
@@ -1102,18 +1105,20 @@ function UserInvestments({ toastSuccess, toastError }) {
               </label>
               <input className="form-input" type="number" value={mainAmount} onChange={(e) => handleWalletChange('main', e.target.value)} min="0" max={wallet?.mainBalance || 0} placeholder="0.00" />
             </div>
-            <div className="form-group">
-              <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>E-Wallet</span>
-                <span style={{ fontWeight: 400, color: 'var(--gray-500)', fontSize: 12 }}>Available: {fmt(wallet?.ewalletBalance)}</span>
-              </label>
-              {downlineSettings?.selfInvestmentEwalletMaxPercentage > 0 && investAmount > 0 && (
-                <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block' }}>
-                  Max from E-Wallet: {fmt(roundToTwo(investAmount * downlineSettings.selfInvestmentEwalletMaxPercentage / 100))} ({downlineSettings.selfInvestmentEwalletMaxPercentage}% of investment)
-                </span>
-              )}
-              <input className="form-input" type="number" value={ewalletAmount} onChange={(e) => handleWalletChange('ewallet', e.target.value)} min="0" max={downlineSettings?.selfInvestmentEwalletMaxPercentage > 0 && investAmount > 0 ? Math.min(wallet?.ewalletBalance || 0, roundToTwo(investAmount * downlineSettings.selfInvestmentEwalletMaxPercentage / 100)) : (wallet?.ewalletBalance || 0)} placeholder="0.00" />
-            </div>
+            {ewalletInvestmentEnabled && (
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>E-Wallet</span>
+                  <span style={{ fontWeight: 400, color: 'var(--gray-500)', fontSize: 12 }}>Available: {fmt(wallet?.ewalletBalance)}</span>
+                </label>
+                {downlineSettings?.selfInvestmentEwalletMaxPercentage > 0 && investAmount > 0 && (
+                  <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block' }}>
+                    Max from E-Wallet: {fmt(roundToTwo(investAmount * downlineSettings.selfInvestmentEwalletMaxPercentage / 100))} ({downlineSettings.selfInvestmentEwalletMaxPercentage}% of investment)
+                  </span>
+                )}
+                <input className="form-input" type="number" value={ewalletAmount} onChange={(e) => handleWalletChange('ewallet', e.target.value)} min="0" max={downlineSettings?.selfInvestmentEwalletMaxPercentage > 0 && investAmount > 0 ? Math.min(wallet?.ewalletBalance || 0, roundToTwo(investAmount * downlineSettings.selfInvestmentEwalletMaxPercentage / 100)) : (wallet?.ewalletBalance || 0)} placeholder="0.00" />
+              </div>
+            )}
             <div className="form-group">
               <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Fund Wallet</span>
@@ -1123,7 +1128,7 @@ function UserInvestments({ toastSuccess, toastError }) {
             </div>
             {investAmount > 0 && (
               <div style={{ fontSize: 13, color: 'var(--gray-500)', marginTop: 'var(--space-2)' }}>
-                Split: {fmt(Number(mainAmount) || 0)} + {fmt(Number(ewalletAmount) || 0)} + {fmt(Number(fundAmount) || 0)} = <strong>{fmt(totalWalletSplit)}</strong>
+                Split: {fmt(Number(mainAmount) || 0)} + {ewalletInvestmentEnabled && `${fmt(Number(ewalletAmount) || 0)} + `}{fmt(Number(fundAmount) || 0)} = <strong>{fmt(totalWalletSplit)}</strong>
                 {splitExceeds && (
                   <span style={{ color: 'var(--color-danger)', marginLeft: 8 }}>(exceeds investment amount by {fmt(-splitDifference)})</span>
                 )}
