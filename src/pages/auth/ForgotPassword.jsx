@@ -34,7 +34,7 @@ function ForgotPassword() {
       await authService.forgotPassword(email);
       setSuccess('Verification code sent to your email');
       setStep(2);
-      setCooldown(30);
+      setCooldown(60);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to send code');
     } finally {
@@ -69,8 +69,8 @@ function ForgotPassword() {
       setError('Please enter the complete 4-digit code');
       return;
     }
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -96,7 +96,7 @@ function ForgotPassword() {
     try {
       await authService.resendOtp(email, 'PASSWORD_RESET');
       setSuccess('New verification code sent to your email');
-      setCooldown(30);
+      setCooldown(60);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to resend code');
     }
@@ -163,7 +163,7 @@ function ForgotPassword() {
                       value={digit}
                       onChange={(e) => handleCodeChange(i, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(i, e)}
-                      disabled={isSubmitting || success}
+                      disabled={isSubmitting}
                       style={{
                         width: 56, height: 56, textAlign: 'center', fontSize: 22, fontWeight: 'bold',
                         border: '2px solid var(--color-border)', borderRadius: 12,
@@ -180,9 +180,9 @@ function ForgotPassword() {
                   <label className="form-label">New Password</label>
                   <div className="password-field">
                     <input type={showPassword ? 'text' : 'password'} className="form-input"
-                      placeholder="At least 6 characters" value={newPassword}
+                      placeholder="At least 8 characters" value={newPassword}
                       onChange={(e) => { setNewPassword(e.target.value); setError(''); }}
-                      required minLength={6} />
+                      required minLength={8} />
                     <button type="button" className="password-toggle"
                       onClick={() => setShowPassword((p) => !p)} tabIndex={-1}>
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -195,10 +195,10 @@ function ForgotPassword() {
                   <input type={showPassword ? 'text' : 'password'} className="form-input"
                     placeholder="Re-enter your password" value={confirmPassword}
                     onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
-                    required minLength={6} />
+                    required minLength={8} />
                 </div>
 
-                <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={isSubmitting || success}>
+                <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={isSubmitting}>
                   {isSubmitting ? 'Resetting...' : 'Reset Password'}
                 </button>
               </form>

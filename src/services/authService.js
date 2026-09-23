@@ -2,11 +2,32 @@ import apiClient from './apiClient';
 
 /**
  * Registers a new user.
- * @param {Object} payload - { name, email, phone, password, confirmPassword, referralCode }
+ * @param {Object} payload - { name, email, phone, password, confirmPassword, referralCode, emailVerifyToken }
  * @returns {Promise<Object>} response data: { user, token }
  */
 const register = async (payload) => {
   const response = await apiClient.post('/auth/register', payload);
+  return response.data.data;
+};
+
+/**
+ * Sends registration OTP to email (register step 1).
+ * @param {string} email
+ * @returns {Promise<Object>} response data
+ */
+const sendRegisterOtp = async (email) => {
+  const response = await apiClient.post('/auth/register/send-otp', { email });
+  return response.data;
+};
+
+/**
+ * Verifies the 4-digit registration OTP (register step 2).
+ * @param {string} email
+ * @param {string} code - 4-digit OTP
+ * @returns {Promise<Object>} response data: { emailVerifyToken }
+ */
+const verifyEmail = async (email, code) => {
+  const response = await apiClient.post('/auth/verify-email', { email, code });
   return response.data.data;
 };
 
@@ -73,6 +94,8 @@ const getMe = async () => {
 
 export default {
   register,
+  sendRegisterOtp,
+  verifyEmail,
   resendOtp,
   login,
   forgotPassword,
