@@ -875,8 +875,21 @@ function AdminWithdrawals({ toastSuccess, toastError }) {
 
   useEffect(() => { load(); }, [filter]);
 
+  const getFeeNet = (r) => {
+    const gross = Math.abs(Number(r.amount) || 0);
+    const pct = Number(r.metadata?.feePercentage) || 0;
+    const fee = r.metadata?.fee != null ? Number(r.metadata.fee) : Math.round((gross * pct) / 100 * 100) / 100;
+    const net = r.metadata?.netAmount != null ? Number(r.metadata.netAmount) : Math.round((gross - fee) * 100) / 100;
+    return { gross, fee, net, hasFee: fee > 0 };
+  };
+
   const handleApprove = async (id) => {
-    if (!window.confirm('Approve this withdrawal? The amount was already held from the user wallet at request time.')) return;
+    const row = rows.find((r) => r._id === id);
+    const { fee, net, hasFee } = row ? getFeeNet(row) : { fee: 0, net: 0, hasFee: false };
+    const confirmMsg = hasFee
+      ? `Approve this withdrawal?\n\nRequested: ${fmt(Math.abs(row.amount))}\nFee: ${fmt(fee)}\nFinal amount to send: ${fmt(net)}\n\n(Amount was already held from the user wallet at request time.)`
+      : 'Approve this withdrawal? The amount was already held from the user wallet at request time.';
+    if (!window.confirm(confirmMsg)) return;
     setProcessing(id);
     try {
       await approveWithdrawalAdmin(id);
@@ -971,7 +984,22 @@ function AdminWithdrawals({ toastSuccess, toastError }) {
               {rows.map((r) => (
                 <tr key={r._id}>
                   <td data-label="User" className="cell-strong">{r.user?.name}</td>
-                  <td data-label="Amount">{fmt(Math.abs(r.amount))}</td>
+                  <td data-label="Amount">
+                    {(() => {
+                      const { gross, fee, net, hasFee } = getFeeNet(r);
+                      return (
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{fmt(gross)}</div>
+                          {hasFee && (
+                            <div style={{ fontSize: 11, lineHeight: 1.5, marginTop: 2 }}>
+                              <div style={{ color: 'var(--text-secondary, #6b7280)' }}>Fee: {fmt(fee)}</div>
+                              <div style={{ color: '#047857', fontWeight: 700 }}>Send: {fmt(net)}</div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </td>
                   <td data-label="Wallet">{getWalletLabel(r.description, r.metadata)}</td>
                   <td data-label="Payout Method">{r.metadata?.payoutMethod === 'BANK' ? 'Bank Account' : r.metadata?.payoutMethod === 'BEP20' ? 'USDT BEP20' : '-'}</td>
                   <td data-label="Payout Details" style={{ fontSize: 12, maxWidth: 200, wordBreak: 'break-all' }}>
