@@ -381,6 +381,58 @@ code, .mono {
 .password-toggle:hover {
   color: var(--color-text);
 }
+.phone-field {
+  display: flex;
+  gap: 8px;
+}
+.phone-field .phone-country {
+  flex: 0 0 130px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2.5) var(--space-2);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  transition: all var(--transition-fast);
+}
+.phone-field .phone-country:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+.phone-field .phone-country img {
+  width: 24px;
+  height: 16px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.phone-field .phone-country select {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 14px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0 center;
+  background-size: 12px;
+}
+.phone-field .form-input {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 480px) {
+  .phone-field .phone-country {
+    flex: 0 0 110px;
+  }
+}
 
 /* ==========================================
    WIDTH / SIZING UTILITIES

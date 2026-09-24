@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
+import { COUNTRIES, DEFAULT_COUNTRY } from '../../constants/countries';
 import logoHeader from '../../images/favicon.png';
 
 function Register() {
@@ -13,6 +14,7 @@ function Register() {
   const [step, setStep] = useState(1); // 1 = email, 2 = OTP, 3 = details
   const [formData, setFormData] = useState({
     name: '', email: '', phone: '', password: '', confirmPassword: '',
+    countryCode: DEFAULT_COUNTRY.dial, country: DEFAULT_COUNTRY.code,
     referralCode: searchParams.get('ref') || '',
   });
   const [email, setEmail] = useState(searchParams.get('email') || '');
@@ -41,6 +43,12 @@ function Register() {
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    clearMessages();
+  };
+
+  const handlePhoneChange = (e) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
+    setFormData((prev) => ({ ...prev, phone: digits }));
     clearMessages();
   };
 
@@ -143,7 +151,8 @@ function Register() {
 
     try {
       const data = await authService.register({
-        name: formData.name, email, phone: formData.phone,
+        name: formData.name, email,
+        phone: `${formData.countryCode} ${formData.phone}`.trim(),
         password: formData.password, confirmPassword: formData.confirmPassword,
         referralCode: formData.referralCode,
         emailVerifyToken,
@@ -332,8 +341,45 @@ function Register() {
 
               <div className="form-group">
                 <label className="form-label">Phone Number</label>
-                <input type="tel" name="phone" className="form-input" placeholder="+1 234 567 8900"
-                  value={formData.phone} onChange={handleChange} required autoComplete="tel" />
+                <div className="phone-field">
+                  <div className="phone-country">
+                    <img
+                      src={COUNTRIES.find((c) => c.code === formData.country)?.flag}
+                      alt={formData.country}
+                    />
+                    <select
+                      name="country"
+                      value={formData.country}
+                      onChange={(e) => {
+                        const country = COUNTRIES.find((c) => c.code === e.target.value);
+                        setFormData((prev) => ({
+                          ...prev,
+                          country: country.code,
+                          countryCode: country.dial,
+                        }));
+                        clearMessages();
+                      }}
+                      aria-label="Country code"
+                    >
+                      {COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.dial} {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <input
+                    type="tel"
+                    name="phone"
+                    className="form-input"
+                    placeholder="300 1234567"
+                    value={formData.phone}
+                    onChange={handlePhoneChange}
+                    required
+                    autoComplete="tel-national"
+                    inputMode="numeric"
+                  />
+                </div>
               </div>
 
               <div className="form-group">
