@@ -1429,7 +1429,7 @@ function UserWallet({ toastSuccess, toastError }) {
         payoutDetails,
         notes: withdrawNotes.trim(),
       });
-      toastSuccess('Withdrawal Submitted', 'Amount deducted from your balance. It will be refunded if the admin rejects the request.');
+      toastSuccess('Withdrawal Request Sent', 'Your Withdrawal request has been sent to admin. Your request will be approved in next 72 hours.');
       setWithdrawAmount('');
       setWithdrawBep20Address('');
       setWithdrawNotes('');
