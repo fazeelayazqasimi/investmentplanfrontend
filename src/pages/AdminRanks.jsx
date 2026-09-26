@@ -29,6 +29,7 @@ export default function AdminRanksContent({ toastSuccess: success, toastError })
     directBusiness: 0,
     totalTeamBusiness: 0,
     legs: 0,
+    minBusinessPerLeg: 0,
     promotionType: 'AUTO',
     requiredDirectRanks: 3,
     rankDowngradeEnabled: true,
@@ -57,6 +58,7 @@ export default function AdminRanksContent({ toastSuccess: success, toastError })
       directBusiness: 0,
       totalTeamBusiness: 0,
       legs: 0,
+      minBusinessPerLeg: 0,
       promotionType: 'AUTO',
       requiredDirectRanks: 3,
       rankDowngradeEnabled: true,
@@ -75,6 +77,7 @@ export default function AdminRanksContent({ toastSuccess: success, toastError })
       directBusiness: rank.criteria?.directBusiness || 0,
       totalTeamBusiness: rank.criteria?.totalTeamBusiness || 0,
       legs: rank.criteria?.legs || 0,
+      minBusinessPerLeg: rank.criteria?.minBusinessPerLeg || 0,
       promotionType: rank.promotionType || 'AUTO',
       requiredDirectRanks: rank.autoPromotionCriteria?.requiredDirectRanks || 3,
       rankDowngradeEnabled: rank.rankDowngradeEnabled !== false,
@@ -94,6 +97,7 @@ export default function AdminRanksContent({ toastSuccess: success, toastError })
           directBusiness: Number(form.directBusiness),
           totalTeamBusiness: Number(form.totalTeamBusiness),
           legs: Number(form.legs),
+          minBusinessPerLeg: Number(form.minBusinessPerLeg),
         },
         promotionType: form.promotionType,
         autoPromotionCriteria: { requiredDirectRanks: Number(form.requiredDirectRanks) },
@@ -192,7 +196,12 @@ export default function AdminRanksContent({ toastSuccess: success, toastError })
                         <div>Deposit: ${rank.criteria?.selfDeposit || 0}</div>
                         <div>Direct: ${rank.criteria?.directBusiness || 0}</div>
                         <div>Team: ${rank.criteria?.totalTeamBusiness || 0}</div>
-                        <div>Legs: {rank.criteria?.legs || 0}</div>
+                        <div>
+                          Legs: {rank.criteria?.legs || 0}
+                          {(rank.criteria?.minBusinessPerLeg || 0) > 0
+                            ? ` @ $${Number(rank.criteria.minBusinessPerLeg).toLocaleString()} each`
+                            : ' (direct members)'}
+                        </div>
                       </div>
                     </td>
                     <td>
@@ -279,8 +288,15 @@ export default function AdminRanksContent({ toastSuccess: success, toastError })
                     <input className="form-input" type="number" value={form.totalTeamBusiness} onChange={(e) => setForm({ ...form, totalTeamBusiness: e.target.value })} min={0} />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Legs (Direct Members)</label>
+                    <label className="form-label">Legs Required</label>
                     <input className="form-input" type="number" value={form.legs} onChange={(e) => setForm({ ...form, legs: e.target.value })} min={0} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Minimum Business Per Leg ($)</label>
+                    <input className="form-input" type="number" value={form.minBusinessPerLeg} onChange={(e) => setForm({ ...form, minBusinessPerLeg: e.target.value })} min={0} />
+                    <small style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>
+                      Each leg must reach this business on its own. 0 = count direct members only.
+                    </small>
                   </div>
                 </div>
               </div>

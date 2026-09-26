@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Mail } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/authService';
 import { COUNTRIES, DEFAULT_COUNTRY } from '../../constants/countries';
@@ -281,6 +281,24 @@ function Register() {
 
           {step === 2 && (
             <form onSubmit={handleVerifyCode}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '14px 16px', marginBottom: 'var(--space-4)',
+                background: 'rgba(245, 158, 11, 0.14)',
+                border: '1px solid rgba(245, 158, 11, 0.5)',
+                borderRadius: 12,
+              }}>
+                <Mail size={26} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                <div style={{ lineHeight: 1.35 }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-text)' }}>
+                    Check your Spam / Junk folder
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                    Code not in your inbox? Open your Spam or Junk folder — the email usually lands there.
+                  </div>
+                </div>
+              </div>
+
               <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 'var(--space-4)' }}>
                 {code.map((digit, i) => (
                   <input

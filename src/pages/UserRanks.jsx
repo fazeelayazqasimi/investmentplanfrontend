@@ -38,6 +38,14 @@ export default function UserRanksContent() {
     return Math.min(100, Math.round((current / target) * 100));
   };
 
+  const legsTarget = nextRank?.criteria?.legs || 0;
+  const minLegBusiness = nextRank?.criteria?.minBusinessPerLeg || 0;
+  // Same rule as the backend: no per-leg minimum configured => legs simply
+  // count direct referrals.
+  const qualifiedLegs = minLegBusiness > 0
+    ? (rankData?.legBusiness || []).filter((b) => b >= minLegBusiness).length
+    : (rankData?.legs || 0);
+
   return (
     <div className="animate-slide-up">
       <div className="page-header">
@@ -104,7 +112,16 @@ export default function UserRanksContent() {
                 { label: 'Self Deposit', current: rankData.selfDeposit, target: nextRank.criteria?.selfDeposit || 0, icon: DollarSign },
                 { label: 'Direct Business', current: rankData.directBusiness, target: nextRank.criteria?.directBusiness || 0, icon: TrendingUp },
                 { label: 'Total Team Business', current: rankData.totalTeamBusiness, target: nextRank.criteria?.totalTeamBusiness || 0, icon: BarChart3 },
-                { label: 'Legs (Direct Members)', current: rankData.legs, target: nextRank.criteria?.legs || 0, icon: Users },
+                {
+                  label: 'Qualifying Legs',
+                  current: qualifiedLegs,
+                  target: legsTarget,
+                  icon: Users,
+                  isCount: true,
+                  hint: minLegBusiness > 0
+                    ? `min ${fmt(minLegBusiness)} per leg`
+                    : 'direct referrals',
+                },
               ].map((item) => {
                 const pct = getProgress(item.current, item.target);
                 return (
@@ -112,9 +129,14 @@ export default function UserRanksContent() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
                         <item.icon size={14} /> {item.label}
+                        {item.hint && (
+                          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', fontWeight: 400 }}>
+                            ({item.hint})
+                          </span>
+                        )}
                       </span>
                       <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                        {item.label === 'Legs' ? `${item.current} / ${item.target}` : `${fmt(item.current)} / ${fmt(item.target)}`}
+                        {item.isCount ? `${item.current} / ${item.target}` : `${fmt(item.current)} / ${fmt(item.target)}`}
                       </span>
                     </div>
                     <div className="rank-progress-bar">
