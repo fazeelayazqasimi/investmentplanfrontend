@@ -570,6 +570,18 @@ export const requestWithdrawal = async (payload) => {
   return data;
 };
 
+// User: Send withdrawal verification OTP to email
+export const sendWithdrawalOtp = async () => {
+  const { data } = await apiClient.post('/wallet/withdraw/otp');
+  return data;
+};
+
+// User: Verify withdrawal OTP and get a short-lived withdraw token
+export const verifyWithdrawalOtp = async (payload) => {
+  const { data } = await apiClient.post('/wallet/withdraw/verify-otp', payload);
+  return data;
+};
+
 // User: Get own withdrawal history
 export const getMyWithdrawals = async (params = {}) => {
   const { data } = await apiClient.get('/wallet/withdrawals', { params });

@@ -1751,7 +1751,7 @@ function AdminRoi({ toastSuccess, toastError }) {
                     Process <strong>{manualPercentage}%</strong> ROI for all active investments today?
                   </p>
                   <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
-                    This is a one-time action. The AUTO schedule is not affected.
+                    This can be run any number of times — each run credits all eligible investments again until the 2X/3X cap. The AUTO schedule is not affected.
                   </p>
                 </div>
               )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, LineChart, Wallet as WalletIcon, Receipt, Percent, Share2, User as UserIcon,
@@ -16,6 +16,8 @@ import apiClient, {
   activateDownlineAccount, depositForDownline,
   getBankAccounts, getActiveAnnouncements, searchMyDownlines, getPendingCommissionDetails,
   requestWithdrawal as requestWithdrawalApi,
+  sendWithdrawalOtp,
+  verifyWithdrawalOtp,
   getMyWithdrawals,
 } from '../services/apiClient';
 import {
@@ -1295,6 +1297,12 @@ function UserWallet({ toastSuccess, toastError }) {
   const [withdrawNotes, setWithdrawNotes] = useState('');
   const [withdrawHistory, setWithdrawHistory] = useState([]);
   const [withdrawHistoryLoading, setWithdrawHistoryLoading] = useState(false);
+  const [withdrawStep, setWithdrawStep] = useState(1); // 1 = form, 2 = OTP verify
+  const [withdrawOtp, setWithdrawOtp] = useState(['', '', '', '']);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [otpSent, setOtpSent] = useState(false);
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const withdrawOtpRefs = [useRef(), useRef(), useRef(), useRef()];
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingDetails, setPendingDetails] = useState([]);
   const [pendingLoading, setPendingLoading] = useState(false);
@@ -1411,32 +1419,119 @@ function UserWallet({ toastSuccess, toastError }) {
     finally { setFundBusy(false); }
   };
 
+  const resetWithdrawForm = () => {
+    setWithdrawAmount('');
+    setWithdrawBep20Address('');
+    setWithdrawNotes('');
+    setWithdrawStep(1);
+    setWithdrawOtp(['', '', '', '']);
+    setOtpSent(false);
+    setMaskedEmail('');
+    setWithdrawError('');
+  };
+
+  const openWithdrawModal = () => {
+    setWithdrawError('');
+    setWithdrawStep(1);
+    setWithdrawOtp(['', '', '', '']);
+    setShowWithdrawModal(true);
+  };
+
+  const closeWithdrawModal = () => {
+    setShowWithdrawModal(false);
+    setWithdrawStep(1);
+    setWithdrawOtp(['', '', '', '']);
+    setWithdrawError('');
+  };
+
+  const handleOtpChange = (index, value) => {
+    if (!/^\d*$/.test(value)) return;
+    const next = [...withdrawOtp];
+    next[index] = value.slice(-1);
+    setWithdrawOtp(next);
+    setWithdrawError('');
+    if (value && index < 3) withdrawOtpRefs[index + 1].current?.focus();
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !withdrawOtp[index] && index > 0) {
+      withdrawOtpRefs[index - 1].current?.focus();
+    }
+  };
+
+  // Step 1: validate the form and send the OTP to the user's email
   const handleWithdraw = async () => {
-    setWithdrawBusy(true);
     setWithdrawError('');
     const amt = Number(withdrawAmount);
-    if (!amt || amt <= 0) { setWithdrawError('Enter a valid amount'); setWithdrawBusy(false); return; }
+    if (!amt || amt <= 0) { setWithdrawError('Enter a valid amount'); return; }
 
-    if (!withdrawBep20Address.trim()) { setWithdrawError('USDT BEP20 wallet address is required'); setWithdrawBusy(false); return; }
+    if (!withdrawBep20Address.trim()) { setWithdrawError('USDT BEP20 wallet address is required'); return; }
 
-    const payoutDetails = { bep20Address: withdrawBep20Address.trim() };
-
+    setWithdrawBusy(true);
     try {
+      // Within the cooldown window an OTP is already in the user's inbox —
+      // skip re-sending and just move to the verify step.
+      if (!(otpSent && otpCooldown > 0)) {
+        const r = await sendWithdrawalOtp();
+        setMaskedEmail(r.data?.maskedEmail || '');
+        setOtpSent(true);
+        setOtpCooldown(60);
+      }
+      setWithdrawOtp(['', '', '', '']);
+      setWithdrawStep(2);
+      setTimeout(() => withdrawOtpRefs[0].current?.focus(), 100);
+    } catch (er) {
+      const msg = er.response?.data?.message || 'Failed to send verification code';
+      setWithdrawError(msg);
+      toastError('OTP Failed', msg);
+    } finally {
+      setWithdrawBusy(false);
+    }
+  };
+
+  // Step 2: verify the OTP, then submit the withdrawal request
+  const handleVerifyWithdrawOtp = async () => {
+    const otp = withdrawOtp.join('');
+    if (otp.length !== 4) { setWithdrawError('Please enter the complete 4-digit code'); return; }
+
+    setWithdrawBusy(true);
+    setWithdrawError('');
+    try {
+      const v = await verifyWithdrawalOtp({ code: otp });
+      const withdrawToken = v.data?.withdrawToken;
+
       await requestWithdrawalApi({
-        amount: amt,
+        amount: Number(withdrawAmount),
         balanceField: withdrawField,
         payoutMethod: 'BEP20',
-        payoutDetails,
+        payoutDetails: { bep20Address: withdrawBep20Address.trim() },
         notes: withdrawNotes.trim(),
+        withdrawToken,
       });
       toastSuccess('Withdrawal Request Sent', 'Your Withdrawal request has been sent to admin. Your request will be approved in next 72 hours.');
-      setWithdrawAmount('');
-      setWithdrawBep20Address('');
-      setWithdrawNotes('');
+      resetWithdrawForm();
       await load();
       setTimeout(() => setShowWithdrawModal(false), 2000);
-    } catch (er) { setWithdrawError(er.response?.data?.message || 'Withdrawal failed'); toastError('Withdrawal Failed', er.response?.data?.message); }
-    finally { setWithdrawBusy(false); }
+    } catch (er) {
+      setWithdrawError(er.response?.data?.message || 'Verification failed');
+      setWithdrawOtp(['', '', '', '']);
+      withdrawOtpRefs[0].current?.focus();
+    } finally {
+      setWithdrawBusy(false);
+    }
+  };
+
+  const handleResendWithdrawOtp = async () => {
+    setWithdrawError('');
+    try {
+      const r = await sendWithdrawalOtp();
+      setMaskedEmail(r.data?.maskedEmail || '');
+      setWithdrawOtp(['', '', '', '']);
+      setOtpCooldown(60);
+      withdrawOtpRefs[0].current?.focus();
+    } catch (er) {
+      setWithdrawError(er.response?.data?.message || 'Failed to resend code');
+    }
   };
 
   let searchDebounceRef = null;
@@ -1553,7 +1648,7 @@ function UserWallet({ toastSuccess, toastError }) {
         </button>
         <button
           className="btn btn-primary"
-          onClick={() => { setWithdrawError(''); setShowWithdrawModal(true); }}
+          onClick={openWithdrawModal}
         >
           <ArrowUpFromLine size={16} /> Request Withdrawal
         </button>
@@ -1752,52 +1847,116 @@ function UserWallet({ toastSuccess, toastError }) {
       )}
 
       {showWithdrawModal && (
-        <Modal title="Request Withdrawal" onClose={() => setShowWithdrawModal(false)}>
+        <Modal title="Request Withdrawal" onClose={closeWithdrawModal}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 380 }}>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">From Wallet</label>
-              <select className="form-input" value={withdrawField} onChange={(e) => setWithdrawField(e.target.value)}>
-                <option value="mainBalance">Main Wallet ({fmt(wallet?.mainBalance)})</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Amount</label>
-              <input className="form-input" type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} placeholder="0.00" min="0.01" />
-              {settings?.withdrawalMinAmount > 0 && (
-                <p className="text-muted" style={{ fontSize: 12, marginTop: 4, color: '#f59e0b' }}>
-                  Minimum withdrawal amount: {fmt(settings.withdrawalMinAmount)}
-                </p>
-              )}
-              {settings?.withdrawalMaxAmount > 0 && (
-                <p className="text-muted" style={{ fontSize: 12, marginTop: 4, color: '#f59e0b' }}>
-                  Maximum withdrawal amount: {fmt(settings.withdrawalMaxAmount)}
-                </p>
-              )}
-              {(settings?.withdrawalFeePercentage || 0) > 0 && (
-                <p style={{ fontSize: 12, marginTop: 4, color: '#f59e0b', fontWeight: 500 }}>
-                  Fee: {settings.withdrawalFeePercentage}%
-                  {Number(withdrawAmount) > 0 && (
-                    <> — You will receive: {fmt(Number(withdrawAmount) - (Number(withdrawAmount) * settings.withdrawalFeePercentage) / 100)}</>
+            {withdrawStep === 1 ? (
+              <>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">From Wallet</label>
+                  <select className="form-input" value={withdrawField} onChange={(e) => setWithdrawField(e.target.value)}>
+                    <option value="mainBalance">Main Wallet ({fmt(wallet?.mainBalance)})</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Amount</label>
+                  <input className="form-input" type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} placeholder="0.00" min="0.01" />
+                  {settings?.withdrawalMinAmount > 0 && (
+                    <p className="text-muted" style={{ fontSize: 12, marginTop: 4, color: '#f59e0b' }}>
+                      Minimum withdrawal amount: {fmt(settings.withdrawalMinAmount)}
+                    </p>
                   )}
-                </p>
-              )}
-              <p style={{ fontSize: 12, marginTop: 4, color: 'var(--text-secondary)' }}>
-                Amount is deducted from your balance immediately. If the admin rejects the request, it will be refunded.
-              </p>
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">USDT BEP20 Wallet Address</label>
-              <input className="form-input" type="text" value={withdrawBep20Address} onChange={(e) => setWithdrawBep20Address(e.target.value)} placeholder="0x..." />
-            </div>
+                  {settings?.withdrawalMaxAmount > 0 && (
+                    <p className="text-muted" style={{ fontSize: 12, marginTop: 4, color: '#f59e0b' }}>
+                      Maximum withdrawal amount: {fmt(settings.withdrawalMaxAmount)}
+                    </p>
+                  )}
+                  {(settings?.withdrawalFeePercentage || 0) > 0 && (
+                    <p style={{ fontSize: 12, marginTop: 4, color: '#f59e0b', fontWeight: 500 }}>
+                      Fee: {settings.withdrawalFeePercentage}%
+                      {Number(withdrawAmount) > 0 && (
+                        <> — You will receive: {fmt(Number(withdrawAmount) - (Number(withdrawAmount) * settings.withdrawalFeePercentage) / 100)}</>
+                      )}
+                    </p>
+                  )}
+                  <p style={{ fontSize: 12, marginTop: 4, color: 'var(--text-secondary)' }}>
+                    Amount is deducted from your balance immediately. If the admin rejects the request, it will be refunded.
+                  </p>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">USDT BEP20 Wallet Address</label>
+                  <input className="form-input" type="text" value={withdrawBep20Address} onChange={(e) => setWithdrawBep20Address(e.target.value)} placeholder="0x..." />
+                </div>
 
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Notes (Optional)</label>
-              <input className="form-input" type="text" value={withdrawNotes} onChange={(e) => setWithdrawNotes(e.target.value)} placeholder="Any additional notes for admin" />
-            </div>
-            {withdrawError && <ErrorBox message={withdrawError} />}
-            <button className="btn btn-primary btn-sm" onClick={handleWithdraw} disabled={withdrawBusy || !withdrawAmount} style={{ alignSelf: 'flex-start' }}>
-              {withdrawBusy ? 'Submitting...' : 'Submit Withdrawal Request'}
-            </button>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Notes (Optional)</label>
+                  <input className="form-input" type="text" value={withdrawNotes} onChange={(e) => setWithdrawNotes(e.target.value)} placeholder="Any additional notes for admin" />
+                </div>
+                {withdrawError && <ErrorBox message={withdrawError} />}
+                <button className="btn btn-primary btn-sm" onClick={handleWithdraw} disabled={withdrawBusy || !withdrawAmount} style={{ alignSelf: 'flex-start' }}>
+                  {withdrawBusy ? 'Sending OTP...' : 'Submit Withdrawal Request'}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 'var(--space-3)' }}>
+                  <p style={{ margin: 0, fontSize: 13 }}>
+                    Enter the 4-digit code sent to <strong>{maskedEmail || 'your registered email'}</strong>.
+                  </p>
+                  <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>
+                    Code expires in 2 minutes. Check your spam/junk folder if you don&apos;t see it.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                  {withdrawOtp.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={withdrawOtpRefs[i]}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(i, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                      disabled={withdrawBusy}
+                      style={{
+                        width: 52, height: 52, textAlign: 'center', fontSize: 22, fontWeight: 'bold',
+                        border: '2px solid var(--color-border)', borderRadius: 12,
+                        background: 'var(--color-surface)', color: 'var(--color-text)',
+                        outline: 'none', transition: 'border-color 0.2s',
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = 'var(--color-primary)'; }}
+                      onBlur={(e) => { e.target.style.borderColor = 'var(--color-border)'; }}
+                    />
+                  ))}
+                </div>
+                {withdrawError && <ErrorBox message={withdrawError} />}
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => { setWithdrawStep(1); setWithdrawError(''); }} disabled={withdrawBusy}>
+                    Back
+                  </button>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    {otpCooldown > 0 ? (
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Resend in {otpCooldown}s</span>
+                    ) : (
+                      <button
+                        onClick={handleResendWithdrawOtp}
+                        disabled={withdrawBusy}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', fontSize: 13, fontWeight: 500 }}
+                      >
+                        Resend Code
+                      </button>
+                    )}
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleVerifyWithdrawOtp}
+                      disabled={withdrawBusy || withdrawOtp.join('').length !== 4}
+                    >
+                      {withdrawBusy ? 'Verifying...' : 'Verify & Submit'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </Modal>
       )}
