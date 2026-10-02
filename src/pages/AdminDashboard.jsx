@@ -36,11 +36,20 @@ import ErrorBox from '../components/ErrorBox';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
 import StatusBadge from '../components/StatusBadge';
+import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import useToast from '../components/useToast';
 import AdminRanksContent from './AdminRanks';
 
 const CHART_COLORS = ['var(--chart-color-1)', 'var(--chart-color-2)', 'var(--chart-color-3)', 'var(--chart-color-4)', 'var(--chart-color-5)', 'var(--chart-color-6)'];
+
+// Badge styles for the manual ROI run report (per-user status)
+const ROI_RESULT_BADGE = {
+  CREDITED: 'badge-success',
+  CAPPED: 'badge-warning',
+  SKIPPED: 'badge-muted',
+  FAILED: 'badge-danger',
+};
 
 const fmt = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtCompact = (n) => {
@@ -329,21 +338,27 @@ function AdminUsers() {
   const [search, setSearch] = useState('');
   const [role, setRole] = useState(q.get('role') || '');
   const [status, setStatus] = useState(q.get('status') || '');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [total, setTotal] = useState(0);
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [stats, setStats] = useState(null);
 
-  const load = async (sq = search, r = role, s = status) => {
+  const load = async (sq = search, r = role, s = status, p = page) => {
     setLoading(true);
     try {
-      const params = {};
+      const params = { page: p, limit: 20 };
       if (sq) params.search = sq; if (r) params.role = r; if (s) params.status = s;
       const data = await getAdminUsers(params);
       setUsers(data.users || []);
+      setTotalPages(data.totalPages || 0);
+      setTotal(data.total || 0);
+      setPage(data.page || p);
     } catch (e) { setError(e.response?.data?.message || 'Failed to load users'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [role, status]);
+  useEffect(() => { load(search, role, status, 1); /* eslint-disable-next-line */ }, [role, status]);
 
   useEffect(() => {
     getAdminStats().then(setStats).catch(() => {});
@@ -382,14 +397,14 @@ function AdminUsers() {
       <div className="toolbar">
         <div className="filter-bar">
           <input className="search-input" placeholder="Search name, email, phone..." value={search}
-            onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} />
+            onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(search, role, status, 1)} />
           <select className="select" value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="">All Roles</option><option value="USER">User</option><option value="ADMIN">Admin</option>
           </select>
           <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All Status</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="SUSPENDED">Suspended</option><option value="DELETED">Deleted</option>
           </select>
-          <button className="btn btn-secondary btn-sm" onClick={() => load()}>Search</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => load(search, role, status, 1)}>Search</button>
         </div>
       </div>
 
@@ -417,6 +432,7 @@ function AdminUsers() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={totalPages} total={total} pageSize={20} onPageChange={(p) => load(search, role, status, p)} />
         </div>
       )}
 
@@ -679,27 +695,34 @@ function AdminInvestments() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState(q.get('status') || '');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [total, setTotal] = useState(0);
 
-  const load = async (sq = search, s = status) => {
+  const load = async (sq = search, s = status, p = page) => {
     setLoading(true);
     try {
-      const params = {}; if (sq) params.search = sq; if (s) params.status = s;
+      const params = { page: p, limit: 20 };
+      if (sq) params.search = sq; if (s) params.status = s;
       const data = await getAdminInvestments(params);
       setRows(data.investments || []);
+      setTotalPages(data.pagination?.totalPages || 0);
+      setTotal(data.pagination?.total || 0);
+      setPage(data.pagination?.page || p);
     } catch (e) { setError(e.response?.data?.message || 'Failed to load investments'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [status]);
+  useEffect(() => { load(search, status, 1); /* eslint-disable-next-line */ }, [status]);
 
   return (
     <div>
       <div className="toolbar">
         <div className="filter-bar">
-          <input className="search-input" placeholder="Search user, email..." value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} />
+          <input className="search-input" placeholder="Search user, email..." value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load(search, status, 1)} />
           <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All Status</option><option value="ACTIVE">Active</option><option value="PAUSED">Paused</option><option value="COMPLETED">Completed</option><option value="CANCELLED">Cancelled</option>
           </select>
-          <button className="btn btn-secondary btn-sm" onClick={() => load()}>Search</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => load(search, status, 1)}>Search</button>
         </div>
       </div>
       {loading ? <Spinner label="Loading investments..." /> : error ? <ErrorBox message={error} /> : (
@@ -721,6 +744,7 @@ function AdminInvestments() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={totalPages} total={total} pageSize={20} onPageChange={(p) => load(search, status, p)} />
         </div>
       )}
     </div>
@@ -1342,28 +1366,10 @@ function AdminTransactions() {
                 ))}
               </tbody>
             </table>
-          </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
-              <button
-                className="btn btn-secondary btn-sm"
-                disabled={page <= 1}
-                onClick={() => { const p = page - 1; setPage(p); fetchTransactions(p); }}
-              >
-                Previous
-              </button>
-              <span style={{ fontSize: 13 }}>Page {page} of {totalPages}</span>
-              <button
-                className="btn btn-secondary btn-sm"
-                disabled={page >= totalPages}
-                onClick={() => { const p = page + 1; setPage(p); fetchTransactions(p); }}
-              >
-                Next
-              </button>
-            </div>
-          )}
+            {/* Pagination */}
+            <Pagination page={page} totalPages={totalPages} total={total} pageSize={20} onPageChange={(p) => { setPage(p); fetchTransactions(p); }} />
+          </div>
         </>
       )}
     </div>
@@ -1396,6 +1402,8 @@ function AdminRoi({ toastSuccess, toastError }) {
   const [manualBusy, setManualBusy] = useState(false);
   const [manualResult, setManualResult] = useState(null);
   const [manualConfirmStep, setManualConfirmStep] = useState(false);
+  const [manualRunId, setManualRunId] = useState(null);
+  const [manualError, setManualError] = useState('');
 
   // Auto Daily ROI (Vercel Cron)
   const [autoRoiEnabled, setAutoRoiEnabled] = useState(false);
@@ -1406,6 +1414,9 @@ function AdminRoi({ toastSuccess, toastError }) {
   // History
   const [historyRows, setHistoryRows] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(0);
+  const [historyTotal, setHistoryTotal] = useState(0);
 
   const fetchData = async () => {
     setLoading(true);
@@ -1426,11 +1437,14 @@ function AdminRoi({ toastSuccess, toastError }) {
     finally { setLoading(false); }
   };
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (p = historyPage) => {
     setHistoryLoading(true);
     try {
-      const t = await getAdminTransactions({ type: 'ROI' });
+      const t = await getAdminTransactions({ type: 'ROI', page: p, limit: 20 });
       setHistoryRows(t.transactions || []);
+      setHistoryTotalPages(t.pagination?.totalPages || 0);
+      setHistoryTotal(t.pagination?.total || 0);
+      setHistoryPage(t.pagination?.page || p);
     } catch (_) { /* ignore */ }
     finally { setHistoryLoading(false); }
   };
@@ -1492,12 +1506,24 @@ function AdminRoi({ toastSuccess, toastError }) {
     const pct = Number(manualPercentage);
     if (!pct || pct <= 0) { toastError('Error', 'Enter a valid percentage'); return; }
     setManualBusy(true);
+    setManualError('');
+    // The runId is generated once per confirm action and REUSED on retry so
+    // an interrupted/timed-out run resumes idempotently (backend skips
+    // users already credited for this runId — no double payment).
+    const runId = manualRunId || new Date().toISOString();
+    setManualRunId(runId);
     try {
-      const result = await processRoiManual({ percentage: pct });
+      const result = await processRoiManual({ percentage: pct, runId });
       setManualResult(result);
       setManualConfirmStep(false);
-      fetchHistory();
-    } catch (e) { toastError('Error', e.response?.data?.message || 'Manual ROI failed'); }
+      fetchHistory(1);
+    } catch (e) {
+      const msg = e.response?.data?.message
+        || (e.request
+          ? 'The request timed out before the run finished. Click Retry — users already credited in this run will NOT be paid twice.'
+          : 'Manual ROI failed');
+      setManualError(msg);
+    }
     finally { setManualBusy(false); }
   };
 
@@ -1505,6 +1531,8 @@ function AdminRoi({ toastSuccess, toastError }) {
     setManualPercentage('');
     setManualResult(null);
     setManualConfirmStep(false);
+    setManualRunId(null);
+    setManualError('');
     setManualModalOpen(true);
   };
 
@@ -1733,7 +1761,7 @@ function AdminRoi({ toastSuccess, toastError }) {
                   placeholder="e.g. 1.5"
                   disabled={manualBusy}
                 />
-                <p className="form-hint">This percentage will be applied to all eligible active investments.</p>
+                <p className="form-hint">Every active investment gets ROI — cap-limited users receive whatever remains of their limit (partial). Nothing is skipped.</p>
               </div>
               {manualPercentage && Number(manualPercentage) > 0 && !manualConfirmStep && (
                 <button
@@ -1755,27 +1783,70 @@ function AdminRoi({ toastSuccess, toastError }) {
                   </p>
                 </div>
               )}
+              {manualError && (
+                <div style={{ marginBottom: 'var(--space-3)' }}>
+                  <ErrorBox message={manualError} />
+                </div>
+              )}
               <div className="modal-footer" style={{ padding: 0, paddingTop: 'var(--space-3)' }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => setManualModalOpen(false)} disabled={manualBusy}>Cancel</button>
                 {manualConfirmStep && (
                   <button className="btn btn-primary btn-sm" onClick={runManualRoi} disabled={manualBusy || !manualPercentage}>
-                    {manualBusy ? 'Processing...' : 'Process Today\'s ROI'}
+                    {manualBusy ? 'Processing...' : manualError ? 'Retry' : 'Process Today\'s ROI'}
                   </button>
                 )}
               </div>
             </>
           ) : (
             <>
+              {manualResult.message && (
+                <p className="text-muted" style={{ fontSize: 13, marginTop: 0 }}>{manualResult.message}</p>
+              )}
               <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', fontSize: 13 }}>
-                  <div>Processed: <strong>{manualResult.processed}</strong></div>
-                  <div>Skipped: <strong>{manualResult.skipped}</strong></div>
-                  <div>Failed: <strong>{manualResult.failed}</strong></div>
+                  <div>Active Investments: <strong>{manualResult.totalActive || 0}</strong></div>
+                  <div>Paid (got ROI): <strong>{manualResult.processed || 0}</strong></div>
                   <div>Total Credited: <strong>{fmt(manualResult.totalCredited)}</strong></div>
+                  <div>Capped (at limit): <strong>{manualResult.capped || 0}</strong></div>
+                  <div>Skipped: <strong>{manualResult.skipped || 0}</strong></div>
+                  <div>Failed: <strong>{manualResult.failed || 0}</strong></div>
                 </div>
               </div>
+
+              {Array.isArray(manualResult.results) && manualResult.results.length > 0 && (
+                <div className="table-card" style={{ border: 'none', padding: 0, maxHeight: 320, overflowY: 'auto' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Investment</th>
+                        <th>Credited</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {manualResult.results.map((r) => (
+                        <tr key={r.investmentId}>
+                          <td data-label="User" className="cell-strong" title={r.email}>
+                            {r.name || r.email || r.userId}
+                          </td>
+                          <td data-label="Investment">{fmt(r.amount)}</td>
+                          <td data-label="Credited">{fmt(r.credited)}</td>
+                          <td data-label="Status">
+                            <span className={`badge ${ROI_RESULT_BADGE[r.status] || 'badge-muted'}`}>{r.status}</span>
+                            {r.reason && (
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{r.reason}</div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               <div className="modal-footer" style={{ padding: 0, paddingTop: 'var(--space-3)' }}>
-                <button className="btn btn-primary btn-sm" onClick={() => { setManualModalOpen(false); fetchHistory(); }}>Done</button>
+                <button className="btn btn-primary btn-sm" onClick={() => { setManualModalOpen(false); fetchHistory(1); }}>Done</button>
               </div>
             </>
           )}
@@ -1811,6 +1882,7 @@ function AdminRoi({ toastSuccess, toastError }) {
                 ))}
               </tbody>
             </table>
+            <Pagination page={historyPage} totalPages={historyTotalPages} total={historyTotal} pageSize={20} onPageChange={(p) => fetchHistory(p)} />
           </div>
         )}
       </div>
