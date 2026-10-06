@@ -48,6 +48,15 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // Clear, human-readable messages for throttling / busy endpoints so
+    // callers can just display error.response.data.message.
+    if (error.response && error.response.status === 429 && !error.response.data?.message) {
+      error.response.data = {
+        ...(error.response.data || {}),
+        message: 'Too many requests — please wait a moment and try again.',
+      };
+    }
+
     return Promise.reject(error);
   }
 );
@@ -192,9 +201,24 @@ export const processRoi = async (payload = {}) => {
   return data.data;
 };
 
-// Admin: manually process ROI for all active investments at a given percentage
+// Admin: manually process ROI for all active investments at a given percentage.
+// NOTE: backend processes this in CHUNKS — each call handles a small slice
+// of the run and returns { runId, status, progress, ... }. Keep calling
+// with the same runId until status === 'COMPLETED'. Timeout is set per
+// request so other API calls keep their default behaviour.
 export const processRoiManual = async (payload = {}) => {
-  const { data } = await apiClient.post('/admin/roi/process-manual', payload);
+  const { data } = await apiClient.post('/admin/roi/process-manual', payload, {
+    timeout: 20000,
+  });
+  return data.data;
+};
+
+// Admin: fetch status/report of a manual ROI run (resume after reload,
+// or collect the final report after a lost response).
+export const getRoiRun = async (runId) => {
+  const { data } = await apiClient.get(`/admin/roi/runs/${encodeURIComponent(runId)}`, {
+    timeout: 10000,
+  });
   return data.data;
 };
 

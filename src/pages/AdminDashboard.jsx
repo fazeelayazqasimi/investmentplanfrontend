@@ -14,6 +14,7 @@ import { useTheme } from '../context/ThemeContext';
 import apiClient, {
   getAdminUsers, getAdminStats, getAdminUserDetail, getAdminInvestments,
   getAdminTransactions, getAdminSettings, updateAdminSettings, processRoi, processRoiManual,
+  getRoiRun,
   getPendingDeposits, approveDeposit, rejectDeposit,
   distributeProfitShare, triggerRoiTransfer, triggerProfitShareTransfer,
   getAdminReferralStats, searchAdminReferralMembers, getAdminReferralTree,
@@ -1379,6 +1380,41 @@ function AdminTransactions() {
 /* =========================================================
    ROI MANAGEMENT — Compact Card + Modals + History
    ========================================================= */
+
+// ==========================================
+// MANUAL ROI RUN PERSISTENCE
+// The runId doubles as the idempotency key (it becomes the run's roiDate
+// on the backend), so it MUST survive page reloads / modal closes /
+// mobile tab discards — otherwise a fresh runId would double-pay users
+// already credited. Persisted in localStorage and re-used on resume.
+// ==========================================
+const MANUAL_ROI_RUN_KEY = 'admin_manual_roi_run';
+
+const saveManualRoiRun = (runId, percentage) => {
+  try {
+    localStorage.setItem(MANUAL_ROI_RUN_KEY, JSON.stringify({ runId, percentage }));
+  } catch (_) { /* storage unavailable — resume just won't survive reload */ }
+};
+
+const loadManualRoiRun = () => {
+  try {
+    const raw = localStorage.getItem(MANUAL_ROI_RUN_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.runId ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+};
+
+const clearManualRoiRun = () => {
+  try {
+    localStorage.removeItem(MANUAL_ROI_RUN_KEY);
+  } catch (_) { /* ignore */ }
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function AdminRoi({ toastSuccess, toastError }) {
   const [stats, setStats] = useState(null);
   const [settings, setSettings] = useState(null);
@@ -1404,6 +1440,13 @@ function AdminRoi({ toastSuccess, toastError }) {
   const [manualConfirmStep, setManualConfirmStep] = useState(false);
   const [manualRunId, setManualRunId] = useState(null);
   const [manualError, setManualError] = useState('');
+  // Live progress of the current (chunked) run + info about an unfinished
+  // run that can be resumed after a reload/timeout.
+  const [manualProgress, setManualProgress] = useState(null);
+  const [manualPendingRun, setManualPendingRun] = useState(null);
+  // Set when the server rejects the resume because the entered % differs
+  // from the unfinished run's % — lets the admin explicitly start fresh.
+  const [manualCanStartFresh, setManualCanStartFresh] = useState(false);
 
   // Auto Daily ROI (Vercel Cron)
   const [autoRoiEnabled, setAutoRoiEnabled] = useState(false);
@@ -1507,24 +1550,91 @@ function AdminRoi({ toastSuccess, toastError }) {
     if (!pct || pct <= 0) { toastError('Error', 'Enter a valid percentage'); return; }
     setManualBusy(true);
     setManualError('');
-    // The runId is generated once per confirm action and REUSED on retry so
-    // an interrupted/timed-out run resumes idempotently (backend skips
-    // users already credited for this runId — no double payment).
-    const runId = manualRunId || new Date().toISOString();
-    setManualRunId(runId);
-    try {
-      const result = await processRoiManual({ percentage: pct, runId });
-      setManualResult(result);
-      setManualConfirmStep(false);
-      fetchHistory(1);
-    } catch (e) {
-      const msg = e.response?.data?.message
-        || (e.request
-          ? 'The request timed out before the run finished. Click Retry — users already credited in this run will NOT be paid twice.'
-          : 'Manual ROI failed');
-      setManualError(msg);
+    setManualCanStartFresh(false);
+
+    // The runId is generated once per confirm action, persisted to
+    // localStorage, and REUSED on retry/resume so an interrupted run
+    // continues idempotently (backend skips users already credited for
+    // this runId — no double payment).
+    let runId;
+    if (manualCanStartFresh) {
+      // Admin explicitly chose to abandon the unfinished run (different
+      // percentage requested). Its already-credited users stay credited
+      // — the new run gets a fresh roiDate, i.e. normal repeat-run
+      // behaviour, same as starting a second run on any other day.
+      clearManualRoiRun();
+      setManualPendingRun(null);
+      runId = new Date().toISOString();
+    } else {
+      runId = manualRunId || loadManualRoiRun()?.runId || new Date().toISOString();
     }
-    finally { setManualBusy(false); }
+    setManualRunId(runId);
+    saveManualRoiRun(runId, pct);
+
+    const MAX_NETWORK_RETRIES = 5;
+    let networkRetries = 0;
+    let chunkCalls = 0;
+    const MAX_CHUNK_CALLS = 600; // safety net (~5–10 min) — never loop forever
+
+    try {
+      // Each call processes ONE chunk (server enforces a small time
+      // budget) and returns progress. Keep going until COMPLETED.
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        chunkCalls += 1;
+        if (chunkCalls > MAX_CHUNK_CALLS) {
+          setManualError('Run is taking too long. Your progress is saved — click Resume to continue.');
+          return;
+        }
+
+        let result;
+        try {
+          result = await processRoiManual({ percentage: pct, runId });
+          networkRetries = 0; // any successful call resets the backoff
+        } catch (e) {
+          // Network drop / timeout / 429 / 5xx — run is safe on the
+          // server under this runId, so back off and continue with the
+          // SAME runId. 4xx validation errors (e.g. percentage changed)
+          // are NOT retried.
+          const status = e.response?.status;
+          const retriable = !e.response || status === 429 || status >= 500;
+          if (!retriable) {
+            const msg = e.response?.data?.message || 'Manual ROI failed';
+            // Percentage-mismatch on resume → offer an explicit fresh start.
+            if (status === 400 && /started at/.test(msg)) {
+              setManualCanStartFresh(true);
+            }
+            setManualError(msg);
+            return;
+          }
+          networkRetries += 1;
+          if (networkRetries >= MAX_NETWORK_RETRIES) {
+            setManualError(
+              e.response?.data?.message
+                || 'Connection lost. Your progress is saved — click Resume to continue from where it stopped.'
+            );
+            return;
+          }
+          await sleep(1000 * (2 ** (networkRetries - 1))); // 1s, 2s, 4s, 8s
+          continue;
+        }
+
+        setManualProgress(result.progress || null);
+
+        if (result.status === 'COMPLETED') {
+          clearManualRoiRun();
+          setManualResult(result);
+          setManualConfirmStep(false);
+          fetchHistory(1);
+          return;
+        }
+
+        // RUNNING — brief pause, then request the next chunk.
+        await sleep(500);
+      }
+    } finally {
+      setManualBusy(false);
+    }
   };
 
   const openManualModal = () => {
@@ -1533,6 +1643,36 @@ function AdminRoi({ toastSuccess, toastError }) {
     setManualConfirmStep(false);
     setManualRunId(null);
     setManualError('');
+    setManualProgress(null);
+    setManualPendingRun(null);
+    setManualCanStartFresh(false);
+
+    // Resume an unfinished run (from a reload, closed modal, or a
+    // previous session) instead of silently starting a new one.
+    const pending = loadManualRoiRun();
+    if (pending) {
+      setManualRunId(pending.runId);
+      setManualPercentage(pending.percentage != null ? String(pending.percentage) : '');
+      setManualConfirmStep(true);
+      setManualPendingRun(pending);
+      // Fetch current progress; if it already finished, drop the marker.
+      getRoiRun(pending.runId)
+        .then((run) => {
+          if (!run || run.status === 'COMPLETED') {
+            clearManualRoiRun();
+            setManualPendingRun(null);
+            setManualRunId(null);
+            setManualConfirmStep(false);
+          } else {
+            setManualProgress(run.progress || null);
+          }
+        })
+        .catch(() => {
+          // Offline / run not found — keep the marker so a Resume attempt
+          // still re-uses the same runId (backend decides what's valid).
+        });
+    }
+
     setManualModalOpen(true);
   };
 
@@ -1754,7 +1894,7 @@ function AdminRoi({ toastSuccess, toastError }) {
                   className="form-input"
                   type="number"
                   value={manualPercentage}
-                  onChange={(e) => { setManualPercentage(e.target.value); setManualConfirmStep(false); }}
+                  onChange={(e) => { setManualPercentage(e.target.value); setManualConfirmStep(false); setManualCanStartFresh(false); }}
                   min="0.01"
                   max="100"
                   step="0.01"
@@ -1781,8 +1921,35 @@ function AdminRoi({ toastSuccess, toastError }) {
                   <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
                     This can be run any number of times — each run credits all eligible investments again until the 2X/3X cap. The AUTO schedule is not affected.
                   </p>
+                  {manualPendingRun && (
+                    <p style={{ fontSize: 12, marginTop: 6, marginBottom: 0, color: 'var(--warning, #b45309)' }}>
+                      Unfinished run detected — resuming is safe: users already credited will NOT be paid twice.
+                    </p>
+                  )}
                 </div>
               )}
+
+              {/* Live progress of the chunked run */}
+              {manualBusy && manualProgress && manualProgress.total > 0 && (
+                <div style={{ marginBottom: 'var(--space-3)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                    <span>Processing… {manualProgress.done}/{manualProgress.total}</span>
+                    <span>{manualProgress.percent || 0}%</span>
+                  </div>
+                  <div style={{ height: 8, background: 'var(--bg-secondary)', borderRadius: 4, overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${manualProgress.percent || 0}%`,
+                        background: 'var(--primary, #2563eb)',
+                        borderRadius: 4,
+                        transition: 'width 0.3s ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {manualError && (
                 <div style={{ marginBottom: 'var(--space-3)' }}>
                   <ErrorBox message={manualError} />
@@ -1792,7 +1959,15 @@ function AdminRoi({ toastSuccess, toastError }) {
                 <button className="btn btn-secondary btn-sm" onClick={() => setManualModalOpen(false)} disabled={manualBusy}>Cancel</button>
                 {manualConfirmStep && (
                   <button className="btn btn-primary btn-sm" onClick={runManualRoi} disabled={manualBusy || !manualPercentage}>
-                    {manualBusy ? 'Processing...' : manualError ? 'Retry' : 'Process Today\'s ROI'}
+                    {manualBusy
+                      ? 'Processing...'
+                      : manualCanStartFresh
+                        ? 'Start New Run'
+                        : manualError
+                          ? 'Retry'
+                          : manualPendingRun
+                            ? 'Resume Run'
+                            : 'Process Today\'s ROI'}
                   </button>
                 )}
               </div>
@@ -1825,7 +2000,10 @@ function AdminRoi({ toastSuccess, toastError }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {manualResult.results.map((r) => (
+                      {/* Cap rendered rows — mobile turns each row into a
+                          card block, so thousands of rows freeze the tab.
+                          Full data stays available in ROI History. */}
+                      {manualResult.results.slice(0, 100).map((r) => (
                         <tr key={r.investmentId}>
                           <td data-label="User" className="cell-strong" title={r.email}>
                             {r.name || r.email || r.userId}
@@ -1842,6 +2020,11 @@ function AdminRoi({ toastSuccess, toastError }) {
                       ))}
                     </tbody>
                   </table>
+                  {manualResult.results.length > 100 && (
+                    <p className="text-muted" style={{ fontSize: 12, margin: '8px 0 0', textAlign: 'center' }}>
+                      Showing first 100 of {manualResult.results.length} results — see ROI History below for all entries.
+                    </p>
+                  )}
                 </div>
               )}
 
