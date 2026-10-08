@@ -1183,6 +1183,13 @@ function AdminTransactions() {
     return '—';
   };
 
+  // User-to-user fund transfers: who sent → who received
+  const getTransferParties = (r) => {
+    if (r.type === 'FUND_TRANSFER_SENT') return { from: r.user, to: r.counterpartyUser };
+    if (r.type === 'FUND_TRANSFER_RECEIVED') return { from: r.counterpartyUser, to: r.user };
+    return null;
+  };
+
   return (
     <div>
       {/* Filter Bar */}
@@ -1261,6 +1268,7 @@ function AdminTransactions() {
                 <tr>
                   <th style={{ width: 30 }}></th>
                   <th>User</th>
+                  <th>From → To</th>
                   <th>Type</th>
                   <th>Amount</th>
                   <th>Status</th>
@@ -1269,9 +1277,11 @@ function AdminTransactions() {
               </thead>
               <tbody>
                 {rows.length === 0 && (
-                  <tr><td colSpan={6} className="table-empty">No transactions found</td></tr>
+                  <tr><td colSpan={7} className="table-empty">No transactions found</td></tr>
                 )}
-                {rows.map((r) => (
+                {rows.map((r) => {
+                  const parties = getTransferParties(r);
+                  return (
                   <>
                     <tr key={r._id} className="txn-row-clickable" onClick={() => toggle(r._id)}>
                       <td data-label="">
@@ -1280,6 +1290,7 @@ function AdminTransactions() {
                         </span>
                       </td>
                       <td data-label="User" className="cell-strong">{r.user?.name}</td>
+                      <td data-label="From → To">{parties ? `${parties.from?.name || '—'} → ${parties.to?.name || '—'}` : '—'}</td>
                       <td data-label="Type">
                         <span className={`txn-type-badge ${getTypeBadgeClass(r.type)}`}>{r.type.replace(/_/g, ' ')}</span>
                       </td>
@@ -1289,7 +1300,7 @@ function AdminTransactions() {
                     </tr>
                     {expandedId === r._id && (
                       <tr className="txn-detail-row" key={`${r._id}-detail`}>
-                        <td colSpan={6}>
+                        <td colSpan={7}>
                           <div className="txn-detail-panel">
                             <div className="txn-detail-grid">
                               <div className="txn-detail-item">
@@ -1300,6 +1311,24 @@ function AdminTransactions() {
                                 <span className="txn-detail-label">User</span>
                                 <span className="txn-detail-value">{r.user?.name} ({r.user?.email})</span>
                               </div>
+                              {parties && (
+                                <>
+                                  <div className="txn-detail-item">
+                                    <span className="txn-detail-label">From</span>
+                                    <span className="txn-detail-value">
+                                      {parties.from?.name || '—'}
+                                      {parties.from?.email ? ` (${parties.from.email})` : ''}
+                                    </span>
+                                  </div>
+                                  <div className="txn-detail-item">
+                                    <span className="txn-detail-label">To</span>
+                                    <span className="txn-detail-value">
+                                      {parties.to?.name || '—'}
+                                      {parties.to?.email ? ` (${parties.to.email})` : ''}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
                               <div className="txn-detail-item">
                                 <span className="txn-detail-label">Amount</span>
                                 <span className="txn-detail-value">{fmt(r.amount)}</span>
@@ -1364,7 +1393,8 @@ function AdminTransactions() {
                       </tr>
                     )}
                   </>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
 
