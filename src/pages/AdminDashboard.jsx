@@ -1651,6 +1651,16 @@ function AdminRoi({ toastSuccess, toastError }) {
 
         setManualProgress(result.progress || null);
 
+        // The server may adopt a different run (e.g. a run already in
+        // progress started from another tab/device). Always continue with
+        // the runId the server reports so both sides drive ONE run —
+        // two concurrent runs would double-pay users.
+        if (result.runId && result.runId !== runId) {
+          runId = result.runId;
+          setManualRunId(runId);
+          saveManualRoiRun(runId, pct);
+        }
+
         if (result.status === 'COMPLETED') {
           clearManualRoiRun();
           setManualResult(result);
