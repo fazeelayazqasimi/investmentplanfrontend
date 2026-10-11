@@ -14,7 +14,7 @@ import { useTheme } from '../context/ThemeContext';
 import apiClient, {
   getAdminUsers, getAdminStats, getAdminUserDetail, getAdminInvestments,
   getAdminTransactions, getAdminSettings, updateAdminSettings, processRoi, processRoiManual,
-  getRoiRun,
+  getRoiRun, getAdminRoiHistory,
   getPendingDeposits, approveDeposit, rejectDeposit,
   distributeProfitShare, triggerRoiTransfer, triggerProfitShareTransfer,
   getAdminReferralStats, searchAdminReferralMembers, getAdminReferralTree,
@@ -61,6 +61,10 @@ const fmtCompact = (n) => {
 };
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
 const fmtDateTime = (d) => (d ? new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 function ResponsiveContainerWrap({ height, children }) {
   return <ResponsiveContainer width="100%" height={height}>{children}</ResponsiveContainer>;
@@ -295,23 +299,24 @@ function AdminOverview() {
         </div>
         <div className="carousel-viewport">
           <div className="carousel-track" style={{ transform: `translateX(-${safePage * 100}%)` }}>
-            {monthlyCards.map((c) => {
-              const Icon = c.icon;
-              return (
-                <div
-                  className={`carousel-card stat-card stat-${c.color}`}
-                  key={c.label}
-                  style={{ flexBasis: `${100 / perView}%` }}
-                >
-                  <div className="stat-icon"><Icon size={20} /></div>
-                  <div className="stat-content">
-                    <div className="stat-label">{c.label}</div>
-                    <div className="stat-value">{c.value}</div>
-                    <div className="stat-subtitle">{c.sub}</div>
-                  </div>
-                </div>
-              );
-            })}
+            {monthlyPages.map((pageCards, pi) => (
+              <div className="carousel-slide" key={pi}>
+                {pageCards.map((c) => {
+                  const Icon = c.icon;
+                  return (
+                    <div className={`carousel-card stat-${c.color}`} key={c.label}>
+                      <div className="moc-top">
+                        <div className="moc-icon"><Icon size={22} /></div>
+                        <span className="moc-badge">{c.badge}</span>
+                      </div>
+                      <div className="moc-label">{c.label}</div>
+                      <div className="moc-value">{c.value}</div>
+                      <div className="moc-sub"><span className="moc-dot" />{c.sub}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
         <div className="carousel-dots">
@@ -1569,6 +1574,9 @@ function AdminRoi({ toastSuccess, toastError }) {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyTotalPages, setHistoryTotalPages] = useState(0);
   const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyDate, setHistoryDate] = useState('');
+  const [historyDuplicates, setHistoryDuplicates] = useState([]);
+  const [dupCheckOn, setDupCheckOn] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -1589,11 +1597,14 @@ function AdminRoi({ toastSuccess, toastError }) {
     finally { setLoading(false); }
   };
 
-  const fetchHistory = async (p = historyPage) => {
+  const fetchHistory = async (p = historyPage, date = historyDate, dup = dupCheckOn) => {
     setHistoryLoading(true);
     try {
-      const t = await getAdminTransactions({ type: 'ROI', page: p, limit: 20 });
-      setHistoryRows(t.transactions || []);
+      const params = { page: p, limit: 20, checkDuplicates: dup ? 1 : 0 };
+      if (date) params.date = date;
+      const t = await getAdminRoiHistory(params);
+      setHistoryRows(t.history || []);
+      setHistoryDuplicates(dup ? (t.duplicates || []) : []);
       setHistoryTotalPages(t.pagination?.totalPages || 0);
       setHistoryTotal(t.pagination?.total || 0);
       setHistoryPage(t.pagination?.page || p);
@@ -1601,7 +1612,7 @@ function AdminRoi({ toastSuccess, toastError }) {
     finally { setHistoryLoading(false); }
   };
 
-  useEffect(() => { fetchData(); fetchHistory(); }, []);
+  useEffect(() => { fetchData(); fetchHistory(1, '', false); }, []);
 
   const toggleRoiProcessing = async (enabled) => {
     setBusy(true);
@@ -1834,6 +1845,15 @@ function AdminRoi({ toastSuccess, toastError }) {
             </div>
           </div>
           <div className="stats-grid" style={{ flex: 1, minWidth: 300 }}>
+            <div className="stat-card stat-teal">
+              <div className="stat-value">{fmt(stats?.roiTodayAmount)}</div>
+              <div className="stat-label">ROI Today</div>
+              <div className="stat-subtitle">{stats?.roiTodayCount || 0} payout{(stats?.roiTodayCount || 0) !== 1 ? 's' : ''} today</div>
+            </div>
+            <div className="stat-card stat-info">
+              <div className="stat-value">{fmt(stats?.roiThisMonth)}</div>
+              <div className="stat-label">ROI This Month</div>
+            </div>
             <div className="stat-card">
               <div className="stat-value">{fmt(stats?.totalRoiDistributed)}</div>
               <div className="stat-label">Total Distributed</div>
@@ -2157,11 +2177,87 @@ function AdminRoi({ toastSuccess, toastError }) {
 
       {/* ROI History — always visible */}
       <div className="panel">
-        <h3 style={{ marginBottom: 'var(--space-3)' }}>ROI History</h3>
+        <div className="roi-history-head">
+          <h3>ROI History</h3>
+          <div className="roi-history-filters">
+            <button
+              type="button"
+              className={`roi-filter-btn${historyDate === todayISO() ? ' active' : ''}`}
+              onClick={() => { setHistoryDate(todayISO()); fetchHistory(1, todayISO()); }}
+            >
+              Today
+            </button>
+            <input
+              type="date"
+              className="roi-filter-date"
+              value={historyDate}
+              onChange={(e) => { setHistoryDate(e.target.value); fetchHistory(1, e.target.value); }}
+            />
+            <button
+              type="button"
+              className={`roi-filter-btn${historyDate === '' ? ' active' : ''}`}
+              onClick={() => { setHistoryDate(''); fetchHistory(1, ''); }}
+            >
+              All Dates
+            </button>
+            <button
+              type="button"
+              className={`roi-filter-btn roi-dup-toggle${dupCheckOn ? ' active' : ''}`}
+              onClick={() => { const next = !dupCheckOn; setDupCheckOn(next); fetchHistory(historyPage, historyDate, next); }}
+              title="Show/hide same-day duplicate ROI detection"
+            >
+              <AlertCircle size={14} /> Duplicates
+            </button>
+            <button
+              type="button"
+              className="roi-filter-btn"
+              onClick={() => fetchHistory(1, historyDate)}
+              aria-label="Refresh history"
+            >
+              <RefreshCw size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* Duplicate detection alert — only when toggle is ON */}
+        {historyLoading || !dupCheckOn ? null : historyDuplicates.length > 0 ? (
+          <div className="roi-duplicate-alert">
+            <div className="roi-duplicate-alert-head">
+              <AlertCircle size={16} />
+              <strong>
+                {historyDuplicates.length} investment{historyDuplicates.length > 1 ? 's' : ''} received ROI more than once
+                {historyDate ? ` on ${historyDate}` : ''}
+              </strong>
+            </div>
+            <div className="roi-duplicate-list">
+              {historyDuplicates.map((d) => (
+                <div className="roi-duplicate-item" key={`${d.investment}-${d.day}`}>
+                  <div className="roi-duplicate-user">
+                    <span className="cell-strong">{d.user?.name || 'Unknown'}</span>
+                    <span className="text-muted" style={{ fontSize: 12 }}>{d.user?.email}</span>
+                  </div>
+                  <div className="roi-duplicate-meta">
+                    <span>Investment: {fmt(d.investmentAmount)}</span>
+                    <span className="roi-duplicate-count">{d.count}x paid</span>
+                    <span>Total: {fmt(d.totalAmount)}</span>
+                    <span className="text-muted" style={{ fontSize: 12 }}>{d.day}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="roi-no-duplicates">
+            <CheckCircle size={14} /> No duplicate ROI payouts detected {historyDate ? (historyDate === todayISO() ? 'today' : `on ${historyDate}`) : 'in all records'}
+          </div>
+        )}
+
         {historyLoading ? (
           <Spinner label="Loading history..." />
         ) : historyRows.length === 0 ? (
-          <p className="text-muted" style={{ fontSize: 13 }}>No ROI distributions yet.</p>
+          <p className="text-muted" style={{ fontSize: 13 }}>
+            No ROI distributions {historyDate ? `on ${historyDate}` : 'yet'}.
+          </p>
         ) : (
           <div className="table-card" style={{ border: 'none', padding: 0 }}>
             <table className="data-table">
@@ -2169,6 +2265,7 @@ function AdminRoi({ toastSuccess, toastError }) {
                 <tr>
                   <th>Date</th>
                   <th>User</th>
+                  <th>Investment</th>
                   <th>Amount</th>
                   <th>Status</th>
                 </tr>
@@ -2176,15 +2273,20 @@ function AdminRoi({ toastSuccess, toastError }) {
               <tbody>
                 {historyRows.map((r) => (
                   <tr key={r._id}>
-                    <td data-label="Date">{fmtDateTime(r.createdAt)}</td>
+                    <td data-label="Date">{fmtDate(r.roiDate)}{r.roiDay ? ` · ${r.roiDay}` : ''}</td>
                     <td data-label="User" className="cell-strong">{r.user?.name}</td>
-                    <td data-label="Amount">{fmt(r.amount)}</td>
-                    <td data-label="Status"><StatusBadge status={r.status} /></td>
+                    <td data-label="Investment">{fmt(r.investment?.originalAmount)}</td>
+                    <td data-label="Amount">{fmt(r.roiAmount)} <span className="text-muted">({r.roiPercentage}%)</span></td>
+                    <td data-label="Status">
+                      <span className={`badge ${r.status === 'SUCCESS' ? 'badge-success' : r.status === 'CAPPED' ? 'badge-warning' : 'badge-muted'}`}>
+                        <span className="badge-dot" />{r.status}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <Pagination page={historyPage} totalPages={historyTotalPages} total={historyTotal} pageSize={20} onPageChange={(p) => fetchHistory(p)} />
+            <Pagination page={historyPage} totalPages={historyTotalPages} total={historyTotal} pageSize={20} onPageChange={(p) => fetchHistory(p, historyDate)} />
           </div>
         )}
       </div>

@@ -171,6 +171,12 @@ export const getAdminTransactions = async (params = {}) => {
   return data.data;
 };
 
+// Admin: ROI history with date filters + same-day duplicate detection
+export const getAdminRoiHistory = async (params = {}) => {
+  const { data } = await apiClient.get('/admin/roi/history', { params });
+  return data.data;
+};
+
 // Admin: get system settings
 export const getAdminSettings = async () => {
   const { data } = await apiClient.get('/admin/settings');

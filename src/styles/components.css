@@ -921,6 +921,135 @@
 }
 
 /* ==========================================
+   ROI HISTORY — FILTERS + DUPLICATE ALERT
+   ========================================== */
+.roi-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.roi-history-head h3 {
+  margin: 0;
+}
+.roi-history-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.roi-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  white-space: nowrap;
+}
+.roi-filter-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.roi-filter-btn.active {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 12px -3px rgba(0, 140, 58, 0.4);
+}
+.roi-filter-date {
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+  transition: border-color var(--transition-base);
+}
+.roi-filter-date:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+.roi-duplicate-alert {
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--rose-border, #fecaca);
+  background: var(--rose-soft, #fef2f2);
+}
+.roi-duplicate-alert-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--rose);
+  font-size: var(--font-size-sm, 13px);
+  margin-bottom: var(--space-3);
+}
+.roi-duplicate-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.roi-duplicate-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+.roi-duplicate-user {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.roi-duplicate-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-size: var(--font-size-xs);
+}
+.roi-duplicate-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--rose-soft, #fef2f2);
+  color: var(--rose);
+  border: 1px solid var(--rose-border, #fecaca);
+  font-weight: 700;
+}
+.roi-no-duplicates {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-3);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-success-soft, var(--color-primary-soft));
+  color: var(--color-success, var(--color-primary));
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border: 1px solid var(--color-info-border);
+}
+
+
+/* ==========================================
    CHART CARDS
    ========================================== */
 .chart-grid, .charts-grid {
