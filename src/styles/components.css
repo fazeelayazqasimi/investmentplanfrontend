@@ -635,6 +635,292 @@
 .stat-card.stat-amber { --stat-accent: var(--amber); --stat-accent-soft: var(--amber-soft); }
 
 /* ==========================================
+   MONTHLY STATS CAROUSEL — PREMIUM
+   ========================================== */
+.monthly-carousel {
+  margin-bottom: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+}
+.monthly-carousel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 140px;
+  background: radial-gradient(520px 140px at 18% 0%, var(--color-primary-soft), transparent 70%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.carousel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+  position: relative;
+  z-index: 1;
+}
+.carousel-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-lg, 1.05rem);
+}
+.carousel-header h3::before {
+  content: '';
+  width: 4px;
+  height: 18px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: 0 0 8px var(--color-info-shadow);
+  flex-shrink: 0;
+}
+.carousel-nav {
+  display: flex;
+  gap: var(--space-2);
+}
+.carousel-arrow {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+.carousel-arrow:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 6px 16px -4px rgba(0, 140, 58, 0.45);
+  transform: translateY(-1px);
+}
+.carousel-arrow:active:not(:disabled) {
+  transform: translateY(0);
+}
+.carousel-arrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.carousel-viewport {
+  overflow: hidden;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+.carousel-track {
+  display: flex;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.carousel-slide {
+  flex: 0 0 100%;
+  display: flex;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: 2px;
+}
+.carousel-card {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  min-height: 168px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--moc-border, var(--color-border));
+  background:
+    radial-gradient(130% 110% at 100% 0%, var(--moc-soft, var(--color-primary-soft)) 0%, transparent 58%),
+    var(--color-surface);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+}
+.carousel-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--moc-accent, var(--color-primary)) 0%, transparent 100%);
+}
+.carousel-card::after {
+  content: '';
+  position: absolute;
+  top: -44px;
+  right: -44px;
+  width: 136px;
+  height: 136px;
+  border-radius: 50%;
+  background: var(--moc-soft, var(--color-primary-soft));
+  filter: blur(10px);
+  opacity: 0.6;
+  pointer-events: none;
+  transition: transform var(--transition-base), opacity var(--transition-base);
+}
+.carousel-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--moc-accent, var(--color-primary));
+  box-shadow: 0 16px 32px -12px var(--moc-shadow, rgba(0, 140, 58, 0.4));
+}
+.carousel-card:hover::after {
+  transform: scale(1.18);
+  opacity: 0.8;
+}
+.moc-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  position: relative;
+  z-index: 1;
+}
+.moc-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--moc-accent, var(--color-primary)) 0%, var(--moc-light, var(--color-primary-light)) 100%);
+  color: #fff;
+  box-shadow: 0 8px 18px -6px var(--moc-shadow, rgba(0, 140, 58, 0.5));
+  transition: transform var(--transition-base);
+}
+.carousel-card:hover .moc-icon {
+  transform: scale(1.08) rotate(-4deg);
+}
+.moc-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--moc-soft, var(--color-primary-soft));
+  color: var(--moc-accent, var(--color-primary));
+  border: 1px solid var(--moc-border, var(--color-border));
+  white-space: nowrap;
+}
+.moc-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  position: relative;
+  z-index: 1;
+}
+.moc-value {
+  font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  word-break: break-word;
+  position: relative;
+  z-index: 1;
+}
+.moc-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: auto;
+  position: relative;
+  z-index: 1;
+}
+.moc-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--moc-accent, var(--color-primary));
+  box-shadow: 0 0 0 3px var(--moc-soft, var(--color-primary-soft));
+  flex-shrink: 0;
+}
+
+/* Carousel card color accents */
+.carousel-card.stat-amber {
+  --moc-accent: var(--amber);
+  --moc-light: var(--amber-light);
+  --moc-soft: var(--amber-soft);
+  --moc-border: var(--amber-border);
+  --moc-shadow: rgba(184, 134, 11, 0.4);
+}
+.carousel-card.stat-teal {
+  --moc-accent: var(--teal);
+  --moc-light: var(--teal-light);
+  --moc-soft: var(--teal-soft);
+  --moc-border: var(--teal-border);
+  --moc-shadow: rgba(37, 97, 63, 0.4);
+}
+.carousel-card.stat-purple {
+  --moc-accent: var(--purple);
+  --moc-light: var(--purple-light);
+  --moc-soft: var(--purple-soft);
+  --moc-border: var(--purple-border);
+  --moc-shadow: rgba(68, 135, 84, 0.4);
+}
+.carousel-card.stat-rose {
+  --moc-accent: var(--rose);
+  --moc-light: var(--rose-light);
+  --moc-soft: var(--rose-soft);
+  --moc-border: var(--rose-border);
+  --moc-shadow: rgba(197, 48, 48, 0.4);
+}
+.carousel-card.stat-info {
+  --moc-accent: var(--color-info);
+  --moc-light: var(--color-info-light);
+  --moc-soft: var(--color-info-soft);
+  --moc-border: var(--color-info-border);
+  --moc-shadow: var(--color-info-shadow);
+}
+
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  position: relative;
+  z-index: 1;
+}
+.carousel-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  background: var(--color-border);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+.carousel-dot:hover {
+  background: var(--color-text-muted);
+}
+.carousel-dot.active {
+  width: 26px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+  box-shadow: 0 2px 10px rgba(0, 140, 58, 0.4);
+}
+
+/* ==========================================
    CHART CARDS
    ========================================== */
 .chart-grid, .charts-grid {

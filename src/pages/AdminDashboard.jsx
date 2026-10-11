@@ -7,7 +7,7 @@ import {
   Maximize2, Minimize2, RotateCcw, X, UserCheck, UserX,
   Filter, Download, RefreshCw, ArrowUpDown, Network, AlertCircle,
   DollarSign, Activity, TrendingUp, Megaphone, MessageSquare, Send, Layers, Upload, Trophy,
-  Copy, CheckCircle,
+  Copy, CheckCircle, Wallet,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -207,6 +207,8 @@ function AdminOverview() {
   const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [perView, setPerView] = useState(3);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -219,8 +221,27 @@ function AdminOverview() {
     })();
   }, []);
 
+  useEffect(() => {
+    const calc = () => setPerView(window.innerWidth < 640 ? 1 : window.innerWidth < 1024 ? 2 : 3);
+    calc();
+    window.addEventListener('resize', calc);
+    return () => window.removeEventListener('resize', calc);
+  }, []);
+
   if (loading) return <Spinner label="Loading overview..." />;
   if (error) return <ErrorBox message={error} />;
+
+  const monthlyCards = [
+    { label: 'Profit Share (This Month)', value: fmt(stats.profitShareThisMonth), color: 'amber', icon: Share2, sub: 'Distributed this month', badge: 'This Month' },
+    { label: 'ROI (This Month)', value: fmt(stats.roiThisMonth), color: 'teal', icon: Percent, sub: 'Paid this month', badge: 'This Month' },
+    { label: 'Direct + Level Commission', value: fmt(stats.commissionThisMonth), color: 'purple', icon: TrendingUp, sub: 'Earned this month', badge: 'This Month' },
+    { label: 'Withdrawals (This Month)', value: fmt(stats.withdrawalThisMonth), color: 'rose', icon: ArrowUpFromLine, sub: 'Completed this month', badge: 'This Month' },
+    { label: 'Total in User Accounts', value: fmt(stats.totalWalletBalance), color: 'info', icon: Wallet, sub: 'Sum of all wallet balances', badge: 'All Users' },
+  ];
+  const totalPages = Math.max(1, Math.ceil(monthlyCards.length / perView));
+  const safePage = Math.min(page, totalPages - 1);
+  const monthlyPages = [];
+  for (let i = 0; i < monthlyCards.length; i += perView) monthlyPages.push(monthlyCards.slice(i, i + perView));
 
   const cards = [
     { label: 'Total Users', value: stats.totalUsers, color: 'blue', icon: Users },
@@ -246,6 +267,64 @@ function AdminOverview() {
             </div>
           );
         })}
+      </div>
+
+      <div className="monthly-carousel">
+        <div className="carousel-header">
+          <h3>Monthly Overview</h3>
+          <div className="carousel-nav">
+            <button
+              type="button"
+              className="carousel-arrow"
+              onClick={() => setPage(Math.max(0, safePage - 1))}
+              disabled={safePage === 0}
+              aria-label="Previous cards"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              className="carousel-arrow"
+              onClick={() => setPage(Math.min(totalPages - 1, safePage + 1))}
+              disabled={safePage >= totalPages - 1}
+              aria-label="Next cards"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+        <div className="carousel-viewport">
+          <div className="carousel-track" style={{ transform: `translateX(-${safePage * 100}%)` }}>
+            {monthlyCards.map((c) => {
+              const Icon = c.icon;
+              return (
+                <div
+                  className={`carousel-card stat-card stat-${c.color}`}
+                  key={c.label}
+                  style={{ flexBasis: `${100 / perView}%` }}
+                >
+                  <div className="stat-icon"><Icon size={20} /></div>
+                  <div className="stat-content">
+                    <div className="stat-label">{c.label}</div>
+                    <div className="stat-value">{c.value}</div>
+                    <div className="stat-subtitle">{c.sub}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="carousel-dots">
+          {Array.from({ length: totalPages }).map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`carousel-dot${i === safePage ? ' active' : ''}`}
+              onClick={() => setPage(i)}
+              aria-label={`Go to slide ${i + 1}`}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="charts-grid">
