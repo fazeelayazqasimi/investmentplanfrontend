@@ -3595,6 +3595,7 @@ function AdminSettings({ toastSuccess, toastError }) {
   const [distBusy, setDistBusy] = useState(false);
   // Fund Wallet
   const [fundTransferEnabled, setFundTransferEnabled] = useState(false);
+  const [mainToFundTransferEnabled, setMainToFundTransferEnabled] = useState(false);
   // Pending Release
   const [pendingReleaseMultiplier, setPendingReleaseMultiplier] = useState(3);
   // Withdrawal
@@ -3628,6 +3629,7 @@ function AdminSettings({ toastSuccess, toastError }) {
         setPsTransferEnabled(s.profitShareTransferEnabled || false);
         setPsMethod(s.profitShareDistributionMethod || 'EQUAL');
         setFundTransferEnabled(s.fundTransferEnabled || false);
+        setMainToFundTransferEnabled(s.mainToFundTransferEnabled || false);
         setPendingReleaseMultiplier(s.pendingReleaseMultiplier ?? 3);
         setWithdrawalMinAmount(s.withdrawalMinAmount || 0);
         setWithdrawalMaxAmount(s.withdrawalMaxAmount || 0);
@@ -3950,13 +3952,17 @@ function AdminSettings({ toastSuccess, toastError }) {
         <div className="panel">
           <h3>Fund Wallet Transfer Settings</h3>
           <p className="text-muted" style={{ fontSize: 13, marginBottom: 'var(--space-3)' }}>
-            Enable or disable user-to-user Fund Wallet transfers. When disabled, existing Fund Wallet balances are preserved.
+            Enable or disable user-to-user Fund Wallet transfers and Main to Fund Wallet transfers independently.
           </p>
           <label className="form-group filter-group">
             <input type="checkbox" checked={fundTransferEnabled} onChange={(e) => setFundTransferEnabled(e.target.checked)} />
             Enable Fund Wallet Transfers
           </label>
-          <button className="btn btn-primary btn-sm" onClick={() => save({ fundTransferEnabled })} disabled={busy}>Save Fund Transfer Settings</button>
+          <label className="form-group filter-group">
+            <input type="checkbox" checked={mainToFundTransferEnabled} onChange={(e) => setMainToFundTransferEnabled(e.target.checked)} />
+            Enable Move to Fund Wallet
+          </label>
+          <button className="btn btn-primary btn-sm" onClick={() => save({ fundTransferEnabled, mainToFundTransferEnabled })} disabled={busy}>Save Fund Transfer Settings</button>
         </div>
       )}
 

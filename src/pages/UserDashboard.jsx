@@ -15,6 +15,7 @@ import apiClient, {
   transferMainToFund, activateAccountWithSource, investForDownline, getMyDownlines,
   activateDownlineAccount, depositForDownline,
   getBankAccounts, getActiveAnnouncements, searchMyDownlines, getPendingCommissionDetails,
+  getReferralStats,
   requestWithdrawal as requestWithdrawalApi,
   sendWithdrawalOtp,
   verifyWithdrawalOtp,
@@ -41,10 +42,12 @@ const fmtDateTime = (d) => (d ? new Date(d).toLocaleString('en-US', { month: 'sh
 
 const NAV = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
+  { key: 'deposit', label: 'Deposit', icon: ArrowDownToLine, to: '/dashboard/wallet?tab=deposit' },
   { key: 'investments', label: 'My Investments', icon: LineChart, to: '/dashboard/investments' },
   { key: 'wallet', label: 'Wallet', icon: WalletIcon, to: '/dashboard/wallet' },
   { key: 'transactions', label: 'Transactions', icon: Receipt, to: '/dashboard/transactions' },
   { key: 'income', label: 'Income', icon: DollarSign, to: '/dashboard/income' },
+  { key: 'withdraw', label: 'Withdrawal', icon: ArrowUpFromLine, to: '/dashboard/wallet?tab=withdraw' },
   { key: 'referrals', label: 'Referrals', icon: Share2, to: '/dashboard/referrals' },
   { key: 'ranks', label: 'My Rank', icon: Trophy, to: '/dashboard/ranks' },
   { key: 'announcements', label: 'Announcements', icon: Megaphone, to: '/dashboard/announcements' },
@@ -109,7 +112,13 @@ export default function UserDashboard() {
         <nav className="sidebar-nav">
           {NAV.map((item) => {
             const Icon = item.icon;
-            const active = page === item.key;
+            const active = item.key === 'deposit'
+              ? page === 'wallet' && location.search.includes('tab=deposit')
+              : item.key === 'withdraw'
+                ? page === 'wallet' && location.search.includes('tab=withdraw')
+                : item.key === 'wallet'
+                  ? page === 'wallet' && !location.search.includes('tab=deposit') && !location.search.includes('tab=withdraw')
+                  : page === item.key;
             return (
               <Link
                 key={item.key}
@@ -147,7 +156,7 @@ export default function UserDashboard() {
               <Menu size={20} />
             </button>
             <div>
-              <div className="topbar-title">{NAV.find((n) => n.key === page)?.label || 'Dashboard'}</div>
+              <div className="topbar-title">{NAV.find((n) => n.key === (page === 'wallet' && location.search.includes('tab=deposit') ? 'deposit' : page === 'wallet' && location.search.includes('tab=withdraw') ? 'withdraw' : page))?.label || 'Dashboard'}</div>
               <div className="topbar-subtitle">Welcome back, {user?.name}</div>
             </div>
           </div>
@@ -293,6 +302,7 @@ function UserOverview({ toastSuccess, toastError }) {
   const [levelIncome, setLevelIncome] = useState(0);
   const [profitShareTotal, setProfitShareTotal] = useState(0);
   const [investmentStats, setInvestmentStats] = useState({ totalInvestment: 0, activeInvestment: 0 });
+  const [totalTeamMembers, setTotalTeamMembers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activating, setActivating] = useState(false);
@@ -329,6 +339,7 @@ function UserOverview({ toastSuccess, toastError }) {
         setProfitShareTotal(psCredited + psPending);
         try { const s = await getUserConfig(); setSettings(s); } catch (_) {}
         try { const pr = await getProgressData(); setProgress(pr); } catch (_) {}
+        try { const rs = await getReferralStats(); setTotalTeamMembers(rs.stats?.totalMembers || 0); } catch (_) {}
       } catch (e) { setError(e.response?.data?.message || 'Failed to load'); }
       finally { setLoading(false); }
     })();
@@ -364,6 +375,7 @@ function UserOverview({ toastSuccess, toastError }) {
     { label: 'Profit Share', value: fmt(profitShareTotal), accent: 'stat-purple', icon: BarChart3 },
     { label: 'Fund Wallet', value: fmt(wallet?.fundBalance), accent: 'stat-teal', icon: Users },
     { label: 'Pending Commission', value: fmt(wallet?.pendingCommissions), accent: 'stat-danger', icon: AlertCircle },
+    { label: 'Total Team Members', value: totalTeamMembers, accent: 'stat-info', icon: Users },
     { label: 'Total Earning', value: fmt(wallet?.totalEarnings), accent: 'stat-orange', icon: TrendingUp },
     { label: 'Total Withdraw', value: fmt(wallet?.totalWithdrawn), accent: 'stat-teal', icon: ArrowUpFromLine },
   ];
@@ -1329,6 +1341,15 @@ function UserWallet({ toastSuccess, toastError }) {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
+    if (tab === 'deposit') {
+      setShowDepositForm(true);
+      setTimeout(() => {
+        document.querySelector('.deposit-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    } else if (tab === 'withdraw') openWithdrawModal();
+  }, [tab]);
+
+  useEffect(() => {
     if (showDepositForm && bankAccounts.length === 0) {
       setBankLoading(true);
       getBankAccounts()
@@ -1595,6 +1616,7 @@ function UserWallet({ toastSuccess, toastError }) {
   const roiTransferAllowed = settings?.roiTransferEnabled;
   const psTransferAllowed = settings?.profitShareTransferEnabled;
   const fundTransferAllowed = settings?.fundTransferEnabled;
+  const mainToFundAllowed = settings?.mainToFundTransferEnabled;
 
   return (
     <div className="animate-slide-up">
@@ -1635,7 +1657,7 @@ function UserWallet({ toastSuccess, toastError }) {
         <button
           className="btn btn-secondary"
           onClick={() => setShowMainToFundForm(!showMainToFundForm)}
-          disabled={!fundTransferAllowed}
+          disabled={!mainToFundAllowed}
         >
           <ArrowRightLeft size={16} /> {showMainToFundForm ? 'Close' : 'Move to Fund Wallet'}
         </button>
